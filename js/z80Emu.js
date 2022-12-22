@@ -1464,10 +1464,11 @@ class SOS {
 	sos_set(ctx){
 		this.#Log("sos_set");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB();
+		const filename = this.#getFilenameFromIB2();
+		// ディレクトリのレコード
+		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		const result = ctx.SetWriteProtected(deviceName, filename);
+		const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
 			// 異常終了
@@ -1489,10 +1490,11 @@ class SOS {
 	sos_reset(ctx){
 		this.#Log("sos_reset");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB();
+		const filename = this.#getFilenameFromIB2();
+		// ディレクトリのレコード
+		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		const result = ctx.ResetWriteProtected(deviceName, filename);
+		const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
 			// 異常終了
@@ -1516,21 +1518,13 @@ class SOS {
 	sos_name(ctx){
 		this.#Log("sos_name");
 		// 変更するファイル名
-		let newFilename = "";
-		{
-			// ファイル名を分割
-			const result = this.#splitPath(this.#getDE());
-			// ファイル名
-			for(let i = 0; i < 13; ++i) { newFilename += String.fromCodePoint(result.filename[i]); }
-			// 拡張子
-			newFilename += ".";
-			for(let i = 0; i < 3; ++i) { newFilename += String.fromCodePoint(result.extension[i]); }
-		}
+		const newFilename = this.#splitPath(this.#getDE()); // ファイル名を分割
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB();
+		const filename = this.#getFilenameFromIB2();
+		// ディレクトリのレコード
+		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		const result = ctx.Rename(deviceName, filename, newFilename);
+		const result = ctx.Rename(filename.deviceName, dirRecord, filename.filename, filename.extension, newFilename.filename, newFilename.extension);
 		// 処理
 		if(result.result != 0) {
 			// 異常終了
@@ -1552,10 +1546,11 @@ class SOS {
 	sos_kill(ctx){
 		this.#Log("sos_kill");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB();
+		const filename = this.#getFilenameFromIB2();
+		// ディレクトリのレコード
+		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		const result = ctx.Kill(deviceName, filename);
+		const result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
 			// 異常終了

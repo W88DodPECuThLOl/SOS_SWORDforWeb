@@ -409,7 +409,7 @@ class TaskContext {
 	 * @param {Uint8Array} newExtension 新しい拡張子
 	 * @returns 
 	 */
-	Rename(descriptor, dirRecord, Filename, Extension, newFilename)
+	Rename(descriptor, dirRecord, Filename, Extension, newFilename, newExtension)
 	{
 		if(this.#checkDiskDescriptor(descriptor)) {
 			return this.diskManager[descriptor - 0x41].Rename(dirRecord, Filename, Extension, newFilename, newExtension);
