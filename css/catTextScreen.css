@@ -1,0 +1,46 @@
+@font-face {
+    font-family: 'CatTextScreenFont';
+    src: url('../fonts/3/SMILEBASIC.ttf') format('truetype');
+}
+
+.console {
+    font-family: 'CatTextScreenFont';
+    font-size: 16px;
+    line-height: 16px;
+    transform: scaleY(2);
+    transform-origin: top left;
+    width: 1280px;
+    height: 400px;
+    background-color:#000000;
+}
+
+.console .rot90 {
+    display: inline-block;
+    transform: rotate(90deg)
+}
+
+.console .rot180 {
+    display: inline-block;
+    transform: rotate(180deg)
+}
+
+.console .rot270 {
+    display: inline-block;
+    transform: rotate(270deg)
+}
+
+.console .cursor {
+    background: linear-gradient(to right, rgba(200, 200, 200, 1.0) 20%, rgba(0, 0, 0, 1.0) 20%);
+    animation-duration: 1.0s;
+    animation-name: cursorAnimation;
+    animation-iteration-count: infinite;
+}
+  
+@keyframes cursorAnimation {
+    from {
+        background: linear-gradient(to right, rgba(200, 200, 200, 1.0) 25%, rgba(0, 0, 0, 1.0) 25%); 
+    }
+    to {
+        background: linear-gradient(to right, rgba(200, 200, 200, 0.0) 25%, rgba(0, 0, 0, 1.0) 25%);
+    }
+}

@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset=”UTF-8″>
+		<title>S-OS"SWORD"</title>
+		<script src="./js/sos/SOSWorkAddr.js"></script>
+		<script src="./js/sos/SOSErrorCode.js"></script>
+		<script src="./js/sos/SOSInfomationBlock.js"></script>
+		<script src="./js/z80Emu.js"></script>
+		<script src="./js/taskMonitor.js"></script>
+		<link rel="stylesheet" href="./css/catTextScreen.css">
+	</head>
+	<body>
+		<input type="file" id="disk0" accept=".d88"/>
+		<div id="sos_output" class="console"></div>
+
+		<script type="module">
+			// D88
+			import Context from './js/HuBasic/HuBasic/Context.mjs';
+			import HuBasicDisk from './js/HuBasic/HuBasic/HuBasicDisk.mjs';
+			// SOS
+			import CatKey from './js/cat/catKey.js';
+			import CatTextScreen from './js/cat/catTextScreen.js';
+
+			// ディスクドライブ
+			var disks = [
+				new HuBasicDisk(new Context()),
+				new HuBasicDisk(new Context()),
+				new HuBasicDisk(new Context()),
+				new HuBasicDisk(new Context())
+			];
+
+			var z80Emu = new Z80Emu();
+			var taskLineInput = new TaskLineInput();
+			var taskMonitor = new TaskMonitor();
+			var catKey = new CatKey(document);
+			var catTextScreen = new CatTextScreen(40,25);
+			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, disks);
+
+
+			function diskSetup()
+			{
+				for(let i = 0; i < 1; i++) {
+					const disk = document.getElementById('disk' + i);
+					disk.addEventListener('change', evt => {
+						let input = evt.target;
+						if (input.files.length == 0) {
+							disks[i].unmount();
+							return;
+						}
+						const file = input.files[0];
+						const reader = new FileReader();
+						reader.onload = () => {
+							// ディスクをセット
+							disks[i].mount(file.name, new Uint8Array(reader.result));
+						};
+						reader.readAsArrayBuffer(file);
+					});
+				}
+			}
+
+			function update()
+			{
+				// Z80えみゅ
+				z80Emu.update(ctx);
+				// ライン入力
+				taskLineInput.update(ctx);
+				// モニタ
+				taskMonitor.update(ctx);
+				// テキスト描画
+				if(catTextScreen.isModified()) {
+					document.getElementById("sos_output").innerHTML = catTextScreen.draw();
+				}
+				// VSync待ち
+				requestAnimationFrame(()=>update());
+			}
+
+			// ページ読み込み後に実行される
+			window.onload = function() {
+				z80Emu.setup().then(
+					(emu)=> {
+						// ディスク
+						diskSetup();
+						// SOS
+						ctx.reset();
+						// 開始
+						update();
+					}
+				);
+			}
+		</script>
+	</body>
+</html>
