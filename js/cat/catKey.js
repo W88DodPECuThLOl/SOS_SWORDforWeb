@@ -25,11 +25,11 @@ export default class {
 				case 'Backspace':  keyCode = 0x08; break; // BS
 				case 'Tab':        keyCode = 0x09; break; // HT
 				case 'Enter':      keyCode = 0x0D; break; // CR
-				case 'Delete':     keyCode = 0x7F; break; // DEL
 				case 'Pause':
 				case 'Escape':     keyCode = 0x1B; break; // ESC
 
 				// 制御コード
+				case 'Delete':
 				case 'ArrowRight':	// カーソル移動
 				case 'ArrowLeft':
 				case 'ArrowUp':
@@ -112,7 +112,7 @@ export default class {
 	 */
 	#keyUp(keyCode)
 	{
-		this.#keyDown[keyCode] = false;
+		this.#keyDown.set(keyCode, false);
 	}
 
 	/**
@@ -137,7 +137,7 @@ export default class {
 	 * @returns {boolean} キューに入れれたら true
 	 */
 	enqueueKeyBuffer(keyCode) {
-		this.#keyDown[keyCode] = true;
+		this.#keyDown.set(keyCode, true);
 		// 最後に入力されたキーコードを覚えておく
 		this.#lastKeyCode = keyCode;
 		// キューに積む
@@ -177,8 +177,8 @@ export default class {
 	 */
 	isKeyDown(keyCode)
 	{
-		if(keyCode) {
-			return !!this.#keyDown[keyCode];
+		if(keyCode && this.#keyDown.has(keyCode)) {
+			return !!this.#keyDown.get(keyCode);
 		}
 		return false;
 	}
@@ -188,7 +188,9 @@ export default class {
 	 * @returns {number|string} キーコード。押下されていなかったら0を返す。
 	 */
 	inKey() {
-		if(this.#lastKeyCode && this.#keyDown[this.#lastKeyCode]) {
+		if(this.#lastKeyCode
+			&& this.#keyDown.has(this.#lastKeyCode)
+			&& this.#keyDown.get(this.#lastKeyCode)) {
 			return this.#lastKeyCode;
 		}
 		return 0;

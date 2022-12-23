@@ -7,11 +7,11 @@
     font-family: 'CatTextScreenFont';
     font-size: 16px;
     line-height: 16px;
-    transform: scaleY(2);
+    transform: scale(0.5, 1.0);
     transform-origin: top left;
     width: 1280px;
     height: 400px;
-    background-color:#000000;
+    background-color:#00000000;
 }
 
 .console .rot90 {
@@ -43,4 +43,27 @@
     to {
         background: linear-gradient(to right, rgba(200, 200, 200, 0.0) 25%, rgba(0, 0, 0, 1.0) 25%);
     }
+}
+
+.graphicsLayer {
+    width: 640px;
+    height: 200px;
+    transform-origin: top left;
+    transform: scaleY(2.0);
+}
+
+.canvas-wrapper {
+    position: relative;
+}
+
+.canvas-wrapper canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.canvas-wrapper .console {
+    position: absolute;
+    top: 0;
+    left: 0;
 }

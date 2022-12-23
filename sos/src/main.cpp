@@ -24,6 +24,11 @@ extern "C" void* getZ80Regs();
 WASM_EXPORT
 extern "C" s32 getZ80RegsSize();
 
+WASM_EXPORT
+extern "C" bool isVRAMDirty();
+WASM_EXPORT
+extern "C" void* getVRAMImage();
+
 #ifndef BUILD_WASM
 void debugMessage(void* arg, const char* msg)
 {
@@ -156,7 +161,10 @@ class SOS_Context {
 	static unsigned char readByte(void* arg, unsigned short addr) { return ((SOS_Context*)arg)->RAM[addr]; }
 	static void writeByte(void* arg, unsigned short addr, unsigned char value) { ((SOS_Context*)arg)->RAM[addr] = value; }
 	static unsigned char inPort(void* arg, unsigned short port) { return ((SOS_Context*)arg)->IO[port]; }
-	static void outPort(void* arg, unsigned short port, unsigned char value) { ((SOS_Context*)arg)->IO[port] = value; }
+	static void outPort(void* arg, unsigned short port, unsigned char value) {
+		((SOS_Context*)arg)->IO[port] = value;
+		if(0x4000 <= port) { ((SOS_Context*)arg)->setVRAMDirty(); }
+	}
 
 	inline void WRITE_JP(u8*& dst, const u16 address) { *dst++ = 0xC3; *dst++ = address & 0xFF; *dst++ = (address >> 8) & 0xFF; }
 	inline void WRITE_CALL(u8*& dst, const u16 address) { *dst++ = 0xCD; *dst++ = address & 0xFF; *dst++ = (address >> 8) & 0xFF; }
@@ -179,6 +187,11 @@ class SOS_Context {
 	 * @brief 状態
 	 */
 	s32 status;
+
+	/**
+	 * @bref VRAMが変更されたかどうかのフラグ
+	 */
+	bool bVRAMDirty;
 
 	/**
 	 * @brief S-OSのサブルーチンアドレス
@@ -450,6 +463,14 @@ public:
 	{
 		init();
 		initWork();
+		setVRAMDirty();
+
+		IO[0x4000] = 0xFF; // B
+		IO[0x8001] = 0xFF; // R
+		IO[0xC002] = 0xFF; // G
+
+		IO[0x4000 + 79] = 0xFF; // B
+		IO[0x8000 + 79] = 0xFF; // R
 	}
 
 	/**
@@ -458,6 +479,7 @@ public:
 	void reset()
 	{
 		z80.initialize();
+		setVRAMDirty();
 	}
 
 	/**
@@ -477,10 +499,10 @@ public:
 	u8* getZ80Regs() noexcept { return (u8*)&z80.reg; }
 	s32 getZ80RegsSize() noexcept { return (s32)sizeof(z80.reg); }
 
-	int getStatus()
-	{
-		return status;
-	}
+	int getStatus() const noexcept { return status; }
+	bool isVRAMDirty() const noexcept {return bVRAMDirty; }
+	void setVRAMDirty() noexcept { bVRAMDirty = true; }
+	void resetVRAMDirty() noexcept { bVRAMDirty = false; }
 };
 
 /**
@@ -488,14 +510,22 @@ public:
  */
 SOS_Context* ctx = nullptr;
 
+/**
+ * @brief VRAMのイメージ
+ */
+u8* imageMemory = nullptr;
+
 void
 initialize(void* heapBase, size_t heapSize)
 {
 #ifdef BUILD_WASM
 	setupHeap(heapBase, heapSize);
 #endif
+	delete[] imageMemory;
 	delete ctx;
 	ctx = new SOS_Context();
+	// VRAMのイメージ化に使用するメモリ
+	imageMemory = new u8[640*200*4];
 }
 
 /**
@@ -543,8 +573,43 @@ s32 getZ80RegsSize()
 	return ctx->getZ80RegsSize();
 }
 
+bool isVRAMDirty()
+{
+	return ctx->isVRAMDirty();
+}
 
+void* getVRAMImage()
+{
+	if(ctx->isVRAMDirty()) {
+		ctx->resetVRAMDirty();
 
+		s8* vramR = (s8*)getIO() + 0x8000;
+		s8* vramG = (s8*)getIO() + 0xC000;
+		s8* vramB = (s8*)getIO() + 0x4000;
+		for(s32 yy = 0; yy < 8; ++yy) {
+			s8* dst = (s8*)&imageMemory[yy * 640*4];
+			for(s32 y = 0; y < 25; ++y) {
+				// 1ライン
+				for(s32 x = 0; x < 80; ++x) {
+					s8 R = *vramR++;
+					s8 G = *vramG++;
+					s8 B = *vramB++;
+					for(s32 i = 0; i < 8; ++i) {
+						*dst++ = R >> 7; R <<= 1;
+						*dst++ = G >> 7; G <<= 1;
+						*dst++ = B >> 7; B <<= 1;
+						*dst++ = 0xFF;
+					}
+				}
+				dst += 7 * 640 * 4; // 次の行へ(+8)
+			}
+			vramR += 0x30;
+			vramG += 0x30;
+			vramB += 0x30;
+		}
+	}
+	return (void*)imageMemory;
+}
 
 #ifndef BUILD_WASM
 

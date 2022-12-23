@@ -38,8 +38,8 @@ export default class {
 		[0x0008, (ctx) => ctx.#backSpaceForEdit()], // BS
 		[0x000C, (ctx) => ctx.clearScreen()],			// CLS
 		[0x000D, (ctx) => ctx.#enter()],				// CR
-		[0x007F, (ctx) => ctx.#deleteForLineEdit()],    // DEL
 		//
+		['Delete', (ctx) => ctx.#deleteForLineEdit()],    // DEL
 		['ArrowRight', (ctx) => ctx.#cursorMoveRight()],
 		['ArrowLeft', (ctx) => ctx.#cursorMoveLeft()],
 		['ArrowUp', (ctx) => ctx.#cursorMoveUp()],

@@ -13,7 +13,8 @@ class TaskContext {
 	#keyCodeCLS = 0x0C; // CLS
 	#keyCodeCR = 0x0D; // Enterキー
 	#keyCodeBRK = 0x1B; // Breakキー
-	#keyCodeBackSpace = 0x0008; // BackSpaceキー
+	#keyCodeBackSpace = 0x08; // BackSpaceキー
+	#keyCodeDelete = 'Delete'; // DELキー
 
 	#defaultTextScreen = 4;
 
@@ -43,7 +44,8 @@ class TaskContext {
 		this.catTextScreen.clearScreen();
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
 		this.printNativeMsg("Version 0.00.00 猫大名 ねこ猫\n");
-		this.printNativeMsg("D,L and J commands are implemented.\n");
+		this.printNativeMsg(" M and ! commands are not implemented.\n");
+		this.printNativeMsg(" 'wopen' is not implemented.\n");
 	}
 
 	/**
@@ -95,23 +97,28 @@ class TaskContext {
 
 	/**
 	 * １文字出力する
-	 * @param {number} code 文字コード
+	 * @param {number|string} code 文字コード
 	 */
 	PRINT(code)
 	{
-		if(code == this.#keyCodeCLS) {
-			this.catTextScreen.clearScreen();
-		} else if(code == this.#keyCodeBRK) {
-		} else if(code == this.#keyCodeCR) {
-			this.catTextScreen.putch32(0x000D);
-		} else if(code == 0x001C) {
-			this.catTextScreen.putch32('ArrowRight');
-		} else if(code == 0x001D) {
-			this.catTextScreen.putch32('ArrowLeft');
-		} else if(code == 0x001E) {
-			this.catTextScreen.putch32('ArrowUp');
-		} else if(code == 0x001F) {
-			this.catTextScreen.putch32('ArrowDown');
+		if(code == this.#keyCodeDelete) {
+			this.catTextScreen.putch32('Delete');
+			return;
+		}
+		if(code < 0x20) {
+			if(code == this.#keyCodeCLS) {
+				this.catTextScreen.clearScreen();
+			} else if(code == this.#keyCodeCR) {
+				this.catTextScreen.putch32(0x0D);
+			} else if(code == 0x001C) {
+				this.catTextScreen.putch32('ArrowRight');
+			} else if(code == 0x001D) {
+				this.catTextScreen.putch32('ArrowLeft');
+			} else if(code == 0x001E) {
+				this.catTextScreen.putch32('ArrowUp');
+			} else if(code == 0x001F) {
+				this.catTextScreen.putch32('ArrowDown');
+			}
 		} else {
 			this.catTextScreen.putch32(code);
 		}
@@ -125,13 +132,17 @@ class TaskContext {
 	{
 		for(let ch of text) {
 			if(ch != '\n') {
-				this.catTextScreen.putch32(ch.codePointAt(0));
+				this.PRINT(ch.codePointAt(0));
 			} else {
-				this.catTextScreen.putch32(0x000D); // 改行コード
+				this.PRINT(0x0D); // 改行コード
 			}
 		}
 	}
 
+	/**
+	 * エラーコードを表示する
+	 * @param {number} errorCode エラーコード
+	 */
 	ERROR(errorCode)
 	{
 		const errorMsg = [
@@ -425,10 +436,10 @@ class TaskLineInput {
 	#maxInput = 160 - 1;
 	inputBuffer;
 
-	#keyCodeDEL = 0x007F; // DELキー
-	#keyCodeBackSpace = 0x0008; //
+	#keyCodeBackSpace = 0x0008; // BS
 	#keyCodeCR = 0x000D; // Enterキー
 	#keyCodeBRK = 0x001B; // Breakキー
+	#keyCodeDEL = 'Delete'; // DELキー
 	#keyCodeHome = 'Home'; // Homeキー
 	#keyCodeEnd = 'End'; // Endキー
 	#keyCodeArrowLeft = 'ArrowLeft'; // 左カーソルキー
@@ -456,6 +467,11 @@ class TaskLineInput {
 		};
 		this.#state[this.#state_wait] = (ctx)=>{
 			const keyCode = ctx.keyMan.dequeueKeyBuffer();
+			if(keyCode == this.#keyCodeDEL) {
+				// 1文字削除
+				ctx.catTextScreen.putch32(this.#keyCodeDEL); // DEL
+				return;
+			}
 			if(keyCode > 0) {
 				if(keyCode == this.#keyCodeBRK) {
 					// Breakキーが押された
@@ -465,10 +481,6 @@ class TaskLineInput {
 				} else if(keyCode == this.#keyCodeBackSpace) {
 					// 1文字削除
 					ctx.catTextScreen.putch32(0x0008); // BS
-					return;
-				} else if(keyCode == this.#keyCodeDEL) {
-					// 1文字削除
-					ctx.catTextScreen.putch32(0x007F); // DEL
 					return;
 				} else if(keyCode == this.#keyCodeCR) {
 					// Enterキー、入力完了
@@ -484,13 +496,14 @@ class TaskLineInput {
 					return;
 				}
 				ctx.catTextScreen.putch32(keyCode);
-			} else if(keyCode == this.#keyCodeHome
+			} else if(keyCode == this.#keyCodeDEL
+					|| keyCode == this.#keyCodeHome
 					|| keyCode == this.#keyCodeEnd
 					|| keyCode == this.#keyCodeArrowLeft
 					|| keyCode == this.#keyCodeArrowRight
 					|| keyCode == this.#keyCodeArrowUp
 					|| keyCode == this.#keyCodeArrowDown) {
-				// 行頭へ、行末へ、カーソル移動
+				// 行頭へ、行末へ、カーソル移動、DELキー
 				ctx.catTextScreen.putch32(keyCode);
 				return;
 			}

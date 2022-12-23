@@ -131,6 +131,8 @@ export default class {
 	 */
 	#get(x,y)
 	{
+		if(x < 0 || x >= this.getScreenWidth()) { return 0; }
+		if(y < 0 || y >= this.getScreenHeight()) { return 0; }
 		const addr = this.#calcTextAddress(x, y);
 		return this.#tram[addr + this.#codePointIndex];
 	}

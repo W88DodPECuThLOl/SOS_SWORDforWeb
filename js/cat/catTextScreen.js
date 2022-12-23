@@ -34,6 +34,19 @@ export default class {
 	 */
 	#textLayerControler;
 
+	/**
+	 * 文字変換  
+	 * 表示するときに文字コードを変換する関数
+	 * @type {引数number、返り値numberの関数}
+	 */
+	#encoder;
+	/**
+	 * 文字変換  
+	 * 画面から文字を取得した後に、文字コードを変換する関数
+	 * @type {引数number、返り値numberの関数}
+	 */
+	#decoder;
+
 	// -----------------------------------------------------------------------------------------------------------
 	// -----------------------------------------------------------------------------------------------------------
 
@@ -53,6 +66,21 @@ export default class {
 			this.#textLayerControler[i] = new CatTextScreenLayerControler(this.#textLayer[i]);
 		}
 		this.setDefaultLayer();
+		// 文字コードのコーデック
+		this.setCodec((ch32)=>{return ch32}, (ch32)=>{return ch32});
+	}
+
+	/**
+	 * 文字コードのコーデックを設定する
+	 * 
+	 * 表示や取得するときに、文字コードを変換するとき呼び出される関数を設定する
+	 * @param {*} encoder 表示する文字コードへ変換する
+	 * @param {*} decoder 表示している文字コードから元の文字コードへ変換する
+	 */
+	setCodec(encoder, decoder)
+	{
+		this.#encoder = encoder;
+		this.#decoder = decoder;
 	}
 
 	/**
@@ -105,7 +133,7 @@ export default class {
 	putch32(codePoint, layer)
 	{
 		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
-		this.#textLayerControler[layer].putch32(codePoint);
+		this.#textLayerControler[layer].putch32(this.#encoder(codePoint));
 	}
 
 	/**
@@ -118,7 +146,7 @@ export default class {
 	getCodePoint(x, y, layer)
 	{
 		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
-		return this.#textLayerControler[layer].getCodePoint(x, y);
+		return this.#decoder(this.#textLayerControler[layer].getCodePoint(x, y));
 	}
 
 	/**
