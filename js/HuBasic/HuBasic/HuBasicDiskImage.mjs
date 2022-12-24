@@ -567,14 +567,22 @@ export default class {
 	 * ファイルを読み込む
 	 * 
 	 * resultは、0:成功、8:File not Found。
-	 * @param {string} Filename 読み込むファイル名
-	 * @returns {{result: number, value: Uint8Array, loadAddress: number, execAddress: number}}
+	 * @param {Uint8Array} Filename 読み込むファイル名
+	 * @param {Uint8Array} Extension 読み込むファイルの拡張子
+	 * @returns {{
+	 *		result: number,			// 処理結果
+	 *		attribute: number,		// ファイル属性
+	 * 		value: Uint8Array,		// 読み込んだデータ
+	 *		loadAddress: number,	// 読み込みアドレス
+	 *		execAddress: number,	// 実行アドレス
+	 * }}
 	 */
 	ReadFile(DirRecord, Filename, Extension)
 	{
 		if(!this.#deviceOnline) {
 			return {
 				result: 2, // Device Offline デバイスがつなかっていない
+				attribute: 0,
 				value: new Uint8Array(),
 				loadAddress: 0x0000,
 				execAddress: 0x0000,
@@ -587,6 +595,7 @@ export default class {
 			// 見つからなかった
 			return {
 				result: 8, // File not Found
+				attribute: 0,
 				value: new Uint8Array(),
 				loadAddress: 0x0000,
 				execAddress: 0x0000
@@ -598,6 +607,7 @@ export default class {
 		this.#DiskEntry.ExtractFile(fs, fe);
 		return {
 			result: 0,						// 処理結果 Success
+			attribute: fe.FileMode,			// ファイル属性
 			value: fs.GetBuffer(),			// 読み込んだデータ
 			loadAddress: fe.LoadAddress,	// 読み込みアドレス
 			execAddress: fe.ExecuteAddress	// 実行アドレス

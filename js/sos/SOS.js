@@ -49,21 +49,6 @@ class SOS {
 	}
 
 	/**
-	 * 小さい方を返す
-	 * @param {*} lhs 
-	 * @param {*} rhs 
-	 * @returns {number} 小さい方
-	 */
-	#min(lhs, rhs) { return (lhs < rhs) ? lhs : rhs; }
-	/**
-	 * 大きい方を返す
-	 * @param {number} lhs 
-	 * @param {number} rhs 
-	 * @returns {number} 大きい方
-	 */
-	#max(lhs, rhs) { return (lhs > rhs) ? lhs : rhs; }
-
-	/**
 	 * S-OSのワークからカーソル位置を設定する
 	 */
 	#beginCursor(ctx)
@@ -118,7 +103,7 @@ class SOS {
 		}
 	}
 	/**
-	 * 0～0xFの値を16進の文字に変換する
+	 * 0x0～0xFの値を16進の文字に変換する
 	 * @param {number} value 値
 	 * @returns {number} 16進の文字
 	 */
@@ -126,9 +111,9 @@ class SOS {
 	{
 		value &= 0xF;
 		if(value <= 9) {
-			return value + 0x30;
+			return value + 0x30; // '0'～'9'
 		} else {
-			return value + 0x41 - 10;
+			return value + 0x41 - 10; // 'A'～'F'
 		}
 	}
 
@@ -155,42 +140,30 @@ class SOS {
 
 	/**
 	 * IBからファイル名を取得する
-	 * @returns {string} ファイル名
+	 * @returns {{
+	 * 		attribute: number,		// 属性（ファイルモード）
+	 * 		deviceName: number,		// デバイス名（'A'～）
+	 * 		filename: Uint8Array,	// ファイル名
+	 * 		extension: Uint8Array	// 拡張子
+	 * }}
 	 */
 	#getFilenameFromIB()
-	{
-		let filename = "";
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
-		for(let i = 0; i < 13; ++i) {
-			filename += String.fromCodePoint(this.#memReadU8(ib_base + SOSInfomationBlock.ib_filename + i));
-		}
-		filename += ".";
-		for(let i = 0; i < 3; ++i) {
-			filename += String.fromCodePoint(this.#memReadU8(ib_base + SOSInfomationBlock.ib_extension + i));
-		}
-		return filename;
-	}
-	/**
-	 * IBからファイル名を取得する
-	 * @returns {{deviceName: number, filename: Uint8Array, extension: Uint8Array}}
-	 */
-	#getFilenameFromIB2()
 	{
 		// デバイス名
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		// ファイル名
 		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
-		let filename = new Uint8Array(13);
-		for(let i = 0; i < 13; ++i) {
+		let filename = new Uint8Array(SOSInfomationBlock.filename_size);
+		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			filename[i] = this.#memReadU8(ib_base + SOSInfomationBlock.ib_filename + i);
 		}
 		// 拡張子
-		let extension = new Uint8Array(3);
-		for(let i = 0; i < 3; ++i) {
+		let extension = new Uint8Array(SOSInfomationBlock.extension_size);
+		for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
 			extension[i] = this.#memReadU8(ib_base + SOSInfomationBlock.ib_extension + i);
 		}
 		return {
-			attribute: this.#memReadU8(ib_base + SOSInfomationBlock.ib_attribute),
+			attribute: this.#memReadU8(ib_base + SOSInfomationBlock.ib_attribute), // 属性
 			deviceName: deviceName,
 			filename: filename,
 			extension: extension
@@ -199,14 +172,21 @@ class SOS {
 
 	/**
 	 * ファイル名を分割する
-	 * @param {number} filenamePtr 
-	 * @returns {{deviceName: number, filename: Uint8Array, extension: Uint8Array, filenamePtr: number}}
+	 * @param {number} filenamePtr ファイル名を指すポインタ
+	 * @returns {{
+	 * 		deviceName: number,		// デバイス名（'A'～）
+	 * 		filename: Uint8Array,	// ファイル名
+	 * 		extension: Uint8Array,	// 拡張子
+	 * 		filenamePtr: number		// ファイル名分割後の文字列を指すポインタ
+	 * }}
 	 */
 	#splitPath(filenamePtr) {
+		// デバイス名
 		let deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		const filename = new Uint8Array(13);
+
+		const filename = new Uint8Array(SOSInfomationBlock.filename_size);
 		filename.fill(0x20);
-		const extension = new Uint8Array(3);
+		const extension = new Uint8Array(SOSInfomationBlock.extension_size);
 		extension.fill(0x20);
 		// 空白をスキップ
 		while(this.#memReadU8(filenamePtr) == 0x20) { filenamePtr++; }
@@ -222,7 +202,7 @@ class SOS {
 			}
 		}
 		// ファイル名
-		for(let i = 0; i < 13; ++i) {
+		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			const ch = this.#memReadU8(filenamePtr)
 			if(ch == 0 || ch == 0x2E || ch == 0x3A) { break; } // "." ":"
 			if(ch != 0x0D) {
@@ -241,7 +221,7 @@ class SOS {
 		// 拡張子
 		if(this.#memReadU8(filenamePtr) == 0x2E) { // "."
 			filenamePtr++;
-			for(let i = 0; i < 3; ++i) {
+			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
 				const ch = this.#memReadU8(filenamePtr);
 				if(ch == 0 || ch == 0x3A) { break; } // ":"
 				if(ch != 0x0D) {
@@ -288,6 +268,13 @@ class SOS {
 	 * @returns {number} 値
 	 */
 	#memReadU8(addr) { return this.#z80.memReadU8(addr); }
+
+	/**
+	 * 1バイトIOへ書き込む
+	 * @param {number} addr		IOアドレス
+	 * @param {number} value	値
+	 */
+	#ioWrite(addr, value) { this.#z80.ioWrite(addr, value); }
 
 	// -------------------------------------------------------------------------------------------------
 	//  Z80レジスタアクセス
@@ -341,7 +328,7 @@ class SOS {
 	 */
 	sos_cold(ctx) {
 		this.#Log("sos_cold");
-		//	WRITE_U16( WorkAddress::USR,    0x1FFA );
+		// this.#memWriteU16( SOSWorkAddr.USR,    0x1FFA );
 		this.#memWriteU8(  SOSWorkAddr.DVSW,   0 );
 		this.#memWriteU8(  SOSWorkAddr.LPSW,   0 );
 		this.#memWriteU16( SOSWorkAddr.PRCNT,  0 );
@@ -377,6 +364,12 @@ class SOS {
 		this.setPC(0x0003);
 		this.#memWriteU16(0x0004, this.#memReadU16(SOSWorkAddr.USR));
 
+		// メモリクリア
+		for(let i = 0x3000; i <= 0xFFFF; ++i) { this.#memWriteU8(i, 0); }
+		// IOクリア
+		for(let i = 0x4000; i <= 0xFFFF; ++i) { this.#ioWrite(i, 0); }
+
+		// 各種ローカルの設定を初期化
 		this.#isCpuOccupation = false;
 		this.#pauseState = PauseState.Idle;
 		return 0;
@@ -677,7 +670,7 @@ class SOS {
 				// 完了した
 				// 結果をバッファにコピー
 				const result = ctx.taskLineInput.getResult().result;
-				for(let i = 0; i < this.#min(80, result.length); ++i) {
+				for(let i = 0; i < result.length; ++i) {
 					this.#memWriteU8(this.#getl_dstAddr + i, result[i]);
 				}
 				// 入力を終了させる
@@ -821,7 +814,7 @@ class SOS {
 	 * #BELL(1FC4H)
 	 * 
 	 * ベル（ビープ音）を鳴らす。
-	 * @todo 実装する
+	 * @todo 実装すること
 	 * @param {*} ctx 
 	 * @returns {number} 
 	 */
@@ -1010,7 +1003,7 @@ class SOS {
 		// ディレクトリのレコード
 		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// ファイル名
-		const filename = this.#getFilenameFromIB2();
+		const filename = this.#getFilenameFromIB();
 		// 書き込む
 		const result = ctx.WriteFile(filename.deviceName, dirRecord,
 			filename.filename, filename.extension, data,
@@ -1130,7 +1123,7 @@ class SOS {
 		const loadAddress = this.#memReadU16(SOSWorkAddr.DTADR);	// 読み込みアドレス
 		const fileSize = this.#memReadU16(SOSWorkAddr.SIZE);		// ファイルサイズ
 		//const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);	// 実行アドレス
-		const filename = this.#getFilenameFromIB2();				// ファイル名
+		const filename = this.#getFilenameFromIB();				// ファイル名
 		// 読み込む
 		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		let data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
@@ -1209,7 +1202,7 @@ class SOS {
 			return 0;
 		}
 		// ファイル名
-		for(let i = 0; i < 13; ++i) {
+		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			if(this.#memReadU8(ib_base + SOSInfomationBlock.ib_filename + i) != result.filename[i]) {
 				this.#setCY();
 				this.#setA(SOSErrorCode.DeviceIOError);
@@ -1218,7 +1211,7 @@ class SOS {
 			}
 		}
 		// 拡張子
-		for(let i = 0; i < 3; ++i) {
+		for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
 			if(this.#memReadU8(ib_base + SOSInfomationBlock.ib_extension + i) != result.extension[i]) {
 				this.#setCY();
 				this.#setA(SOSErrorCode.DeviceIOError);
@@ -1243,15 +1236,15 @@ class SOS {
 		this.#Log("sos_fprnt");
 		// S-OSのワークからカーソル位置を設定する
 		this.#beginCursor(ctx);
-		//
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
 		// ファイル名
-		for(let i = 0; i < 13; ++i) {
+		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			ctx.PRINT(this.#memReadU8(ib_base + SOSInfomationBlock.ib_filename + i));
 		}
+		//
 		ctx.PRINT(0x2E); // "."
 		// 拡張子
-		for(let i = 0; i < 3; ++i) {
+		for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
 			ctx.PRINT(this.#memReadU8(ib_base + SOSInfomationBlock.ib_extension + i));
 		}
 		// カーソル位置をS-OSのワークに設定する
@@ -1437,7 +1430,7 @@ class SOS {
 	 * #DIR※(2006H)
 	 * 
 	 * (#DSK)で指定されたﾃﾞﾊﾞｲｽ上の全ﾃﾞｨﾚｸﾄﾘを表示する。
-	 * @todo 実装すること
+	 * @todo テスト
 	 * @param {*} ctx 
 	 * @returns {number} 
 	 */
@@ -1445,7 +1438,7 @@ class SOS {
 		this.#Log("sos_dir");
 		// デバイス名
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		// ディレクトリ
+		// ディレクトリのレコード
 		const dirRecord  = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Files(deviceName, dirRecord);
@@ -1479,13 +1472,14 @@ class SOS {
 	sos_ropen(ctx){
 		this.#Log("sos_ropen");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB2();
-		// 問い合わせ
+		const filename = this.#getFilenameFromIB();
+		// ディレクトリのレコード
 		const entrySector = this.#memReadU8(SOSWorkAddr.DIRPS);
+		// 問い合わせ
 		const result = ctx.GetInfomationBlock(filename.deviceName, entrySector, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
-			// 異常終了
+			// エラー
 			this.#clearZ();
 			this.#setA(result.result);
 			this.#setCY();
@@ -1496,7 +1490,7 @@ class SOS {
 		const attribute = this.#memReadU8(ib_base + SOSInfomationBlock.ib_attribute);
 		// 属性
 		if(!SOSInfomationBlock.isEquelAttribute(result.fileMode, attribute)) {
-			// 異常終了
+			// エラー
 			this.#clearZ();
 			this.#setA(SOSErrorCode.BadFileMode);
 			this.#setCY();
@@ -1521,14 +1515,14 @@ class SOS {
 	sos_set(ctx){
 		this.#Log("sos_set");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB2();
+		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
 		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
-			// 異常終了
+			// エラー
 			this.#setA(result.result);
 			this.#setCY();
 			return 0;
@@ -1547,14 +1541,14 @@ class SOS {
 	sos_reset(ctx){
 		this.#Log("sos_reset");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB2();
+		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
 		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
-			// 異常終了
+			// エラー
 			this.#setA(result.result);
 			this.#setCY();
 			return 0;
@@ -1577,14 +1571,14 @@ class SOS {
 		// 変更するファイル名
 		const newFilename = this.#splitPath(this.#getDE()); // ファイル名を分割
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB2();
+		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
 		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Rename(filename.deviceName, dirRecord, filename.filename, filename.extension, newFilename.filename, newFilename.extension);
 		// 処理
 		if(result.result != 0) {
-			// 異常終了
+			// エラー
 			this.#setA(result.result);
 			this.#setCY();
 			return 0;
@@ -1603,14 +1597,14 @@ class SOS {
 	sos_kill(ctx){
 		this.#Log("sos_kill");
 		// ファイル名取得
-		const filename = this.#getFilenameFromIB2();
+		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
 		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
-			// 異常終了
+			// エラー
 			this.#setA(result.result);
 			this.#setCY();
 			return 0;
@@ -1664,7 +1658,7 @@ class SOS {
 	 * @returns {number}
 	 */
 	sos_loc(ctx){
-		//this.#Log("sos_loc");
+		this.#Log("sos_loc");
 		const hl = this.#getHL();
 		ctx.setScreenLocate({x: (hl & 0xFF), y: ((hl >> 8) & 0xFF)});
 		// カーソル位置をS-OSのワークに設定する

@@ -164,18 +164,18 @@ export default class {
 	 * ディレクトリ内のエントリを取得する
 	 * @param {number} dirRecord ディレクトリのレコード
 	 * @returns {{
-	 * 		result:number,
+	 * 		result: number,				// 処理結果
 	 * 		entries:{
-	 * 			attribute:number,		// ファイル属性
-	 * 			filename:Uint8Array,	// ファイル名
-	 * 			extension:Uint8Array,	// 拡張子
-	 * 			password:number,		// パスワード
-	 * 			size:number,			// ファイルサイズ
-	 * 			loadAddress:number,		// 読み込みアドレス
-	 * 			executeAddress:number,	// 日付データ
-	 * 			startCluster:number		// 開始クラスタ
+	 * 			attribute: number,		// ファイル属性
+	 * 			filename: Uint8Array,	// ファイル名
+	 * 			extension: Uint8Array,	// 拡張子
+	 * 			password: number,		// パスワード
+	 * 			size: number,			// ファイルサイズ
+	 * 			loadAddress: number,	// 読み込みアドレス
+	 * 			executeAddress: number,	// 日付データ
+	 * 			startCluster: number	// 開始クラスタ
 	 * 		}[],
-	 * 		freeClusters:number
+	 * 		freeClusters: number		// 空きクラスタ数
 	 * }}
 	 */
 	Files(dirRecord) {
@@ -191,6 +191,7 @@ export default class {
 	 * @param {Uint8Array} Extension 読み込むファイルの拡張子
 	 * @returns {{
 	 *		result: number,			// 処理結果
+	 *		attribute: number,		// ファイル属性
 	 * 		value: Uint8Array,		// 読み込んだデータ
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス

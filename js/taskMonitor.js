@@ -297,12 +297,17 @@ class TaskContext {
 	}
 
 	/**
-	 * 
-	 * @param {number} descriptor 
+	 * ファイルを読み込む
+	 * @param {number} descriptor デバイス名
 	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
-	 * @returns 
+	 * @returns {{
+	 *		result: number,			// 処理結果
+	 * 		value: Uint8Array,		// 読み込んだデータ
+	 *		loadAddress: number,	// 読み込みアドレス
+	 *		execAddress: number,	// 実行アドレス
+	 * }}
 	 */
 	ReadFile(descriptor, dirRecord, Filename, Extension)
 	{
@@ -642,7 +647,8 @@ class TaskMonitor {
 	#state_start = 1;
 	#state_input_wait = 2;
 	#state_command = 3;
-	#state_end = 4;
+	#state_pause_wait = 4;
+	#state_end = 5;
 
 	#keyCodeBRK = 0x1B; // Breakキー
 	#keyCodeCR = 0x0D; // Enterキー
@@ -942,17 +948,85 @@ class TaskMonitor {
 
 					// W	桁数変更
 				case 0x57:
-					this.#W_Command();
+					this.#W_Command(ctx);
 					this.changeState(this.#state_start);
 					return;
 
 					// !	ブート
+				case 0x21:
+					{
+						// 飛び先設定
+						ctx.monitorCommandJump(0x0000); // #COLD
+						// モニタ終了
+						this.changeState(this.#state_end);
+						return;
+					}
+
 					//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
+				case 0x20:
+					{
+						// 空白スキップ
+						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
+						// ファイル名
+						const filename = this.#parseFilename(ctx, this.#commandBuffer);
+						if(!this.#checkResult(ctx, filename)) { return; }
+
+						// ディレクトリのレコード
+						const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+						// 読み込む
+						let result = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
+						if(!this.#checkResult(ctx, result)) { return; }
+						if(SOSInfomationBlock.isBinaryFile(result.attribute)) {
+							// バイナリファイル
+							// 読み込んだデータをメモリにコピー
+							const address = result.loadAddress;
+							for(let i = 0; i < result.value.length; ++i) {
+								ctx.z80Emu.memWriteU8(address + i, result.value[i]);
+							}
+							// 飛び先設定
+							ctx.monitorCommandJump(result.execAddress);
+							// モニタ終了
+							this.changeState(this.#state_end);
+						} else {
+							// @todo アスキーファイルの処理の実装
+							ctx.ERROR(SOSErrorCode.ReservedFeature); // 未実装...
+							ctx.PRINT(this.#keyCodeCR);
+							this.changeState(this.#state_start);
+						}
+						return;
+					}
+
 					// P	ポーズ
+				case 0x50:
+					{
+						// 止まったよメッセージ表示
+						ctx.printNativeMsg("HIT KEY\n");
+						// キーバッファをクリア
+						ctx.keyMan.keyBufferClear();
+						// 解除待ちへ遷移
+						this.changeState(this.#state_pause_wait);
+						return;
+					}
 			}
 			ctx.ERROR(SOSErrorCode.SyntaxError);
 			ctx.PRINT(this.#keyCodeCR);
 			this.changeState(this.#state_start);
+		};
+		this.#state[this.#state_pause_wait] = (ctx)=>{
+			// PAUSE待ち処理
+			let key = Number(ctx.keyMan.inKey());
+			if(isNaN(key)) { key = 0; }
+			if(key) {
+				// 何か押された
+				this.changeState(this.#state_start);
+				if(key == 0x1B) {
+					// ブレイクキー押された
+					// @todo バッチ処理中断
+				}
+				// 念のためキーバッファをクリアしておく
+				ctx.keyMan.keyBufferClear();
+				return;
+			}
 		};
 		this.#state[this.#state_end] = (ctx)=>{};
 
@@ -963,7 +1037,7 @@ class TaskMonitor {
 	/**
 	 * 桁数変更コマンド
 	 */
-	#W_Command()
+	#W_Command(ctx)
 	{
 		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
 		const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);

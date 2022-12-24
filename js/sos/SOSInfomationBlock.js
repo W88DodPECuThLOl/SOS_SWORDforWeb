@@ -31,7 +31,15 @@ class SOSInfomationBlock {
 	 */
 	static InfomationBlockSize = SOSInfomationBlock.ib_cluster + 2;			// 32
 
+	/**
+	 * ファイル名のサイズ
+	 * @type {number}
+	 */
 	static filename_size = 13;
+	/**
+	 * 拡張子のサイズ
+	 * @type {number}
+	 */
 	static extension_size = 3;
 
 	/**
@@ -51,5 +59,14 @@ class SOSInfomationBlock {
 	 */
 	static isEquelAttribute(lhs, rhs) {
 		return (lhs & SOSInfomationBlock.attribute_mask) == (rhs & SOSInfomationBlock.attribute_mask);
+	}
+
+	/**
+	 * 属性がバイナリファイルかどうか
+	 * @param {*} attribute 調べる属性
+	 * @returns {boolean} 属性がバイナリファイルなら true を返す
+	 */
+	static isBinaryFile(attribute) {
+		return (attribute & SOSInfomationBlock.attribute_mask) == 0x01;
 	}
 };
