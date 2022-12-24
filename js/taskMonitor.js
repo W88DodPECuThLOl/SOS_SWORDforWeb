@@ -982,20 +982,6 @@ class TaskMonitor {
 			text.shift();
 		}
 		return {result: 0, deviceName: deviceName, filename: filename, extension: extension};
-/*
-		if(text.length <= 0 || text[0] == 0 || text[0] == 0x3A) { // ':'
-			return {result: SOSErrorCode.SyntaxError, value: ''};
-		}
-		let value = '';
-		while(text.length > 0 && text[0] != 0 && text[0] != 0x3A) {
-			let num = text.shift();
-			if(num < 0x20) {
-				return {result: SOSErrorCode.SyntaxError, value: ''};
-			}
-			value += String.fromCodePoint(num);
-		}
-		return {result: 0, value: value.trimEnd()};
-*/
 	}
 
 	update(ctx)

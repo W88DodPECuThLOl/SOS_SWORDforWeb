@@ -50,11 +50,6 @@ void* memcpy(void* dst, const void* src, const size_t size)
 }
 #endif // BUILD_WASM
 
-WASM_IMPORT("sos", "write_direct_text_access")
-extern "C" void sos_write_direct_text_access(s32 x, s32 y, s32 value);
-WASM_IMPORT("sos", "write_direct_text_access")
-extern "C" s32 sos_read_direct_text_access(s32 x, s32 y);
-
 #ifndef BUILD_WASM
 #define SOS_ARGS Z80::Register* z80Regs, int z80RegsSize, u8* ram, u8* io
 #else
@@ -121,15 +116,15 @@ extern "C" s32 sos_read_direct_text_access(s32 x, s32 y);
 	SOS_FUNC(error)
 #undef SOS_FUNC
 
+static constexpr u16 ADDRESS_XYADR     = 0x0010; // ～0x0011
 static constexpr u16 ADDRESS_JUMPTABLE = 0x0100; // ～ 0x01FF
-static constexpr u16 ADDRESS_KBFAD = 0x0200; // ～ 0x02FF
-static constexpr u16 ADDRESS_FATBF = 0x0300; // ～ 0x03FF
-static constexpr u16 ADDRESS_DTBUF = 0x0400; // ～ 0x04FF
-static constexpr u16 ADDRESS_IBFAD = 0x0500; // ～ 0x05FF
-static constexpr u16 ADDRESS_STKAD = 0x0700; // 0x0600 ～ 0x06FF
-static constexpr u16 ADDRESS_XYADR = 0x0700; // 0x0700～0x0ECF
+static constexpr u16 ADDRESS_KBFAD     = 0x0200; // ～ 0x02FF
+static constexpr u16 ADDRESS_FATBF     = 0x0300; // ～ 0x03FF
+static constexpr u16 ADDRESS_DTBUF     = 0x0400; // ～ 0x04FF
+static constexpr u16 ADDRESS_IBFAD     = 0x0500; // ～ 0x05FF
+static constexpr u16 ADDRESS_STKAD     = 0x0700; // 0x0600 ～ 0x06FF
 
-static constexpr u16 ADDRESS_MEMAX = 0xFFFF;
+static constexpr u16 ADDRESS_MEMAX     = 0xFFFF;
 
 enum WorkAddress : u16 {
 	USR = 0x1F7E,
@@ -189,7 +184,7 @@ class SOS_Context {
 	s32 status;
 
 	/**
-	 * @bref VRAMが変更されたかどうかのフラグ
+	 * @brief VRAMが変更されたかどうかのフラグ
 	 */
 	bool bVRAMDirty;
 
@@ -442,14 +437,14 @@ class SOS_Context {
 		WRITE_U16( WorkAddress::EXADR,  0 );
 		WRITE_U16( WorkAddress::STKAD,  ADDRESS_STKAD );
 		WRITE_U16( WorkAddress::MEMAX,  ADDRESS_MEMAX );
-		WRITE_U16( WorkAddress::WKSIZ,  0xFFFF ); // @todo
+		WRITE_U16( WorkAddress::WKSIZ,  0xFFFF );
 		WRITE_U8(  WorkAddress::DIRNO,  0 );
-		WRITE_U8(  WorkAddress::MXTRK,  0xFF ); // @todo
+		WRITE_U8(  WorkAddress::MXTRK,  0x50 );
 		WRITE_U16( WorkAddress::DTBUF,  ADDRESS_DTBUF );
 		WRITE_U16( WorkAddress::FATBF,  ADDRESS_FATBF );
 		WRITE_U16( WorkAddress::DIRPS,  0x0010 );
 		WRITE_U16( WorkAddress::FATPOS, 0x000E );
-		WRITE_U8(  WorkAddress::DSK,    0x41 ); // @todo
+		WRITE_U8(  WorkAddress::DSK,    0x41 );
 		WRITE_U8(  WorkAddress::WIDTH,  80 );
 		WRITE_U8(  WorkAddress::MAXLIN, 25 );
 	}
@@ -464,13 +459,6 @@ public:
 		init();
 		initWork();
 		setVRAMDirty();
-
-		IO[0x4000] = 0xFF; // B
-		IO[0x8001] = 0xFF; // R
-		IO[0xC002] = 0xFF; // G
-
-		IO[0x4000 + 79] = 0xFF; // B
-		IO[0x8000 + 79] = 0xFF; // R
 	}
 
 	/**
@@ -954,16 +942,6 @@ SOS_FUNC(error)
 }
 
 int main()
-{
-	return 0;
-}
-
-void
-sos_write_direct_text_access(s32 x, s32 y, s32 value)
-{
-}
-s32
-sos_read_direct_text_access(s32 x, s32 y)
 {
 	return 0;
 }

@@ -32,6 +32,9 @@ class Z80Emu {
 	 */
 	#IO8;
 
+	/**
+	 * 外部とのアクセス用
+	 */
 	#ctx;
 
 	/**
@@ -40,12 +43,19 @@ class Z80Emu {
 	 */
 	#sos;
 
+	/**
+	 * WASMのセットアップ
+	 * 
+	 * 読み込みと初期化
+	 * @returns 
+	 */
 	setup()
 	{
 		const importObject = {
+			// メモリ
 			env: { memory: this.#memory },
+			// S-OSのサブルーチン群
 			sos: {
-				write_direct_text_access:()=>{},
 				cold  :()=>{ return this.#sos.sos_cold  (this.#ctx); },
 				hot   :()=>{ return this.#sos.sos_hot   (this.#ctx); },
 				ver   :()=>{ return this.#sos.sos_ver   (this.#ctx); },
@@ -108,6 +118,7 @@ class Z80Emu {
 		};
 		return WebAssembly.instantiateStreaming(fetch("sos.wasm"), importObject).then(
 			(obj) => {
+				// WASM側から提供されている関数や変数など
 				this.wasm = obj.instance.exports;
 				// 初期化
 				this.wasm.initialize(this.wasm.__heap_base, this.#heapSize - this.wasm.__heap_base);
@@ -116,6 +127,9 @@ class Z80Emu {
 		);
 	}
 
+	/**
+	 * コンストラクタ
+	 */
 	constructor()
 	{
 		// メモリ確保
@@ -124,6 +138,9 @@ class Z80Emu {
 		this.#sos = new SOS(this);
 	}
 
+	/**
+	 * リセットする
+	 */
 	reset() {
 		// リセット
 		this.wasm.z80Reset();
@@ -136,24 +153,51 @@ class Z80Emu {
 		this.#IO8        = new Uint8Array(this.#memory.buffer, memPtrIO, 0x10000);
 	}
 
+	/**
+	 * 更新処理
+	 * @param {*} ctx 
+	 * @returns {number} 実際に実行されたクロック数
+	 */
 	update(ctx) {
 		this.#ctx = ctx;
-		return this.wasm.exeute(4194304 / 60);
+		return this.wasm.exeute(4194304 / 60 | 0); // 約4Mzの60FPS
 	}
 
+	/**
+	 * X1形式のVRAMをcanvasに描画
+	 * 
+	 * IOの0x4000～0xFFFFをX1形式のVRAMとして変換し、キャンバスへ描画している。  
+	 * メモ）canvasのイメージデータはrgbaの順番で、各0x00～0xFFの値
+	 * @param {*} canvasCtx 
+	 */
 	getVRAMImage(canvasCtx) {
 		if(this.wasm.isVRAMDirty()) {
-			const imagePtr = this.wasm.getVRAMImage();
+			// 変換されたイメージを取得して
+			const imagePtr = this.wasm.getVRAMImage(); // メモ）内部で、VRAMDirtyフラグリセットしている
 			let src = new Uint8Array(this.#memory.buffer, imagePtr, 640*200*4);
+			// キャンバスのイメージデータを作成し
 			const dstImageData = canvasCtx.createImageData(640, 200);
 			let dst = dstImageData.data;
-			for(let i = 0; i < 640*200*4; ++i) {
-				dst[i] = src[i];
-			}
+			// コピー
+			for(let i = 0; i < 640*200*4; ++i) { dst[i] = src[i]; }
+			// 描画
 			canvasCtx.putImageData(dstImageData, 0, 0);
 		}
 	}
 
+	/**
+	 * モニタのJコマンドでの飛び先を設定する
+	 * 
+	 * Z80側でのcallするアドレスを書き換えている
+	 * 
+	 * jp   #COLD   ; COLDにジャンプ  
+	 * call #HOT    ; USRを呼び出す  
+	 * call xxxx    ; Jコマンドの飛び先を呼び出す  
+	 * jp   3  
+	 * 
+	 * メモ）ただ、うまくいっていない模様
+	 * @param {number} address ジャンプするアドレス
+	 */
 	monitorCommandJump(address)
 	{
 		let dst = 0x7;
