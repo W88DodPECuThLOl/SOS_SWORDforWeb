@@ -45,18 +45,22 @@ class TaskContext {
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
 		this.printNativeMsg("Version 0.00.00 猫大名 ねこ猫\n");
 		this.printNativeMsg(" M and ! commands are not implemented.\n");
-		this.printNativeMsg(" 'wopen' is not implemented.\n");
 	}
 
 	/**
-	 * 画面サイズを変更する
-	 * @param {number} width 横幅のサイズ
-	 * @param {number} height 高さのサイズ
+	 * S-OS標準モニタのジャンプコマンドの飛び先を設定する
+	 * 
+	 * S-OS標準モニタが終了したときに、ここで設定したアドレスが呼び出される
+	 * @param {number} address 飛び先
 	 */
-	changeScreenSize(width, height)
+	monitorCommandJump(address)
 	{
-		this.catTextScreen.changeScreenSize(width, height);
+		this.z80Emu.monitorCommandJump(address);
 	}
+
+	// --------------------------------------------------------------------
+	// 入力
+	// --------------------------------------------------------------------
 
 	// ライン入力開始
 	startLineInput()
@@ -76,7 +80,20 @@ class TaskContext {
 		return this.taskLineInput.getResult();
 	}
 
+	// --------------------------------------------------------------------
 	// 画面
+	// --------------------------------------------------------------------
+
+	/**
+	 * 画面サイズを変更する
+	 * @param {number} width 横幅のサイズ
+	 * @param {number} height 高さのサイズ
+	 */
+	changeScreenSize(width, height)
+	{
+		this.catTextScreen.changeScreenSize(width, height);
+	}
+
 	getScreenLocate()
 	{
 		return this.catTextScreen.getCursor();
@@ -125,7 +142,7 @@ class TaskContext {
 	}
 
 	/**
-	 * JSネイティブな文字列を出力する
+	 * ネイティブな文字列を出力する
 	 * @param {string} text 
 	 */
 	printNativeMsg(text)
@@ -168,18 +185,15 @@ class TaskContext {
 		this.printNativeMsg(errorMsg[errorCode]);
 	}
 
-	monitorCommandJump(address)
-	{
-		this.z80Emu.monitorCommandJump(address);
-	}
-
 	// --------------------------------------------------------------------
 	// デバイス
 	// --------------------------------------------------------------------
 
 	/**
 	 * ディスクデバイスかどうか
-	 * @param {number} descriptor 
+	 * 
+	 * メモ)'A'～'D'がディスク
+	 * @param {number} descriptor デバイスを示す文字
 	 * @return {boolean} ディスクデバイスなら true を返す
 	 */
 	#checkDiskDescriptor(descriptor)
@@ -192,7 +206,7 @@ class TaskContext {
 	 * @param {number} descriptor 
 	 * @param {number} dirRecord 
 	 * @returns {{
-	 * 		result:number,
+	 * 		result:number,				// S-OSのエラーコード
 	 * 		entries:{
 	 * 			attribute:number,		// ファイル属性
 	 * 			filename:Uint8Array,	// ファイル名
@@ -203,8 +217,8 @@ class TaskContext {
 	 * 			executeAddress:number,	// 日付データ
 	 * 			startCluster:number		// 開始クラスタ
 	 * 		}[],
-	 * 		freeClusters:number,
-	 * 		deviceName:number
+	 * 		freeClusters:number,		// 空きクラスタ数
+	 * 		deviceName:number			// デバイス名
 	 * }}
 	 */
 	Files(descriptor, dirRecord)
@@ -218,6 +232,10 @@ class TaskContext {
 		}
 	}
 
+	/**
+	 * 
+	 * @param {*} result 
+	 */
 	PrintFiles(result)
 	{
 		// 空きクラスタサイズ
@@ -430,11 +448,32 @@ class TaskContext {
 	}
 }
 
+/**
+ * 一行入力をするタスク
+ */
 class TaskLineInput {
+	/**
+	 * 状態
+	 * @type {function[]}
+	 */
 	#state;
+	/**
+	 * 現在の状態
+	 * @type {number}
+	 */
 	#stateNo;
+	/**
+	 * 入力する最大文字数 - 1
+	 * @type {number}
+	 */
 	#maxInput = 160 - 1;
+	/**
+	 * 入力された文字列
+	 * @type {number[]}
+	 */
 	inputBuffer;
+
+	// @todo キーコード、まとめること
 
 	#keyCodeBackSpace = 0x0008; // BS
 	#keyCodeCR = 0x000D; // Enterキー
@@ -447,11 +486,30 @@ class TaskLineInput {
 	#keyCodeArrowUp = 'ArrowUp'; // 上カーソルキー
 	#keyCodeArrowDown = 'ArrowDown'; // 下カーソルキー
 
+	/**
+	 * 何もしてない状態
+	 * @type {number}
+	 */
 	#state_idle = 0;
+	/**
+	 * 開始状態
+	 * @type {number}
+	 */
 	#state_start = 1;
+	/**
+	 * 何か入力されるのを待って、入力されたら処理する状態
+	 * @type {number}
+	 */
 	#state_wait = 2;
+	/**
+	 * 完了状態
+	 * @type {number}
+	 */
 	#state_end = 3;
 
+	/**
+	 * コンストラクタ
+	 */
 	constructor()
 	{
 		this.inputBuffer = [];
@@ -467,11 +525,6 @@ class TaskLineInput {
 		};
 		this.#state[this.#state_wait] = (ctx)=>{
 			const keyCode = ctx.keyMan.dequeueKeyBuffer();
-			if(keyCode == this.#keyCodeDEL) {
-				// 1文字削除
-				ctx.catTextScreen.putch32(this.#keyCodeDEL); // DEL
-				return;
-			}
 			if(keyCode > 0) {
 				if(keyCode == this.#keyCodeBRK) {
 					// Breakキーが押された
@@ -484,15 +537,17 @@ class TaskLineInput {
 					return;
 				} else if(keyCode == this.#keyCodeCR) {
 					// Enterキー、入力完了
-					ctx.catTextScreen.getLine(); // カーソルのある行の文字列を取得する
+					// カーソルのある行の文字列を取得して、バッファへ積む
 					this.inputBuffer = [];
-					for(let ch of ctx.catTextScreen.getLine()) {
-						this.inputBuffer.push(ch.codePointAt(0));
+					for(let ch of ctx.catTextScreen.getLineWithDecode()) {
+						if(this.inputBuffer.length >= this.#maxInput) { break; }
+						this.inputBuffer.push(ch);
 					}
 					this.inputBuffer.push(0);
-					this.changeState(this.#state_end);
 					// 改行しておく
 					ctx.catTextScreen.putch32(this.#keyCodeCR);
+					// 終了状態へ
+					this.changeState(this.#state_end);
 					return;
 				}
 				ctx.catTextScreen.putch32(keyCode);
@@ -503,6 +558,7 @@ class TaskLineInput {
 					|| keyCode == this.#keyCodeArrowRight
 					|| keyCode == this.#keyCodeArrowUp
 					|| keyCode == this.#keyCodeArrowDown) {
+				// 制御キー
 				// 行頭へ、行末へ、カーソル移動、DELキー
 				ctx.catTextScreen.putch32(keyCode);
 				return;
@@ -510,19 +566,26 @@ class TaskLineInput {
 		};
 		this.#state[this.#state_end] = (ctx)=>{};
 
+		// 初期状態を、何もしていない状態に設定
 		this.#stateNo = this.#state_idle;
 	}
 
-	update(ctx)
-	{
-		this.#state[this.#stateNo](ctx);
-	}
+	/**
+	 * 更新処理
+	 * @param {*} ctx 
+	 */
+	update(ctx) { this.#state[this.#stateNo](ctx); }
 
-	start(ctx)
-	{
-		this.changeState(this.#state_start);
-	}
+	/**
+	 * 開始する
+	 * @param {*} ctx 
+	 */
+	start(ctx) { this.changeState(this.#state_start); }
 
+	/**
+	 * 終了する
+	 * @param {*} ctx
+	 */
 	end(ctx)
 	{
 		// 入力バッファをクリア
@@ -533,29 +596,44 @@ class TaskLineInput {
 		this.changeState(this.#state_idle);
 	}
 
-	isFinished()
-	{
-		return this.#stateNo == this.#state_end;
-	}
-
-	isActive()
-	{
-		return this.#stateNo != this.#state_idle;
-	}
-
-	getResult() {
-		return { resultCode:0, result: this.inputBuffer };
-	}
-
-	changeState(stateNo)
-	{
-		this.#stateNo = stateNo;
-	}
+	/**
+	 * 完了したかどうか
+	 * @returns {boolean} 完了していたら true を返す
+	 */
+	isFinished() { return this.#stateNo == this.#state_end; }
+	/**
+	 * 動作中かどうか
+	 * @returns {boolean} 動作中なら true を返す
+	 */
+	isActive() { return this.#stateNo != this.#state_idle; }
+	/**
+	 * 結果を取得する
+	 * @returns {{
+	 * 		resultCode:number, // 処理結果
+	 * 		result:number[], // 入力された文字列
+	 * }}
+	 */
+	getResult() { return {resultCode:0, result: this.inputBuffer}; }
+	/**
+	 * 状態遷移する
+	 * @param {number} stateNo 遷移する状態
+	 */
+	changeState(stateNo) { this.#stateNo = stateNo; }
 }
 
+/**
+ * S-OS標準モニタのタスク
+ */
 class TaskMonitor {
-
+	/**
+	 * 状態
+	 * @type {function[]}
+	 */
 	#state;
+	/**
+	 * 現在の状態
+	 * @type {number}
+	 */
 	#stateNo;
 
 	#commandBuffer;
@@ -581,7 +659,10 @@ class TaskMonitor {
 		if(res.result != 0) { return this.#doError(ctx, res.result); }
 		return true;
 	}
-		
+	
+	/**
+	 * コンストラクタ
+	 */
 	constructor()
 	{
 		this.#state = new Array();
@@ -629,7 +710,7 @@ class TaskMonitor {
 				case 0x44: // 'D'
 					{
 						let flagCommandDV = false;
-						if(this.#commandBuffer[0] == 0x56) {
+						if(this.#commandBuffer[0] == 0x56) { // 'V'
 							// DV
 							this.#commandBuffer.shift();
 							flagCommandDV = true;
@@ -671,16 +752,17 @@ class TaskMonitor {
 					}
 
 				// J <アドレス>							指定アドレス (16進数4桁) のコール
-				case 0x4A: // 'J'
+				case 0x4A:
 					{
 						// 空白スキップ
 						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
 						// ジャンプ先取得
 						const address = this.#parseHex4(this.#commandBuffer);
 						if(!this.#checkResult(ctx, address)) { return; }
-						this.changeState(this.#state_end);
 						// 飛び先設定
 						ctx.monitorCommandJump(address.value);
+						// モニタ終了
+						this.changeState(this.#state_end);
 						return;
 					}
 					// K <ファイル名>					ファイル消去
@@ -857,21 +939,12 @@ class TaskMonitor {
 							return;
 						}
 					}
+
 					// W	桁数変更
-				case 0x57: // W
-					{
-						const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
-						const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);
-						if(width <= 40) {
-							ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 80);
-							ctx.changeScreenSize(80, maxlin);
-						} else {
-							ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 40);
-							ctx.changeScreenSize(40, maxlin);
-						}
-						this.changeState(this.#state_start);
-						return;
-					}
+				case 0x57:
+					this.#W_Command();
+					this.changeState(this.#state_start);
+					return;
 
 					// !	ブート
 					//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
@@ -885,6 +958,22 @@ class TaskMonitor {
 
 		this.#stateNo = this.#state_idle;
 		this.#commandBuffer = [];
+	}
+
+	/**
+	 * 桁数変更コマンド
+	 */
+	#W_Command()
+	{
+		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
+		const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);
+		if(width <= 40) {
+			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 80);
+			ctx.changeScreenSize(80, maxlin);
+		} else {
+			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 40);
+			ctx.changeScreenSize(40, maxlin);
+		}
 	}
 
 	/**
@@ -984,28 +1073,29 @@ class TaskMonitor {
 		return {result: 0, deviceName: deviceName, filename: filename, extension: extension};
 	}
 
-	update(ctx)
-	{
-		this.#state[this.#stateNo](ctx);
-	}
-
-	start()
-	{
-		this.changeState(this.#state_start);
-	}
-
-	changeState(stateNo)
-	{
-		this.#stateNo = stateNo;
-	}
-
-	isActive()
-	{
-		return this.#stateNo != this.#state_idle;
-	}
-
-	isFinished()
-	{
-		return this.#stateNo == this.#state_end;
-	}
+	/**
+	 * 更新処理
+	 * @param {*} ctx 
+	 */
+	update(ctx) { this.#state[this.#stateNo](ctx); }
+	/**
+	 * 開始する
+	 * @param {*} ctx 
+	 */
+	start() { this.changeState(this.#state_start); }
+	/**
+	 * 状態遷移する
+	 * @param {number} stateNo 遷移する状態
+	 */
+	changeState(stateNo) { this.#stateNo = stateNo; }
+	/**
+	 * 動作中かどうか
+	 * @returns {boolean} 動作中なら true を返す
+	 */
+	isActive() { return this.#stateNo != this.#state_idle; }
+	/**
+	 * 完了したかどうか
+	 * @returns {boolean} 完了していたら true を返す
+	 */
+	isFinished() { return this.#stateNo == this.#state_end; }
 }

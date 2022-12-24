@@ -255,6 +255,20 @@ export default class {
 	}
 
 	/**
+	 * カーソルのある行のテキストをデコードして取得する
+	 * @param {number} layer レイヤ番号
+	 * @returns {Array} １行の文字列
+	 */
+	getLineWithDecode(layer) {
+		// デコードする
+		const ret = new Array();
+		for(let ch of this.getLine(layer)) {
+			ret.push(this.#decoder(ch.codePointAt(0)));
+		}
+		return ret;
+	}
+
+	/**
 	 * テキストが更新されたかどうかを取得する
 	 * @param {number} layer レイヤ番号
 	 * @returns {boolean} 更新された場合は true を返す

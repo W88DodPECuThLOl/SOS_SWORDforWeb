@@ -161,6 +161,7 @@ class Z80Emu {
 	update(ctx) {
 		this.#ctx = ctx;
 		return this.wasm.exeute(4194304 / 60 | 0); // 約4Mzの60FPS
+		//return this.wasm.exeute(8388608 / 60 | 0); // 約8Mzの60FPS
 	}
 
 	/**
@@ -191,11 +192,9 @@ class Z80Emu {
 	 * Z80側でのcallするアドレスを書き換えている
 	 * 
 	 * jp   #COLD   ; COLDにジャンプ  
-	 * call #HOT    ; USRを呼び出す  
-	 * call xxxx    ; Jコマンドの飛び先を呼び出す  
-	 * jp   3  
-	 * 
-	 * メモ）ただ、うまくいっていない模様
+	 * call xxxx    ; USRを呼び出す  
+	 * call yyyy    ; Jコマンドの飛び先を呼び出す  
+	 * jp   3
 	 * @param {number} address ジャンプするアドレス
 	 */
 	monitorCommandJump(address)

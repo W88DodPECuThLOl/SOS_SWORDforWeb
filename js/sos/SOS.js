@@ -1,4 +1,20 @@
 /**
+ * #PAUSEの状態
+ */
+class PauseState {
+	/**
+	 * 通常状態
+	 */
+	static Idle = 0;
+	/**
+	 * スペースキー押下されて停止状態
+	 * - 何かキー押下で、通常状態へ
+	 * - BREAK押下で、ブレイク先へジャンプ
+	 */
+	static Pause = 1;
+}
+
+/**
  * S-OSのサブルーチン
  */
 class SOS {
@@ -14,11 +30,13 @@ class SOS {
 	#getl_dstAddr = 0x0000;
 
 	#isCpuOccupation = false;
-	
+	#pauseState = PauseState.Idle;
+
 	constructor(z80)
 	{
 		this.#z80 = z80;
 		this.#isCpuOccupation = false;
+		this.#pauseState = PauseState.Idle;
 	}
 
 	/**
@@ -360,6 +378,7 @@ class SOS {
 		this.#memWriteU16(0x0004, this.#memReadU16(SOSWorkAddr.USR));
 
 		this.#isCpuOccupation = false;
+		this.#pauseState = PauseState.Idle;
 		return 0;
 	}
 
@@ -376,6 +395,7 @@ class SOS {
 			// モニタ起動する
 			ctx.taskMonitor.start();
 			this.#isCpuOccupation = false;
+			this.#pauseState = PauseState.Idle;
 			return 1;
 		} else {
 			if(ctx.taskMonitor.isFinished()) {
@@ -384,10 +404,18 @@ class SOS {
 				ctx.taskMonitor.changeState(0); // モニタをidle状態に設定
 				// カーソル位置をS-OSのワークに設定する
 				this.#endCursor(ctx);
+
+				// スタックポインタを初期化
+				this.setSP(this.#memReadU16(SOSWorkAddr.STKAD));
+				// ジャンプ先をコールする命令から再開させる
+				this.setPC(0x0006);
+				// 各種ローカルの設定を初期化
+				this.#isCpuOccupation = false;
+				this.#pauseState = PauseState.Idle;
 				// CPU停止していたのを終わらせる
 				return 0;
 			} else {
-				//this.#Log("sos_hot - mon working");
+				this.#Log("sos_hot - mon working");
 				return 1; // まだ、モニタが動作中なので、CPUは停止状態にしておく
 			}
 		}
@@ -738,8 +766,7 @@ class SOS {
 	 * ここでBREAKを押すとBRKJOBヘｼﾞｬﾝﾌﾟ  
 	 * さもなくばDW BRKJOBはｽｷｯﾌﾟ。
 	 * 
-	 * @todo スペースキー押下時の処理
-	 * @todo ブレイクキー押下時の処理
+	 * @todo テスト
 	 * @param {*} ctx 
 	 * @returns {number} 
 	 */
@@ -747,15 +774,48 @@ class SOS {
 		this.#Log("sos_pause");
 		// 戻るアドレスを取得
 		let retAddress = this.#memReadU16(this.#getSP());
-		if(true) {
-			retAddress += 2;
-		} else {
-			// breakキー押されたとき
-			retAddress = this.#memReadU16(retAddress);
+		if(this.#pauseState == PauseState.Idle) {
+			if(ctx.keyMan.isKeyDown(0x20)) {
+				// スペースキー押された
+				// キーバッファをクリアしておく
+				ctx.keyMan.keyBufferClear();
+				// ポーズ状態へ
+				this.#pauseState = PauseState.Pause;
+				return 1;
+			} else {
+				// 戻るアドレスを書き換える
+				this.#memWriteU16(this.#getSP(), retAddress + 2);
+				return 0;
+			}
+		} else if(this.#pauseState == PauseState.Pause) {
+			// ポーズ中
+			if(ctx.keyMan.isKeyDown(0x1B)) {
+				// ポーズ中にbreakキー押された
+				// 戻るアドレスを書き換える
+				this.#memWriteU16(this.#getSP(), this.#memReadU16(retAddress));
+				// 通常状態に初期化
+				this.#pauseState = PauseState.Idle;
+				// キーバッファをクリアしておく
+				ctx.keyMan.keyBufferClear();
+				return 0;
+			} else {
+				let key = Number(ctx.keyMan.inKey());
+				if(isNaN(key)) { key = 0; }
+				if(key) {
+					// ポーズ中に何か押された
+					// 戻るアドレスを書き換える
+					this.#memWriteU16(this.#getSP(), retAddress + 2);
+					// 通常状態に
+					this.#pauseState = PauseState.Idle;
+					// キーバッファをクリアしておく
+					ctx.keyMan.keyBufferClear();
+					return 0;
+				} else {
+					// ポーズ継続
+					return 1;
+				}
+			}
 		}
-		// 戻るアドレスを書き換える
-		this.#memWriteU16(this.#getSP(), retAddress);
-		return 0;
 	}
 	/**
 	 * #BELL(1FC4H)
@@ -902,16 +962,22 @@ class SOS {
 	 * #FILEでｾｯﾄされたﾌｧｲﾙ名、(#DTADR)、(#SIZE)、(#EXADR)をﾃｰﾌﾟに書き込む。  
 	 * ﾃﾞｨｽｸの場合は、新しいﾌｧｲﾙかどうかのﾁｪｯｸを行う。  
 	 * ｴﾗｰ発生時にはｷｬﾘﾌﾗｸﾞが立つ
-	 * @todo 実装すること
+	 * @todo テスト
 	 * @param {*} ctx 
 	 * @returns {number} 
 	 */
 	sos_wopen(ctx){
 		this.#Log("sos_wopen");
 
-		// エラー
-		this.#setA(SOSErrorCode.DeviceIOError);
-		this.#setCY();
+		// @todo 新しいﾌｧｲﾙかどうかのﾁｪｯｸを行う。
+		// メモ） #WRD側で、よきにはからうので、不要かもしれない
+		if(false) {
+			// エラー
+			this.#setA(SOSErrorCode.DeviceIOError);
+			this.#setCY();
+			return 0;
+		}
+		this.#clearCY();
 		return 0;
 	}
 	/**
@@ -957,7 +1023,7 @@ class SOS {
 			this.#setCY();
 			return 0;
 		}
-		// エラー
+		// 正常終了
 		this.#clearCY();
 		return 0;
 	}
@@ -1170,7 +1236,6 @@ class SOS {
 	 * 
 	 * ﾃｰﾌﾟから読み込んだﾌｧｲﾙﾈｰﾑを表示する。  
 	 * ｽﾍﾟｰｽｷｰを押すと表示後一時停止する。
-	 * @todo 違うような気がする
 	 * @param {*} ctx 
 	 * @returns {number} 
 	 */

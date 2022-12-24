@@ -17,20 +17,22 @@ class SOSInfomationBlock {
 	 * @type {number}
 	 */
 	static ib_attribute      = 0;
-	static ib_filename       = SOSWorkAddr.ib_attribute + 1;		// 1
-	static ib_extension      = SOSWorkAddr.ib_filename + 13;		// 14
-	static ib_password       = SOSWorkAddr.ib_extension + 3;		// 17
-	static ib_size           = SOSWorkAddr.ib_password + 1;			// 18
-	static ib_startAddress   = SOSWorkAddr.ib_size + 2;				// 20
-	static ib_executeAddress = SOSWorkAddr.ib_startAddress + 2;		// 22
-	static ib_date           = SOSWorkAddr.ib_executeAddress + 2;	// 24
-	static ib_cluster        = SOSWorkAddr.ib_date + 6;				// 30
-
+	static ib_filename       = SOSInfomationBlock.ib_attribute + 1;			// 1
+	static ib_extension      = SOSInfomationBlock.ib_filename + 13;			// 14
+	static ib_password       = SOSInfomationBlock.ib_extension + 3;			// 17
+	static ib_size           = SOSInfomationBlock.ib_password + 1;			// 18
+	static ib_startAddress   = SOSInfomationBlock.ib_size + 2;				// 20
+	static ib_executeAddress = SOSInfomationBlock.ib_startAddress + 2;		// 22
+	static ib_date           = SOSInfomationBlock.ib_executeAddress + 2;	// 24
+	static ib_cluster        = SOSInfomationBlock.ib_date + 6;				// 30
 	/**
 	 * インフォメーションブロック(IB)のサイズ
 	 * @type {number}
 	 */
-	static InfomationBlockSize = SOSWorkAddr.ib_cluster + 2;		// 32
+	static InfomationBlockSize = SOSInfomationBlock.ib_cluster + 2;			// 32
+
+	static filename_size = 13;
+	static extension_size = 3;
 
 	/**
 	 * 属性を比較するときに使用するマスク
@@ -48,6 +50,6 @@ class SOSInfomationBlock {
 	 * @returns {boolean} 属性が同じなら true を返す
 	 */
 	static isEquelAttribute(lhs, rhs) {
-		return (lhs & SOSWorkAddr.attribute_mask) == (rhs & SOSWorkAddr.attribute_mask);
+		return (lhs & SOSInfomationBlock.attribute_mask) == (rhs & SOSInfomationBlock.attribute_mask);
 	}
 };
