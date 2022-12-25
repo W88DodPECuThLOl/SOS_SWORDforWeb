@@ -68,6 +68,14 @@ class SOS {
 	}
 
 	/**
+	 * 小さい方を返す
+	 * @param {*} lhs 
+	 * @param {*} rhs 
+	 * @returns {number} 小さい方
+	 */
+	#min(lhs, rhs) { return (lhs < rhs) ? lhs : rhs; }
+
+	/**
 	 * デバッグ用のログ出力
 	 * @param {string} text 出力するテキスト
 	 */
@@ -1169,7 +1177,7 @@ class SOS {
 			return 0;
 		}
 		// メモリにコピー
-		const minSize = this.min(fileSize, data.value.length);
+		const minSize = this.#min(fileSize, data.value.length);
 		for(let i = 0; i < minSize; ++i) {
 			ctx.z80Emu.memWriteU8(loadAddress + i, data.value[i]);
 		}
