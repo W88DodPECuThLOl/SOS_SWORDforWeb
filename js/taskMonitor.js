@@ -225,6 +225,12 @@ class TaskContext {
 		this.printNativeMsg(errorMsg[errorCode]);
 	}
 
+	/**
+	 * カーソルを表示するかどうかを設定する
+	 * @param {boolean} display カーソルを表示するかどうか
+	 */
+	setDisplayCursor(display) { this.catTextScreen.setDisplayCursor(display); }
+
 	// --------------------------------------------------------------------
 	// デバイス
 	// --------------------------------------------------------------------
@@ -293,7 +299,7 @@ class TaskContext {
 	PrintFiles(result)
 	{
 		// 空きクラスタサイズ
-		this.printNativeMsg("$" + (result.freeClusters).toString(16) + " Clusters Free\n");
+		this.printNativeMsg("$" + (result.freeClusters).toString(16).toUpperCase() + " Clusters Free\n");
 		for(let entry of result.entries) {
 			let text = "";
 			// 属性
@@ -314,15 +320,15 @@ class TaskContext {
 			text += String.fromCodePoint(result.deviceName) + ":";
 			this.printNativeMsg(text);
 			// ファイル名
-			for(let i = 0; i < 13; ++i) { this.PRINT(entry.filename[i]); }
+			for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) { this.PRINT(entry.filename[i]); }
 			this.PRINT(0x2E); // "."
-			for(let i = 0; i < 3; ++i) { this.PRINT(entry.extension[i]); }
+			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) { this.PRINT(entry.extension[i]); }
 			// 読み込みアドレス
-			text = ":" + (entry.loadAddress).toString(16).padStart(4, 0);
+			text = ":" + (entry.loadAddress).toString(16).padStart(4, 0).toUpperCase();
 			// 終了アドレス
-			text += ":" + (entry.loadAddress + entry.size - 1).toString(16).padStart(4, 0);
+			text += ":" + (entry.loadAddress + entry.size - 1).toString(16).padStart(4, 0).toUpperCase();
 			// 実行アドレス
-			text += ":" + (entry.executeAddress).toString(16).padStart(4, 0);
+			text += ":" + (entry.executeAddress).toString(16).padStart(4, 0).toUpperCase();
 			this.printNativeMsg(text + "\n");
 		}
 	}
@@ -584,6 +590,8 @@ class TaskLineInput {
 			ctx.keyMan.keyBufferClear();
 			// キー入力待ちへ
 			this.changeState(this.#state_wait);
+			// カーソル表示
+			ctx.setDisplayCursor(true);
 		};
 		this.#state[this.#state_wait] = (ctx)=>{
 			const keyCode = ctx.keyMan.dequeueKeyBuffer();
@@ -592,6 +600,8 @@ class TaskLineInput {
 					// Breakキーが押された
 					this.inputBuffer = [this.#keyCodeBRK, 0];
 					this.changeState(this.#state_end);
+					// カーソル非表示
+					ctx.setDisplayCursor(false);
 					return;
 				} else if(keyCode == this.#keyCodeBackSpace) {
 					// 1文字削除
@@ -610,6 +620,8 @@ class TaskLineInput {
 					ctx.catTextScreen.putch32(this.#keyCodeCR);
 					// 終了状態へ
 					this.changeState(this.#state_end);
+					// カーソル非表示
+					ctx.setDisplayCursor(false);
 					return;
 				}
 				ctx.catTextScreen.putch32(keyCode);
@@ -654,6 +666,8 @@ class TaskLineInput {
 		this.inputBuffer = new Array();
 		// キーバッファをクリア
 		ctx.keyMan.keyBufferClear();
+		// カーソル非表示
+		ctx.setDisplayCursor(false);
 		// アイドル状態へ
 		this.changeState(this.#state_idle);
 	}
@@ -698,6 +712,10 @@ class TaskMonitor {
 	 */
 	#stateNo;
 
+	/**
+	 * コマンドで入力された１行
+	 * @type {Array}
+	 */
 	#commandBuffer;
 
 	/**
@@ -705,31 +723,203 @@ class TaskMonitor {
 	 * @type {boolean}
 	 */
 	#runningBatch = false;
+	/**
+	 * バッチファイルの中身
+	 * @type {Array}
+	 */
 	#batchBuffer = new Array();
 
+	/**
+	 * 何もしてない状態
+	 * @type {number}
+	 */
 	#state_idle = 0;
+	/**
+	 * 開始状態
+	 * @type {number}
+	 */
 	#state_start = 1;
+	/**
+	 * コマンド入力待ち状態
+	 * @type {number}
+	 */
 	#state_input_wait = 2;
+	/**
+	 * コマンド処理状態
+	 * @type {number}
+	 */
 	#state_command = 3;
+	/**
+	 * ポーズ待ち状態
+	 * @type {number}
+	 */
 	#state_pause_wait = 4;
+	/**
+	 * 完了状態
+	 * @type {number}
+	 */
 	#state_end = 5;
 
 	#keyCodeBRK = 0x1B; // Breakキー
 	#keyCodeCR = 0x0D; // Enterキー
 
+	/**
+	 * エラーコードを表示して、コマンド入力状態に遷移する
+	 * @param {TaskContext} ctx 
+	 * @param {number} errorCode エラーコード
+	 * @returns {boolean} エラーなのでfalseを返す。
+	 */
 	#doError(ctx, errorCode)
 	{
+		// エラーコードを表示
 		ctx.ERROR(errorCode);
 		ctx.PRINT(this.#keyCodeCR);
+		// コマンド入力状態に遷移
 		this.changeState(this.#state_start);
+		// エラーなので常にfalseを返す
 		return false;
 	}
+	/**
+	 * 色々な結果を評価して、エラーならエラー処理をする  
+	 * エラーの時は、コマンド入力状態に遷移する。
+	 * @param {TaskContext} ctx 
+	 * @param {*} res 色々な処理結果
+	 * @returns {boolean} エラーなら false を返す
+	 */
 	#checkResult(ctx, res)
 	{
 		if(res.result != 0) { return this.#doError(ctx, res.result); }
 		return true;
 	}
-	
+
+	/**
+	 * 桁数変更コマンド
+	 * @param {TaskContext} ctx 
+	 */
+	#W_Command(ctx)
+	{
+		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
+		const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);
+		if(width <= 40) {
+			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 80);
+			ctx.changeScreenSize(80, maxlin);
+		} else {
+			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 40);
+			ctx.changeScreenSize(40, maxlin);
+		}
+	}
+
+	/**
+	 * 16進4桁を整数値に変換する
+	 * @param {Array} text 変換する値
+	 * @returns {{
+	 * 		result: number	// エラーコード
+	 * 		value: number	// 変換された値
+	 * }}
+	 */
+	#parseHex4(text)
+	{
+		if(text.length <= 0 || text[0] == 0 || text[0] == 0x20 || text[0] == 0x3A) {
+			return {result: SOSErrorCode.SyntaxError, value: 0};
+		}
+		let value = 0;
+		while(text.length > 0 && text[0] != 0 && text[0] != 0x20 && text[0] != 0x3A) {
+			let num = this.#parseHex1(text.shift());
+			if(num < 0) { return {result: SOSErrorCode.SyntaxError, value: 0}; }
+			value <<= 4;
+			value |= num; 
+		}
+		return {result: 0, value: value & 0xFFFF};
+	}
+	/**
+	 * 16進1桁を整数値に変換する
+	 * @param {number} ch 変換する値
+	 * @returns {number} 変換された値。エラーなら-1を返す
+	 */
+	#parseHex1(ch)
+	{
+		if(0x30 <= ch && ch <= 0x39) {
+			return ch - 0x30; // 0-9
+		} else if(0x41 <= ch && ch <= 0x46) {
+			return ch - 0x41 + 10 // A-F
+		} else if(0x61 <= ch && ch <= 0x66) {
+			return ch - 0x61 + 10 // a-f
+		}
+		return -1;
+	}
+
+	/**
+	 * ファイル名をパースして、分解する
+	 * @param {TaskContext} ctx 
+	 * @param {Array} text ファイル名
+	 * @returns {{
+	 * 		result: number,			// エラーコード
+	 * 		deviceName: number,		// デバイス名
+	 * 		filename: Uint8Array,	// ファイル名
+	 * 		extension: Uint8Array	// 拡張子
+	 * }}
+	 */
+	#parseFilename(ctx, text)
+	{
+		// デバイス名
+		let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
+		// ファイル名
+		const filename = new Uint8Array(SOSInfomationBlock.filename_size);
+		filename.fill(0x20);
+		// 拡張子
+		const extension = new Uint8Array(SOSInfomationBlock.extension_size);
+		extension.fill(0x20);
+		// 空白をスキップ
+		while(text[0] == 0x20) { text.shift(); }
+		// デバイス名（A～D）
+		if(text[1] == 0x3A) { // ":"
+			const device = text[0];
+			if(0x61 <= device && device <= 0x64) { // a～d
+				deviceName = device - 0x20;
+				text.shift();
+				text.shift();
+			} else if(0x41 <= device && device <= 0x44) { // A～D
+				deviceName = device;
+				text.shift();
+				text.shift();
+			}
+		}
+		// ファイル名
+		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
+			const ch = text[0];
+			if(ch == 0 || ch == 0x2E || ch == 0x3A) { break; } // "." ":"
+			if(ch != 0x0D) {
+				filename[i] = ch;
+			}
+			text.shift();
+		}
+		// スキップ
+		while(true) {
+			const ch = text[0];
+			if(ch == 0 || ch == 0x2E || ch == 0x3A) { // "." ":"
+				break;
+			}
+			text.shift();
+		}
+		// 拡張子
+		if(text[0] == 0x2E) { // "."
+			text.shift();
+			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
+				const ch = text[0];
+				if(ch == 0 || ch == 0x3A) { break; } // ":"
+				if(ch != 0x0D) {
+					extension[i] = ch;
+				}
+				text.shift();
+			}
+		}
+		// スキップ
+		while(text[0] != 0x3A && text[0] != 0) {
+			text.shift();
+		}
+		return {result: 0, deviceName: deviceName, filename: filename, extension: extension};
+	}
+
 	/**
 	 * コンストラクタ
 	 */
@@ -857,6 +1047,8 @@ class TaskMonitor {
 						ctx.monitorCommandJump(address.value);
 						// モニタ終了
 						this.changeState(this.#state_end);
+						// カーソル非表示にしてジャンプする
+						ctx.setDisplayCursor(false);
 						return;
 					}
 					// K <ファイル名>					ファイル消去
@@ -1129,7 +1321,7 @@ class TaskMonitor {
 			if(key) {
 				// 何か押された
 				this.changeState(this.#state_start);
-				if(key == 0x1B) {
+				if(key == this.#keyCodeBRK) {
 					// ブレイクキー押された
 					// @todo バッチ処理中断
 					this.#runningBatch = false;
@@ -1144,122 +1336,9 @@ class TaskMonitor {
 		this.#stateNo = this.#state_idle;
 		this.#commandBuffer = [];
 
-		// バッチ
+		// バッチを初期化
 		this.#runningBatch = false;
 		this.#batchBuffer.length = 0;
-	}
-
-	/**
-	 * 桁数変更コマンド
-	 */
-	#W_Command(ctx)
-	{
-		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
-		const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);
-		if(width <= 40) {
-			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 80);
-			ctx.changeScreenSize(80, maxlin);
-		} else {
-			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 40);
-			ctx.changeScreenSize(40, maxlin);
-		}
-	}
-
-	/**
-	 * 
-	 * @param {Array} text 
-	 */
-	#parseHex4(text)
-	{
-		if(text.length <= 0 || text[0] == 0 || text[0] == 0x20 || text[0] == 0x3A) {
-			return {result: SOSErrorCode.SyntaxError, value: 0};
-		}
-		let value = 0;
-		while(text.length > 0 && text[0] != 0 && text[0] != 0x20 && text[0] != 0x3A) {
-			let num = this.#parseHex1(text.shift());
-			if(num < 0) { return {result: SOSErrorCode.SyntaxError, value: 0}; }
-			value <<= 4;
-			value |= num; 
-		}
-		return {result: 0, value: value & 0xFFFF};
-	}
-	/**
-	 * 
-	 * @param {number} ch 
-	 * @returns {number}
-	 */
-	#parseHex1(ch)
-	{
-		if(0x30 <= ch && ch <= 0x39) {
-			return ch - 0x30; // 0-9
-		} else if(0x41 <= ch && ch <= 0x46) {
-			return ch - 0x41 + 10 // A-F
-		} else if(0x61 <= ch && ch <= 0x66) {
-			return ch - 0x61 + 10 // a-f
-		}
-		return -1;
-	}
-
-	/**
-	 * 
-	 * @param {Array} text 
-	 */
-	#parseFilename(ctx, text)
-	{
-		let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
-		const filename = new Uint8Array(13);
-		filename.fill(0x20);
-		const extension = new Uint8Array(3);
-		extension.fill(0x20);
-		// 空白をスキップ
-		while(text[0] == 0x20) { text.shift(); }
-		// デバイス名（A～D）
-		if(text[1] == 0x3A) { // ":"
-			const device = text[0];
-			if(0x61 <= device && device <= 0x64) { // a～d
-				deviceName = device - 0x20;
-				text.shift();
-				text.shift();
-			} else if(0x41 <= device && device <= 0x44) { // A～D
-				deviceName = device;
-				text.shift();
-				text.shift();
-			}
-		}
-		// ファイル名
-		for(let i = 0; i < 13; ++i) {
-			const ch = text[0];
-			if(ch == 0 || ch == 0x2E || ch == 0x3A) { break; } // "." ":"
-			if(ch != 0x0D) {
-				filename[i] = ch;
-			}
-			text.shift();
-		}
-		// スキップ
-		while(true) {
-			const ch = text[0];
-			if(ch == 0 || ch == 0x2E || ch == 0x3A) { // "." ":"
-				break;
-			}
-			text.shift();
-		}
-		// 拡張子
-		if(text[0] == 0x2E) { // "."
-			text.shift();
-			for(let i = 0; i < 3; ++i) {
-				const ch = text[0];
-				if(ch == 0 || ch == 0x3A) { break; } // ":"
-				if(ch != 0x0D) {
-					extension[i] = ch;
-				}
-				text.shift();
-			}
-		}
-		// スキップ
-		while(text[0] != 0x3A && text[0] != 0) {
-			text.shift();
-		}
-		return {result: 0, deviceName: deviceName, filename: filename, extension: extension};
 	}
 
 	/**

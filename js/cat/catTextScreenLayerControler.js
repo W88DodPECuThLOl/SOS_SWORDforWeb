@@ -543,4 +543,12 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 	 * @returns {boolean} 更新された場合は true を返す
 	 */
 	isModified() { return this.#target.isModified(); }
+
+	/**
+	 * カーソルを表示するかどうかを設定する
+	 * @param {boolean} display カーソルを表示するかどうか
+	 */
+	setDisplayCursor(display) {
+		this.#target.setDisplayCursor(display);
+	}
 }

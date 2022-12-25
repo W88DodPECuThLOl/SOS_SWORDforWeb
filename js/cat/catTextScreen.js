@@ -282,7 +282,17 @@ export default class {
 				}
 			}
 		} else {
-			return this.#textLayerControler[this.#defaultLayer].isModified();
+			return this.#textLayerControler[layer].isModified();
 		}
+	}
+
+	/**
+	 * カーソルを表示するかどうかを設定する
+	 * @param {boolean} display カーソルを表示するかどうか
+	 * @param {number} layer	レイヤ番号
+	 */
+	setDisplayCursor(display, layer) {
+		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
+		this.#textLayerControler[layer].setDisplayCursor(display);
 	}
 }

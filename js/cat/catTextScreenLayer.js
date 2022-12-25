@@ -73,6 +73,12 @@ export default class {
 	 */
 	#isModified;
 
+	/**
+	 * カーソルを描画するかどうかのフラグ
+	 * @type {boolean}
+	 */
+	#display;
+
 	// -----------------------------------------------------------------------------------------------------------
 	// -----------------------------------------------------------------------------------------------------------
 
@@ -200,6 +206,7 @@ export default class {
 		this.setAttr(0);
 		this.setCursor(0, 0);
 		this.changeScreenSize(width, height)
+		this.setDisplayCursor(true);
 	}
 
 	/**
@@ -311,7 +318,7 @@ export default class {
 		for(let y = 0; y < this.#height; ++y) {
 			text += "<nobr>";
 			for(let x = 0; x < this.#width; ++x) {
-				const cursor = (x == this.#cursor.x) && (y == this.#cursor.y);
+				const cursor = this.getDisplayCursor() && (x == this.#cursor.x) && (y == this.#cursor.y);
 				text += this.#drawLetter(this.#tram[addr], this.#tram[addr + 1], this.#tram[addr + 2], cursor);
 				addr += this.#letterSize;
 			}
@@ -387,6 +394,23 @@ export default class {
 	 * @returns {boolean} 更新された場合は true を返す
 	 */
 	isModified() { return this.#isModified; }
+
+	/**
+	 * カーソルを表示するかどうかを設定する
+	 * @param {boolean} display カーソルを表示するかどうか
+	 */
+	setDisplayCursor(display) {
+		if(this.#display != display) {
+			this.#display = display;
+			// 変更フラグセット
+			this.#isModified = true;
+		}
+	}
+	/**
+	 * カーソルを表示するかどうかを取得する
+	 * @returns {boolean} カーソルを表示するかどうか
+	 */
+	getDisplayCursor() { return this.#display; }
 	
 	/**
 	 * １行文スクロールする

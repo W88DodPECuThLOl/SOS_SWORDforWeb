@@ -4,12 +4,14 @@
 class PauseState {
 	/**
 	 * 通常状態
+	 * @type {number}
 	 */
 	static Idle = 0;
 	/**
 	 * スペースキー押下されて停止状態
 	 * - 何かキー押下で、通常状態へ
 	 * - BREAK押下で、ブレイク先へジャンプ
+	 * @type {number}
 	 */
 	static Pause = 1;
 }
@@ -18,6 +20,10 @@ class PauseState {
  * S-OSのサブルーチン
  */
 class SOS {
+	/**
+	 * Z80のエミュレータ
+	 * @type {Z80Emu}
+	 */
 	#z80;
 
 	/**
@@ -25,13 +31,35 @@ class SOS {
 	 * @type {Uint8Array}
 	 */
 	#specialRAM = new Array(0x10000);
+	/**
+	 * 特殊ワークのアドレスマスク
+	 * 
+	 * 0x0000～0xFFFFにしている。
+	 * @type {number}
+	 */
 	#specialRamMask = 0xFFFF;
 
+	/**
+	 * ライン入力の格納先アドレス
+	 * @type {number}
+	 */
 	#getl_dstAddr = 0x0000;
 
+	/**
+	 * CPUを停止させているかどうか
+	 * @type {boolean}
+	 */
 	#isCpuOccupation = false;
+	/**
+	 * #PAUSE処理しているかどうか
+	 * @type {boolean}
+	 */
 	#pauseState = PauseState.Idle;
 
+	/**
+	 * コンストラクタ
+	 * @param {Z80Emu} z80 Z80のエミュレータ
+	 */
 	constructor(z80)
 	{
 		this.#z80 = z80;
@@ -41,7 +69,7 @@ class SOS {
 
 	/**
 	 * デバッグ用のログ出力
-	 * @param {string} text 
+	 * @param {string} text 出力するテキスト
 	 */
 	#Log(text)
 	{
@@ -50,6 +78,7 @@ class SOS {
 
 	/**
 	 * S-OSのワークからカーソル位置を設定する
+	 * @param {TaskContext} ctx 
 	 */
 	#beginCursor(ctx)
 	{
@@ -61,6 +90,7 @@ class SOS {
 
 	/**
 	 * カーソル位置をS-OSのワークに設定する
+	 * @param {TaskContext} ctx 
 	 */
 	#endCursor(ctx)
 	{
@@ -119,7 +149,7 @@ class SOS {
 
 	/**
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから終端文字コードがあるまでｱｽｷｰｺｰﾄﾞとみなし文字列を表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @param {number} terminator 終端文字コード
 	 */
 	#msgSub(ctx, terminator)
@@ -323,7 +353,7 @@ class SOS {
 	 * 
 	 * S-OSのコールドスタート。初期設定後メッセージを出力し、ワークエリアUSR(1FFDH)に格納されているアドレスにジャンプする。  
 	 * USRには初期値として#HOTのアドレスが格納されている。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_cold(ctx) {
@@ -379,7 +409,7 @@ class SOS {
 	 * #HOT(1FFAH)
 	 * 
 	 * S-OSのモニタになっており、プロンプト#が出てコマンド入力待ちになる。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_hot(ctx){
@@ -454,7 +484,7 @@ class SOS {
 	 * 90h	MSX/2/2+/turboR (ANK版)  
 	 * 91h	MSX/2/2+/turboR (漢字対応版)  
 	 * FFh	PC-G850  
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_ver(ctx){
@@ -466,7 +496,7 @@ class SOS {
 	 * #PRINT(1FF4H)
 	 * 
 	 * Ａﾚｼﾞｽﾀをｱｽｷｰｺｰﾄﾞとみなし表示する（１文字表示）
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_print(ctx){
@@ -483,7 +513,7 @@ class SOS {
 	 * #PRINTS(1FF1H)
 	 * 
 	 * ｽﾍﾟｰｽをひとつ表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_prints(ctx){
@@ -500,7 +530,7 @@ class SOS {
 	 * #LTNL(1FEEH)
 	 * 
 	 * 改行する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_ltnl(ctx){
@@ -517,7 +547,7 @@ class SOS {
 	 * #NL(1FEBH)
 	 * 
 	 * ｶｰｿﾙが先頭になければ改行する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_nl(ctx){
@@ -536,7 +566,7 @@ class SOS {
 	 * #MSG(1FE8H)
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから0DＨがあるまでｱｽｷｰｺｰﾄﾞとみなし文字列を表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_msg(ctx){
@@ -548,7 +578,7 @@ class SOS {
 	 * #MSX(1FE5H)
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから00Ｈがあるまでｱｽｷｰｺｰﾄﾞとみなし文字列を表示する
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_msx(ctx){
@@ -563,7 +593,7 @@ class SOS {
 	 * 例)  CALL #MPRINT  
 	 *      DM   "MESSAGE"  
 	 *      DB   0
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_mprnt(ctx){
@@ -588,7 +618,7 @@ class SOS {
 	 * #TAB(1FDFH)
 	 * 
 	 * Ｂﾚｼﾞｽﾀの値とｶｰｿﾙＸ座標との差だけｽﾍﾟｰｽを表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_tab(ctx){
@@ -612,7 +642,7 @@ class SOS {
 	 * 
 	 * Ａﾚｼﾞｽﾀの内容をｱｽｷｰｺｰﾄﾞとみなしﾌﾟﾘﾝﾀのみに出力する。  
 	 * ﾌﾟﾘﾝﾀｴﾗｰがあった場合は、ｷｬﾘﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_lprnt(ctx){
@@ -627,7 +657,7 @@ class SOS {
 	 * 
 	 * 上記#PRINT～#TAB、#PRTHX、#PRTHLの出力をﾃﾞｨｽﾌﾟﾚｲだけでなくﾌﾟﾘﾝﾀにも出力するかどうかのﾌﾗｸﾞ#LPTSWをｾｯﾄする。  
 	 * これをｺｰﾙしたあとは、上記ｻﾌﾞﾙｰﾁﾝでﾌﾟﾘﾝﾀにも出力される。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_lpton(ctx){
@@ -640,7 +670,7 @@ class SOS {
 	 * 
 	 * ﾌﾗｸﾞ#LPTSWをﾘｾｯﾄする。  
 	 * これをｺｰﾙしたあとは、#PRINT～#TAB、#PRTHX、#PRTHLの出力をﾃﾞｨｽﾌﾟﾚｲのみにする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_lptof(ctx){
@@ -654,7 +684,7 @@ class SOS {
 	 * DEﾚｼﾞｽﾀにｷｰ入力ﾊﾞｯﾌｧの先頭ｱﾄﾞﾚｽを入れてｺｰﾙすると、ｷｰﾎﾞｰﾄﾞから１行入力をして文字列をﾊﾞｯﾌｧに格納しﾘﾀｰﾝする。  
 	 * ｴﾝﾄﾞｺｰﾄﾞは00Ｈ。  
 	 * 途中でSHIFT+BREAKが押されたら、ﾊﾞｯﾌｧ先頭に1BＨが格納される。  
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_getl(ctx){
@@ -690,7 +720,7 @@ class SOS {
 	 * 
 	 * ｷｰﾎﾞｰﾄﾞからﾘｱﾙﾀｲﾑｷｰ入力をする。  
 	 * 入力したﾃﾞｰﾀはＡﾚｼﾞｽﾀに格納され、何も押されていないときはＡﾚｼﾞｽﾀﾀに０をｾｯﾄしてﾘﾀｰﾝする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_getky(ctx){
@@ -707,7 +737,7 @@ class SOS {
 	 * 
 	 * ﾌﾞﾚｲｸｷｰが押されているかどうかをﾁｪｯｸする。  
 	 * 押されているときはｾﾞﾛﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_brkey(ctx){
@@ -724,7 +754,7 @@ class SOS {
 	 * 
 	 * 何かｷｰを押すまでｷｰ入力待ちをし、ｷｰ入力があるとﾘﾀｰﾝする。  
 	 * 押されたｷｰのｱｽｷｰｺｰﾄﾞはＡﾚｼﾞｽﾀにｾｯﾄされる。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_inkey(ctx){
@@ -760,7 +790,7 @@ class SOS {
 	 * さもなくばDW BRKJOBはｽｷｯﾌﾟ。
 	 * 
 	 * @todo テスト
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_pause(ctx){
@@ -774,6 +804,8 @@ class SOS {
 				ctx.keyMan.keyBufferClear();
 				// ポーズ状態へ
 				this.#pauseState = PauseState.Pause;
+				// カーソル表示
+				ctx.setDisplayCursor(true);
 				return 1;
 			} else {
 				// 戻るアドレスを書き換える
@@ -790,6 +822,8 @@ class SOS {
 				this.#pauseState = PauseState.Idle;
 				// キーバッファをクリアしておく
 				ctx.keyMan.keyBufferClear();
+				// カーソル非表示
+				ctx.setDisplayCursor(false);
 				return 0;
 			} else {
 				let key = Number(ctx.keyMan.inKey());
@@ -802,6 +836,8 @@ class SOS {
 					this.#pauseState = PauseState.Idle;
 					// キーバッファをクリアしておく
 					ctx.keyMan.keyBufferClear();
+					// カーソル非表示
+					ctx.setDisplayCursor(false);
 					return 0;
 				} else {
 					// ポーズ継続
@@ -815,7 +851,7 @@ class SOS {
 	 * 
 	 * ベル（ビープ音）を鳴らす。
 	 * @todo 実装すること
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_bell(ctx){
@@ -826,7 +862,7 @@ class SOS {
 	 * #PRTHX(1FC1H)
 	 * 
 	 * Ａﾚｼﾞｽﾀの内容を16進数２桁で表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_prthx(ctx){
@@ -845,7 +881,7 @@ class SOS {
 	 * #PRTHL(1FBEH)
 	 * 
 	 * HLﾚｼﾞｽﾀの内容を16進数４桁で表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_prthl(ctx){
@@ -866,7 +902,7 @@ class SOS {
 	 * #ASC(1FBBH)
 	 * 
 	 * Ａﾚｼﾞｽﾀの下位４ﾋﾞｯﾄの値を16進数を表すｱｽｷｰｺｰﾄﾞに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_asc(ctx){
@@ -879,7 +915,7 @@ class SOS {
 	 * 
 	 * Ａﾚｼﾞｽﾀの内容を16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。  
 	 * Ａﾚｼﾞｽﾀの内容が16進数を表すｱｽｷｰｺｰﾄﾞでない場合は、ｷｬﾘﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_hex(ctx){
@@ -899,7 +935,7 @@ class SOS {
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから２ﾊﾞｲﾄの内容を、２桁の16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。  
 	 * ｴﾗｰがあった場合はｷｬﾘﾌﾗｸﾞがｾｯﾄされる。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos__2hex (ctx){
@@ -923,7 +959,7 @@ class SOS {
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから４ﾊﾞｲﾄの内容を、４桁の16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、HLﾚｼﾞｽﾀにｾｯﾄする。  
 	 * ｴﾗｰがあった場合は、ｷｬﾘﾌﾗｸﾞがｾｯﾄされる。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_hlhex(ctx){
@@ -956,7 +992,7 @@ class SOS {
 	 * ﾃﾞｨｽｸの場合は、新しいﾌｧｲﾙかどうかのﾁｪｯｸを行う。  
 	 * ｴﾗｰ発生時にはｷｬﾘﾌﾗｸﾞが立つ
 	 * @todo テスト
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_wopen(ctx){
@@ -978,7 +1014,7 @@ class SOS {
 	 * 
 	 * (#DTADRS)、(#SIZE)、(#EXADR)に従って、ﾃﾞﾊﾞｲｽにﾃﾞｰﾀをｾｰﾌﾞする。  
 	 * ﾃﾞｨｽｸの場合#WOPEN後でないとFile not Openのｴﾗｰが出る。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_wrd(ctx){
@@ -1029,7 +1065,7 @@ class SOS {
 	 * CALL後(#DIRNO)はｲﾝｸﾘﾒﾝﾄされる。  
 	 * ﾌﾞﾚｲｸｷｰが押されると(#DIRNO)をクリアする。  
 	 * ﾘﾀｰﾝｷｰが押されるとｷｬﾘﾌﾗｸﾞを立ててﾘﾀｰﾝする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_fcb(ctx){
@@ -1114,7 +1150,7 @@ class SOS {
 	 * 
 	 * (#DTADRS)、(#SIZE)、(#EXADR)に従って、ﾃﾞﾊﾞｲｽ上のﾌｧｲﾙを読み込む。  
 	 * #ROPEN後でないとFile not Openのｴﾗｰが出る。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_rdd(ctx){
@@ -1148,7 +1184,7 @@ class SOS {
 	 * Ａﾚｼﾞｽﾀのﾌｧｲﾙのｱﾄﾘﾋﾞｭｰﾄ、DEﾚｼﾞｽﾀにﾌｧｲﾙ名の入っている元頭ｱﾄﾞﾚｽをｾｯﾄしてｺｰﾙすると(#IBFAD)にﾌｧｲﾙ名のｾｯﾄと(#DSK)にﾌｧｲﾙﾃﾞｨｽｸﾘﾌﾟﾀのｾｯﾄを行う。  
 	 * ﾌｧｲﾙを操作する前には、必ずこのｻﾌﾞﾙｰﾁﾝにより、ﾌｧｲﾙ名とｱﾄﾘﾋﾞｭｰﾄをｾｯﾄしなければならない。  
 	 * ｺｰﾙ後DEﾚｼﾞｽﾀは行の終わり(00Ｈ)か：(コロン)の位置を示している。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_file(ctx){
@@ -1179,7 +1215,7 @@ class SOS {
 	 * 
 	 * http://000.la.coocan.jp/p6/sword/index.html  
 	 * Accに入れたファイル属性とDEから始まるファイル名を、#FILEでセットしたものと比較する。一致すればZフラグセット。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_fsame(ctx){
@@ -1229,7 +1265,7 @@ class SOS {
 	 * 
 	 * ﾃｰﾌﾟから読み込んだﾌｧｲﾙﾈｰﾑを表示する。  
 	 * ｽﾍﾟｰｽｷｰを押すと表示後一時停止する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_fprnt(ctx){
@@ -1255,7 +1291,7 @@ class SOS {
 	 * #POKE(1F9AH)
 	 * 
 	 * HLﾚｼﾞｽﾀの内容をｵﾌｾｯﾄｱﾄﾞﾚｽとして、CIOS用特殊ﾜｰｸｴﾘｱにＡﾚｼﾞｽﾀの内容を書き込む。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_poke(ctx){
@@ -1270,7 +1306,7 @@ class SOS {
 	 * 
 	 * ﾒｲﾝﾒﾓﾘからS-OS用特殊ﾜｰｸｴﾘｱにﾃﾞｰﾀを転送する。  
 	 * HLﾚｼﾞｽﾀにﾒﾓﾘ先頭ｱﾄﾞﾚｽ、DEﾚｼﾞｽﾀにﾜｰｸｴﾘｱｵﾌｾｯﾄｱﾄﾞﾚｽ、ｴﾘｱｵﾌｾｯﾄｱﾄﾞﾚｽ、BCﾚｼﾞｽﾀにﾊﾞｲﾄ数を入れてｺｰﾙする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_poke_(ctx){
@@ -1288,7 +1324,7 @@ class SOS {
 	 * 
 	 * HLﾚｼﾞｽﾀの肉容をｵﾌｾｯﾄｱﾄﾞﾚｽとして、S-OS用特殊ﾜｰｸｴﾘｱからＡﾚｼﾞｽﾀにﾃﾞｰﾀを読み出す。  
 	 * #POKEと逆の動作。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_peek(ctx){
@@ -1302,7 +1338,7 @@ class SOS {
 	 * 
 	 * S-OS用特殊ﾜｰｸｴﾘｱからﾒｲﾝﾒﾓﾘにﾃﾞｰﾀを転送する。  
 	 * HL，DE，BCﾚｼﾞｽﾀにｾｯﾄするﾊﾟﾗﾒｰﾀは#POKE@と同じ。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_peek_(ctx){
@@ -1320,7 +1356,7 @@ class SOS {
 	 * 
 	 * 各機種のﾓﾆﾀにｼﾞｬﾝﾌﾟする。
 	 * @todo 実装すること
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_mon(ctx){
@@ -1333,7 +1369,7 @@ class SOS {
 	 * HLﾚｼﾞｽﾀにｺｰﾙしたいｱﾄﾞﾚｽを入れ、  
 	 *    CALL [HL]  
 	 * と使うことにより、擬次的な相対ｺｰﾙが可能。  
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos__hl_(ctx){
@@ -1345,7 +1381,7 @@ class SOS {
 	 * #GETPC(1F80H)
 	 * 
 	 * 現在のﾌﾟﾛｸﾞﾗﾑｶｳﾝﾀの値をHLにｺﾋﾟｰする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_getpc(ctx){
@@ -1366,7 +1402,7 @@ class SOS {
 	 *    LD     A,1  
 	 *    CALL   #SCTRD  
 	 * とすれば、FATﾊﾞｯﾌｧにFATを読み出すことができる。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_drdsb(ctx){
@@ -1398,7 +1434,7 @@ class SOS {
 	 * HLが示すｱﾄﾞﾚｽからＡﾚｺｰﾄﾞ分（Ａ×256ﾊﾞｲﾄ）の内容を、  
 	 * DEを先頭ﾚｺｰﾄﾞとして記録する。連続ｾｸﾀﾗｲﾄ。  
 	 * (#DSK)にﾃﾞﾊﾞｲｽ（Ａ～Ｄ）をｾｯﾄしてｺｰﾙ。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_dwtsb(ctx){
@@ -1431,7 +1467,7 @@ class SOS {
 	 * 
 	 * (#DSK)で指定されたﾃﾞﾊﾞｲｽ上の全ﾃﾞｨﾚｸﾄﾘを表示する。
 	 * @todo テスト
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number} 
 	 */
 	sos_dir(ctx){
@@ -1466,7 +1502,7 @@ class SOS {
 	 * ゼロフラグは常にリセットとなる。  
 	 * いずれの場合にも、エラーが発生したときにはキャリでリターンする。  
 	 * またファイルの情報は、(#DATADR)，(#SIZE)，(#EXADR)へ転送される。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_ropen(ctx){
@@ -1509,7 +1545,7 @@ class SOS {
 	 * #SET※(200CH)
 	 * 
 	 * #IBDADで示されるＩＢﾊﾞｯﾌｧの内容と一致するﾃﾞｨｽｸ上のﾌｧｲﾙをﾗｲﾄﾌﾟﾛﾃｸﾄする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_set(ctx){
@@ -1535,7 +1571,7 @@ class SOS {
 	 * #RESET※(200FH)
 	 * 
 	 * #IBDADで示されるＩＢﾊﾞｯﾌｧの内容と一致するﾌｧｲﾙのﾌﾟﾛﾃｸﾄをはずす。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_reset(ctx){
@@ -1563,7 +1599,7 @@ class SOS {
 	 * #FILEで設定されたﾌｧｲﾙ名を、DEﾚｼﾞｽﾀが示すﾒﾓﾘ上のﾃﾞｰﾀに変える。ﾘﾈｰﾑ。  
 	 * ﾒﾓﾘ上のﾃﾞｰﾀ中にﾃﾞﾊﾞｲｽﾃﾞｨｽｸﾘﾌﾟﾀが入っていても無視する。  
 	 * またDE＋16以内にｴﾝｺｰﾄﾞ（00H,'：'）がないときにはｴﾗｰが発生する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_name(ctx){
@@ -1591,7 +1627,7 @@ class SOS {
 	 * #KILL※(2015H)
 	 * 
 	 * #IBFADで示されるＩＢﾊﾞｯﾌｧの内容と一致するﾃﾞｨｽｸ上のﾌｧｲﾙをキルする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_kill(ctx){
@@ -1618,7 +1654,7 @@ class SOS {
 	 * 
 	 * 現在のｶｰｿﾙ位置を、ＨにＹ座標、ＬにＸ座標の順で読み出す。  
 	 * 以後、ｶｰｿﾙ位置の読み出しは必ずこの方法によること。(#XYADR)は使わない
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_csr(ctx){
@@ -1631,7 +1667,7 @@ class SOS {
 	 * #SCRN※(201BH)
 	 * 
 	 * ＨにＹ座標、ＬにＸ座標をｾｯﾄしｺｰﾙすると、画面上の同位置にあるｷｬﾗｸﾀをＡに読み出す。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_scrn(ctx){
@@ -1654,7 +1690,7 @@ class SOS {
 	 * 
 	 * ＨにＹ座標、ＬにＸ座標を入れてｺｰﾙすると、ｶｰｿﾙ位置がそこにｾｯﾄされる。  
 	 * 以後、ｶｰｿﾙ位置の設定は必ずこの方法にとること。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_loc(ctx){
@@ -1672,7 +1708,7 @@ class SOS {
 	 * ｶｰｿﾙ位置で、ｶｰｿﾙ点滅１文字入力を行い、Ａに押されたｷｬﾗｸﾀをｾｯﾄ。
 	 * ｵｰﾄﾘﾋﾟｰﾄもかかる（MZ-80K／C/1200は不可）。
 	 * 画面へのｴｺｰﾊﾞｯｸは行わない。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_flget(ctx){
@@ -1684,6 +1720,8 @@ class SOS {
 			const address = this.#memReadU16(SOSWorkAddr.XYADR);
 			const pos     = this.#memReadU16(address);
 			ctx.setScreenLocate({x: pos & 0xFF, y:pos >> 8});
+			// カーソル表示
+			ctx.setDisplayCursor(true);
 			return 1;
 		} else {
 			let key = Number(ctx.keyMan.inKey());
@@ -1692,6 +1730,8 @@ class SOS {
 				this.#Log("sos_flget - z80 wakeup!");
 				this.#isCpuOccupation = false;
 				this.#setA(key);
+				// カーソル非表示
+				ctx.setDisplayCursor(true);
 				// 正常終了
 				this.#clearCY();
 				return 0;
@@ -1706,7 +1746,7 @@ class SOS {
 	 * 
 	 * ﾃﾞﾌｫﾙﾄﾃﾞﾊﾞｲｽをＡに読み出す。  
 	 * ﾃﾞﾌｫﾙﾄを知りたいときには必ずこの方法によるものとする。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_rdvsw(ctx){
@@ -1720,7 +1760,7 @@ class SOS {
 	 * ﾃﾞﾌｫﾙﾄにしたいﾃﾞﾊﾞｲｽ名をＡに入れｺｰﾙすると、ﾃﾞﾌｫﾙﾄﾃﾞﾊﾞｲｽがｾｯﾄされる。  
 	 * 今後必ずこの方法によること。  
 	 * (#DVSW）を直接触ることも禁止する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_sdvsw(ctx){
@@ -1733,7 +1773,7 @@ class SOS {
 	 * 
 	 * 共通I/Oﾎﾟｰﾄから１ﾊﾞｲﾄをＡに読み込む。  
 	 * ﾎﾟｰﾄはＣで指定する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_inp(ctx){
@@ -1745,7 +1785,7 @@ class SOS {
 	 * #OUT※(202DH) 
 	 * 
 	 * 共通I/OﾎﾟｰﾄへＡを出力する。ﾎﾟｰﾄはＣで指定する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_out(ctx){
@@ -1760,7 +1800,7 @@ class SOS {
 	 * 40より大きい数をｾｯﾄしてｺｰﾙすると80ｷｬﾗとなる。  
 	 * 現在のモードは(#WIDTH)に入っている。  
 	 * この機能は80K／C／1200／700／1500にはない。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_widch(ctx){
@@ -1783,7 +1823,7 @@ class SOS {
 	 * #ERROR※(2033H)
 	 * 
 	 * Ａにｴﾗｰ番号をｾｯﾄしてｺｰﾙすることによりｴﾗｰﾒｯｾｰｼﾞを表示する。
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
 	sos_error(ctx){
