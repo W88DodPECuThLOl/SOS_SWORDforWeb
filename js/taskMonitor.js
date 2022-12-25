@@ -1,9 +1,34 @@
 class TaskContext {
+	/**
+	 * Z80のエミュレータ
+	 * @type {Z80Emu}
+	 */
 	z80Emu;
+
+	/**
+	 * キー入力管理
+	 * @type {CatKey}
+	 */
 	keyMan;
+
+	/**
+	 * テキスト画面管理
+	 * @type {CatTextScreen}
+	 */
 	catTextScreen;
+
+	/**
+	 * 一行入力をするタスク
+	 * @type {TaskLineInput}
+	 */
 	taskLineInput;
+
+	/**
+	 * S-OS標準モニタのタスク
+	 * @type {TaskMonitor}
+	 */
 	taskMonitor;
+
 	/**
 	 * ディスク管理
 	 * @type {HuBasicDisk[]}
@@ -16,8 +41,15 @@ class TaskContext {
 	#keyCodeBackSpace = 0x08; // BackSpaceキー
 	#keyCodeDelete = 'Delete'; // DELキー
 
-	#defaultTextScreen = 4;
-
+	/**
+	 * コンストラクタ
+	 * @param {Z80Emu} z80Emu Z80のエミュレータ
+	 * @param {CatKey} keyMan キー入力管理
+	 * @param {CatTextScreen} catTextScreen テキスト画面管理
+	 * @param {TaskLineInput} taskLineInput 一行入力をするタスク
+	 * @param {TaskMonitor} taskMonitor S-OS標準モニタのタスク
+	 * @param {HuBasicDisk[]} diskManager ディスク管理
+	 */
 	constructor(z80Emu, keyMan, catTextScreen, taskLineInput, taskMonitor, diskManager)
 	{
 		this.z80Emu = z80Emu;
@@ -31,10 +63,7 @@ class TaskContext {
 	/**
 	 * リセットする
 	 */
-	reset()
-	{
-		this.z80Emu.reset();
-	}
+	reset() { this.z80Emu.reset(); }
 
 	/**
 	 * 起動時のメッセージを表示する
@@ -53,32 +82,36 @@ class TaskContext {
 	 * S-OS標準モニタが終了したときに、ここで設定したアドレスが呼び出される
 	 * @param {number} address 飛び先
 	 */
-	monitorCommandJump(address)
-	{
-		this.z80Emu.monitorCommandJump(address);
-	}
+	monitorCommandJump(address) { this.z80Emu.monitorCommandJump(address); }
 
 	// --------------------------------------------------------------------
 	// 入力
 	// --------------------------------------------------------------------
 
-	// ライン入力開始
-	startLineInput()
-	{
-		this.taskLineInput.start(this);
-	}
-	endLineInput()
-	{
-		this.taskLineInput.end(this);
-	}
-	isFinishLineInput()
-	{
-		return this.taskLineInput.isFinished();
-	}
-	getResultLineInput()
-	{
-		return this.taskLineInput.getResult();
-	}
+	/**
+	 * ライン入力開始
+	 */
+	startLineInput() { this.taskLineInput.start(this); }
+
+	/**
+	 * ライン入力を終わらせる
+	 */
+	endLineInput() { this.taskLineInput.end(this); }
+
+	/**
+	 * ライン入力が完了しているかどうか
+	 * @returns {boolean} 完了している場合 true を返す
+	 */
+	isFinishLineInput() { return this.taskLineInput.isFinished(); }
+
+	/**
+	 * ライン入力の結果を取得する
+	 * @returns {{
+	 * 		resultCode:number,	// 処理結果
+	 * 		result:number[],	// 入力された文字列（S-OS準拠の文字コード）
+	 * }}
+	 */
+	getResultLineInput() { return this.taskLineInput.getResult(); }
 
 	// --------------------------------------------------------------------
 	// 画面
@@ -89,32 +122,39 @@ class TaskContext {
 	 * @param {number} width 横幅のサイズ
 	 * @param {number} height 高さのサイズ
 	 */
-	changeScreenSize(width, height)
-	{
+	changeScreenSize(width, height) {
 		this.catTextScreen.changeScreenSize(width, height);
+		// スタイルを変更して、文字サイズを変える
+		var elem = document.getElementById("sos_output");
+		elem.style.transform = "scale(" + 40 / width + ", 1.0)";
 	}
 
-	getScreenLocate()
-	{
-		return this.catTextScreen.getCursor();
-	}
 	/**
-	 * 
-	 * @param {{x, y}} locate 
+	 * カーソル位置を取得する
+	 * @returns {{x:number, y:number}} カーソル位置
 	 */
-	setScreenLocate(locate)
-	{
-		this.catTextScreen.setCursor(locate.x, locate.y);
-	}
+	getScreenLocate() { return this.catTextScreen.getCursor(); }
 
-	getCodePoint(x, y)
-	{
-		return this.catTextScreen.getCodePoint(x, y);
-	}
+	/**
+	 * カーソル位置を設定する
+	 * @param {{x, y}} locate カーソル位置
+	 */
+	setScreenLocate(locate)	{ this.catTextScreen.setCursor(locate.x, locate.y); }
+
+	/**
+	 * 指定位置にある文字コードを取得する
+	 * @param {number} x 位置
+	 * @param {number} y 位置
+	 * @returns {number} 文字コード（S-OS準拠の文字コード）
+	 */
+	getCodePoint(x, y) { return this.catTextScreen.getCodePoint(x, y); }
 
 	/**
 	 * １文字出力する
-	 * @param {number|string} code 文字コード
+	 * 
+	 * 基本的にS-OS準拠の文字コード。
+	 * - 0x20未満で、制御コードでは無いものは表示しない
+	 * @param {number|string} code 文字コード（S-OS準拠の文字コード、制御文字コード）
 	 */
 	PRINT(code)
 	{
@@ -143,7 +183,7 @@ class TaskContext {
 
 	/**
 	 * ネイティブな文字列を出力する
-	 * @param {string} text 
+	 * @param {string} text 表示する文字列
 	 */
 	printNativeMsg(text)
 	{
@@ -180,7 +220,7 @@ class TaskContext {
 			"Bad Data"
 		];
 		if(errorCode <= 0 || errorCode > 14) {
-			errorCode = 14; // "Bad Data"
+			errorCode = SOSErrorCode.BadData;
 		}
 		this.printNativeMsg(errorMsg[errorCode]);
 	}
@@ -202,9 +242,9 @@ class TaskContext {
 	}
 
 	/**
-	 * 
-	 * @param {number} descriptor 
-	 * @param {number} dirRecord 
+	 * ディレクトリにあるファイルを列挙する
+	 * @param {number} descriptor	デバイス名
+	 * @param {number} dirRecord 	ディレクトリのレコード
 	 * @returns {{
 	 * 		result:number,				// S-OSのエラーコード
 	 * 		entries:{
@@ -219,7 +259,7 @@ class TaskContext {
 	 * 		}[],
 	 * 		freeClusters:number,		// 空きクラスタ数
 	 * 		deviceName:number			// デバイス名
-	 * }}
+	 * }} ディレクトリにあるファイル情報
 	 */
 	Files(descriptor, dirRecord)
 	{
@@ -233,8 +273,22 @@ class TaskContext {
 	}
 
 	/**
-	 * 
-	 * @param {*} result 
+	 * Filesで取得したディレクトリ情報を表示する
+	 * @param {{
+	 * 		result:number,				// S-OSのエラーコード
+	 * 		entries:{
+	 * 			attribute:number,		// ファイル属性
+	 * 			filename:Uint8Array,	// ファイル名
+	 * 			extension:Uint8Array,	// 拡張子
+	 * 			password:number,		// パスワード
+	 * 			size:number,			// ファイルサイズ
+	 * 			loadAddress:number,		// 読み込みアドレス
+	 * 			executeAddress:number,	// 日付データ
+	 * 			startCluster:number		// 開始クラスタ
+	 * 		}[],
+	 * 		freeClusters:number,		// 空きクラスタ数
+	 * 		deviceName:number			// デバイス名
+	 * }} result Filesで取得したディレクトリ情報
 	 */
 	PrintFiles(result)
 	{
@@ -275,17 +329,17 @@ class TaskContext {
 
 	/**
 	 * インフォメーションブロックを取得する
-	 * @param {number} descriptor 
-	 * @param {number} DirRecord
-	 * @param {Uint8Array} Filename 
-	 * @param {Uint8Array} Extension
+	 * @param {number} descriptor		デバイス名
+	 * @param {number} DirRecord 		ディレクトリのレコード
+	 * @param {Uint8Array} Filename 	ファイル名
+	 * @param {Uint8Array} Extension	拡張子
 	 * @returns {{
 	 *		result: number,			// 処理結果
 	 *		fileMode: number,		// ファイルモード
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス
 	 *		fileSize: number		// ファイルサイズ
-	 *	}}
+	 * }} インフォメーションブロック
 	 */
 	GetInfomationBlock(descriptor, DirRecord, Filename, Extension)
 	{
@@ -307,7 +361,7 @@ class TaskContext {
 	 * 		value: Uint8Array,		// 読み込んだデータ
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス
-	 * }}
+	 * }} 処理結果
 	 */
 	ReadFile(descriptor, dirRecord, Filename, Extension)
 	{
@@ -319,17 +373,19 @@ class TaskContext {
 	}
 
 	/**
-	 * 
-	 * @param {number} descriptor 
+	 * ファイルを書き込む
+	 * @param {number} descriptor デバイス名
 	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @param {Uint8Array} Data 書き込むデータ
-	 * @param {number} SaveAddress 
-	 * @param {number} EndAddress 
-	 * @param {number} ExecAddress 
+	 * @param {number} SaveAddress セーブアドレス
+	 * @param {number} EndAddress 終了アドレス
+	 * @param {number} ExecAddress 実行アドレス
 	 * @param {number} FileMode 属性（ファイルモード）
-	 * @returns 
+	 * @returns {{
+	 *		result: number			// 処理結果
+	 * }} 処理結果
 	 */
 	WriteFile(descriptor, dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
@@ -342,13 +398,13 @@ class TaskContext {
 	}
 
 	/**
-	 * 
-	 * @param {number} descriptor 
-	 * @param {number} record 
+	 * レコード（セクタ）を読み込む
+	 * @param {number} descriptor デバイス名
+	 * @param {number} record 読み込むレコード
 	 * @returns {{
-	 * 		result:number,
-	 * 		value:Uint8Array
-	 * }}
+	 * 		result:number,		// 処理結果
+	 * 		value:Uint8Array	// 読み込んだデータ
+	 * }} 処理結果
 	 */
 	ReadRecord(descriptor, record)
 	{
@@ -359,13 +415,13 @@ class TaskContext {
 		}
 	}
 	/**
-	 * 
-	 * @param {number} descriptor 
-	 * @param {number} record 
-	 * @param {Uint8Array} data 
+	 * レコード（セクタ）を書き込む
+	 * @param {number} descriptor デバイス名
+	 * @param {number} record 書き込むレコード
+	 * @param {Uint8Array} data 書き込むデータ
 	 * @returns {{
-	 * 		result:number
-	 * }}
+	 * 		result:number		// 処理結果
+	 * }} 処理結果
 	 */
 	WriteRecord(descriptor, record, data)
 	{
@@ -378,13 +434,13 @@ class TaskContext {
 
 	/**
 	 * ライトプロテクトを設定する
-	 * @param {number} descriptor 
-	 * @param {number} dirRecord
+	 * @param {number} descriptor デバイス名
+	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
 	SetWriteProtected(descriptor, dirRecord, Filename, Extension)
 	{
@@ -394,16 +450,15 @@ class TaskContext {
 			return { result: SOSErrorCode.BadFileDescripter };
 		}
 	}
-
 	/**
 	 * ライトプロテクトを解除する
-	 * @param {number} descriptor 
-	 * @param {number} dirRecord
+	 * @param {number} descriptor デバイス名
+	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
 	ResetWriteProtected(descriptor, dirRecord, Filename, Extension)
 	{
@@ -416,13 +471,13 @@ class TaskContext {
 
 	/**
 	 * ファイルを削除する
-	 * @param {number} descriptor 
-	 * @param {number} dirRecord
+	 * @param {number} descriptor デバイス名
+	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
 	Kill(descriptor, dirRecord, Filename, Extension)
 	{
@@ -434,14 +489,16 @@ class TaskContext {
 	}
 
 	/**
-	 * リネームする
-	 * @param {number} descriptor 
-	 * @param {number} dirRecord
+	 * ファイル名を変更する
+	 * @param {number} descriptor デバイス名
+	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @param {Uint8Array} newFilename 新しいファイル名
 	 * @param {Uint8Array} newExtension 新しい拡張子
-	 * @returns 
+	 * @returns {{
+	 * 		result:number // 処理結果
+	 * }} 処理結果
 	 */
 	Rename(descriptor, dirRecord, Filename, Extension, newFilename, newExtension)
 	{
@@ -577,19 +634,19 @@ class TaskLineInput {
 
 	/**
 	 * 更新処理
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 */
 	update(ctx) { this.#state[this.#stateNo](ctx); }
 
 	/**
 	 * 開始する
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 */
 	start(ctx) { this.changeState(this.#state_start); }
 
 	/**
 	 * 終了する
-	 * @param {*} ctx
+	 * @param {TaskContext} ctx
 	 */
 	end(ctx)
 	{
@@ -614,8 +671,8 @@ class TaskLineInput {
 	/**
 	 * 結果を取得する
 	 * @returns {{
-	 * 		resultCode:number, // 処理結果
-	 * 		result:number[], // 入力された文字列
+	 * 		resultCode:number,	// 処理結果
+	 * 		result:number[],	// 入力された文字列（S-OS基準の文字コード）
 	 * }}
 	 */
 	getResult() { return {resultCode:0, result: this.inputBuffer}; }
@@ -642,6 +699,13 @@ class TaskMonitor {
 	#stateNo;
 
 	#commandBuffer;
+
+	/**
+	 * バッチファイル実行中かどうか
+	 * @type {boolean}
+	 */
+	#runningBatch = false;
+	#batchBuffer = new Array();
 
 	#state_idle = 0;
 	#state_start = 1;
@@ -676,6 +740,30 @@ class TaskMonitor {
 		this.#state[this.#state_start] = (ctx)=>{
 			// プロンプト表示
 			ctx.PRINT(0x23); // #
+
+			if(this.#runningBatch) {
+				// バッチ実行中
+				if(this.#batchBuffer.length > 0) {
+					// バッチから１行取得
+					this.#commandBuffer.length = 0
+					this.#commandBuffer.shift(0x23); // #
+					while(this.#batchBuffer.length > 0) {
+						let ch = this.#batchBuffer.shift();
+						if(ch == 0x00 || ch == this.#keyCodeCR) {
+							break;
+						}
+						this.#commandBuffer.push(ch);
+						this.#batchBuffer.shift();
+					}
+					this.#commandBuffer.push(0);
+					// コマンド処理へ
+					this.changeState(this.#state_command);
+					return;
+				} else {
+					// バッチが終わった
+					this.#runningBatch = false;
+				}
+			}
 			// ライン入力開始
 			ctx.startLineInput();
 			this.changeState(this.#state_input_wait);
@@ -988,10 +1076,23 @@ class TaskMonitor {
 							// モニタ終了
 							this.changeState(this.#state_end);
 						} else {
-							// @todo アスキーファイルの処理の実装
-							ctx.ERROR(SOSErrorCode.ReservedFeature); // 未実装...
-							ctx.PRINT(this.#keyCodeCR);
-							this.changeState(this.#state_start);
+							// アスキーファイル
+							if(!this.#runningBatch) {
+								// 読み込んだデータをバッチバッファへ
+								ctx.#batchBuffer.length = 0;
+								for(let i = 0; i < result.value.length; ++i) {
+									ctx.#batchBuffer.push(result.value[i]);
+								}
+								// バッチ開始
+								this.#runningBatch = true;
+								this.changeState(this.#state_start);
+							} else {
+								// バッチ中に、読み込んだ
+								// @todo どうするんじゃろ？
+								ctx.ERROR(SOSErrorCode.ReservedFeature); // 未実装...
+								ctx.PRINT(this.#keyCodeCR);
+								this.changeState(this.#state_start);
+							}
 						}
 						return;
 					}
@@ -1006,6 +1107,15 @@ class TaskMonitor {
 						// 解除待ちへ遷移
 						this.changeState(this.#state_pause_wait);
 						return;
+					}
+
+
+					// T
+				case 0x54: // for dev & debug & test
+					{
+						// this.#runningBatch = true;
+						// this.changeState(this.#state_start);
+						// return;
 					}
 			}
 			ctx.ERROR(SOSErrorCode.SyntaxError);
@@ -1022,6 +1132,7 @@ class TaskMonitor {
 				if(key == 0x1B) {
 					// ブレイクキー押された
 					// @todo バッチ処理中断
+					this.#runningBatch = false;
 				}
 				// 念のためキーバッファをクリアしておく
 				ctx.keyMan.keyBufferClear();
@@ -1032,6 +1143,10 @@ class TaskMonitor {
 
 		this.#stateNo = this.#state_idle;
 		this.#commandBuffer = [];
+
+		// バッチ
+		this.#runningBatch = false;
+		this.#batchBuffer.length = 0;
 	}
 
 	/**
@@ -1149,12 +1264,12 @@ class TaskMonitor {
 
 	/**
 	 * 更新処理
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 */
 	update(ctx) { this.#state[this.#stateNo](ctx); }
 	/**
 	 * 開始する
-	 * @param {*} ctx 
+	 * @param {TaskContext} ctx 
 	 */
 	start() { this.changeState(this.#state_start); }
 	/**

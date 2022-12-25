@@ -209,37 +209,37 @@ export default class {
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension ファイルの拡張子
 	 * @param {Uint8Array} Data 書き込むデータ
-	 * @param {number} SaveAddress
-	 * @param {number} EndAddress
-	 * @param {number} ExecAddress
+	 * @param {number} SaveAddress セーブアドレス
+	 * @param {number} EndAddress 終了アドレス
+	 * @param {number} ExecAddress 実行アドレス
 	 * @param {number} FileMode 属性(ファイルモード)
 	 * @returns {{
 	 *		result: number			// 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
    	WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
 		return this.Image.WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
 	}
 	/**
-	 * 
-	 * @param {number} record 
+	 * レコード（セクタ）を読み込む
+	 * @param {number} record 読み込むレコード
 	 * @returns {{
-	 * 		result:number,
-	 * 		value:Uint8Array
-	 * }}
+	 * 		result:number,		// 処理結果
+	 *		value:Uint8Array	// 読み込んだデータ
+	 * }} 処理結果
 	 */
 	ReadRecord(record)
 	{
 		return this.Image.ReadRecord(record);
 	}
    /**
-	 * 
-	 * @param {number} record 
-	 * @param {Uint8Array} data 
+	 * レコード（セクタ）を書き込む
+	 * @param {number} record 書き込むレコード
+	 * @param {Uint8Array} data 書き込むデータ
 	 * @returns {{
-	 * 		result:number
-	 * }}
+	 * 		result:number		// 処理結果
+	 * }} 処理結果
 	 */
 	WriteRecord(record, data)
 	{
@@ -250,7 +250,7 @@ export default class {
 	 * インフォメーションブロックを取得する
 	 * 
 	 * resultは、0:成功、8:File not Found。
-	 * @param {number} DirRecord
+	 * @param {number} DirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
@@ -259,7 +259,7 @@ export default class {
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス
 	 *		fileSize: number		// ファイルサイズ
-	 *	}}
+	 *	}} インフォメーションブロックの情報
 	 */
 	GetInfomationBlock(DirRecord, Filename, Extension)
 	{
@@ -273,7 +273,7 @@ export default class {
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
     SetWriteProtected(DirRecord, Filename, Extension)
 	{
@@ -282,12 +282,12 @@ export default class {
 
 	/**
 	 * ライトプロテクトを解除する
-	 * @param {number} dirRecord ディレクトリのレコード
+	 * @param {number} DirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
 	ResetWriteProtected(DirRecord, Filename, Extension)
 	{
@@ -301,7 +301,7 @@ export default class {
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
 	Kill(DirRecord, Filename, Extension)
 	{
@@ -317,7 +317,7 @@ export default class {
 	 * @param {Uint8Array} NewExtension 新しい拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
-	 * }}
+	 * }} 処理結果
 	 */
 	Rename(DirRecord, Filename, Extension, NewFilename, NewExtension)
 	{
