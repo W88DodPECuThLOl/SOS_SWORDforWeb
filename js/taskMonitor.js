@@ -943,7 +943,6 @@ class TaskMonitor {
 							break;
 						}
 						this.#commandBuffer.push(ch);
-						this.#batchBuffer.shift();
 					}
 					this.#commandBuffer.push(0);
 					// コマンド処理へ
