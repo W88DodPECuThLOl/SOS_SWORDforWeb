@@ -1,6 +1,15 @@
 ﻿#include "cat/low/catLowBasicTypes.h"
 #include "z80/z80.hpp"
 
+#define TARGET (0x20)
+
+// X1  
+#define TARGET_X1 (0x20)
+// X1turbo (Oh!MZ掲載版)  
+#define TARGET_X1_TURBO (0x21)
+// X1turbo (高速版)  
+#define TARGET_X1_TURBO_HIGH_SPEED (0x22)
+
 #ifndef BUILD_WASM
 #include <string.h>
 #endif
@@ -152,13 +161,48 @@ enum WorkAddress : u16 {
 	MAXLIN = 0x1F5B,
 };
 
+#if TARGET == TARGET_X1 || TARGET == TARGET_X1_TURBO || TARGET == TARGET_X1_TURBO_HIGH_SPEED
+u8 paletteR[8];
+u8 paletteG[8];
+u8 paletteB[8];
+#endif // TARGET == TARGET_X1 || TARGET == TARGET_X1_TURBO || TARGET == TARGET_X1_TURBO_HIGH_SPEED
+
 class SOS_Context {
 	static unsigned char readByte(void* arg, unsigned short addr) { return ((SOS_Context*)arg)->RAM[addr]; }
 	static void writeByte(void* arg, unsigned short addr, unsigned char value) { ((SOS_Context*)arg)->RAM[addr] = value; }
 	static unsigned char inPort(void* arg, unsigned short port) { return ((SOS_Context*)arg)->IO[port]; }
 	static void outPort(void* arg, unsigned short port, unsigned char value) {
+#if TARGET == TARGET_X1 || TARGET == TARGET_X1_TURBO || TARGET == TARGET_X1_TURBO_HIGH_SPEED
+		// VRAM
+		if(0x4000 <= port) [[likely]]{
+			((SOS_Context*)arg)->setVRAMDirty();
+		} else if((port & 0xFF00) == 0x1000) {
+			// PALETTE B
+			port = 0x1000;
+			if(((SOS_Context*)arg)->IO[port] != value) {
+				((SOS_Context*)arg)->setVRAMDirty();
+				auto tmp = value;
+				for(s32 i = 0; i < 8; ++i) { paletteB[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
+			}
+		} else if((port & 0xFF00) == 0x1100) {
+			// PALETTE R
+			port = 0x1100;
+			if(((SOS_Context*)arg)->IO[port] != value) {
+				((SOS_Context*)arg)->setVRAMDirty();
+				auto tmp = value;
+				for(s32 i = 0; i < 8; ++i) { paletteR[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
+			}
+		} else if((port & 0xFF00) == 0x1200) {
+			// PALETTE G
+			port = 0x1200;
+			if(((SOS_Context*)arg)->IO[port] != value) {
+				((SOS_Context*)arg)->setVRAMDirty();
+				auto tmp = value;
+				for(s32 i = 0; i < 8; ++i) { paletteG[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
+			}
+		}
+#endif // TARGET == TARGET_X1 || TARGET == TARGET_X1_TURBO || TARGET == TARGET_X1_TURBO_HIGH_SPEED
 		((SOS_Context*)arg)->IO[port] = value;
-		if(0x4000 <= port) { ((SOS_Context*)arg)->setVRAMDirty(); }
 	}
 
 	inline void WRITE_JP(u8*& dst, const u16 address) { *dst++ = 0xC3; *dst++ = address & 0xFF; *dst++ = (address >> 8) & 0xFF; }
@@ -525,6 +569,15 @@ z80Reset()
 	delete ctx;
 	ctx = new SOS_Context();
 	return ctx->reset();
+
+#if TARGET == TARGET_X1 || TARGET == TARGET_X1_TURBO || TARGET == TARGET_X1_TURBO_HIGH_SPEED
+	// パレット
+	for(s32 i = 0; i < 8; i++) {
+		paletteB[i] = (i & 0x1) ? 0xFF : 0x00;
+		paletteR[i] = (i & 0x2) ? 0xFF : 0x00;
+		paletteG[i] = (i & 0x4) ? 0xFF : 0x00;
+	}
+#endif
 }
 
 /**
@@ -568,6 +621,7 @@ bool isVRAMDirty()
 
 void* getVRAMImage()
 {
+#if TARGET == TARGET_X1 || TARGET == TARGET_X1_TURBO || TARGET == TARGET_X1_TURBO_HIGH_SPEED
 	if(ctx->isVRAMDirty()) {
 		ctx->resetVRAMDirty();
 
@@ -579,13 +633,16 @@ void* getVRAMImage()
 			for(s32 y = 0; y < 25; ++y) {
 				// 1ライン
 				for(s32 x = 0; x < 80; ++x) {
-					s8 R = *vramR++;
-					s8 G = *vramG++;
-					s8 B = *vramB++;
+					u8 R = *vramR++;
+					u8 G = *vramG++;
+					u8 B = *vramB++;
 					for(s32 i = 0; i < 8; ++i) {
-						*dst++ = R >> 7; R <<= 1;
-						*dst++ = G >> 7; G <<= 1;
-						*dst++ = B >> 7; B <<= 1;
+						u8 index  = B >> 7;  B <<= 1;
+						index |= R >> 7 << 1;  R <<= 1;
+						index |= G >> 7 << 2;  G <<= 1;
+						*dst++ = paletteR[index];
+						*dst++ = paletteG[index];
+						*dst++ = paletteB[index];
 						*dst++ = 0xFF;
 					}
 				}
@@ -596,6 +653,7 @@ void* getVRAMImage()
 			vramB += 0x30;
 		}
 	}
+#endif
 	return (void*)imageMemory;
 }
 
