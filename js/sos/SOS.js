@@ -864,6 +864,7 @@ class SOS {
 	 */
 	sos_bell(ctx){
 		this.#Log("sos_bell");
+		ctx.BELL(0);
 		return 0;
 	}
 	/**

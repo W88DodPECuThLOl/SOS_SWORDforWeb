@@ -35,6 +35,11 @@ class TaskContext {
 	 */
 	diskManager;
 
+	/**
+	 * サウンド管理
+	 */
+	sndMan;
+
 	#keyCodeCLS = 0x0C; // CLS
 	#keyCodeCR = 0x0D; // Enterキー
 	#keyCodeBRK = 0x1B; // Breakキー
@@ -49,8 +54,9 @@ class TaskContext {
 	 * @param {TaskLineInput} taskLineInput 一行入力をするタスク
 	 * @param {TaskMonitor} taskMonitor S-OS標準モニタのタスク
 	 * @param {HuBasicDisk[]} diskManager ディスク管理
+	 * @param {CatSnd} sndMan サウンド管理
 	 */
-	constructor(z80Emu, keyMan, catTextScreen, taskLineInput, taskMonitor, diskManager)
+	constructor(z80Emu, keyMan, catTextScreen, taskLineInput, taskMonitor, diskManager, sndMan)
 	{
 		this.z80Emu = z80Emu;
 		this.keyMan = keyMan;
@@ -58,6 +64,7 @@ class TaskContext {
 		this.taskLineInput = taskLineInput;
 		this.taskMonitor = taskMonitor;
 		this.diskManager = diskManager;
+		this.sndMan = sndMan;
 	}
 
 	/**
@@ -513,6 +520,18 @@ class TaskContext {
 		} else {
 			return { result: SOSErrorCode.BadFileDescripter };
 		}
+	}
+
+	//
+	// その他
+	//
+
+	/**
+	 * ビープ音を再生する
+	 */
+	BELL()
+	{
+		this.sndMan.bell();
 	}
 }
 

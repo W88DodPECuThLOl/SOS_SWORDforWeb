@@ -44,6 +44,22 @@
 			var taskMonitor = new TaskMonitor();
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
+			var catSnd = {
+				/**
+				 * ビープ音を再生する
+				 */
+				bell: ()=> {
+					// @todo 探す
+					// - フリーで、個人、商用利用とわず使用できること
+					// - 短いこと ～300msぐらい？
+					// - 8bit!
+					// - 耳障りではないこと
+					// - 個性的でないこと
+					//const sound = new Audio('wav/bell.wav');
+					//sound.play();
+				}
+			}
+
 
 			// SMILEBASIC.ttf用の文字変換テーブル
 			const tblMojiEncode = [
@@ -99,7 +115,7 @@
 					//return ch32;
 				}
 			);
-			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, disks);
+			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, disks, catSnd);
 			function diskSetup()
 			{
 				for(let i = 0; i < 1; i++) {
