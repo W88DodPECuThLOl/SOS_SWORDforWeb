@@ -1,0 +1,35 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; S-OS PAUSE TEST
+                                ;
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+       1FBE                     PRTHL   EQU $1FBE
+       1FEE                     LTNL    EQU $1FEE
+       1FC7                     PAUSE   EQU $1FC7
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 532D4F5320504155        DB "S-OS PAUSE TEST"
+            53452054455354      
+000012 3012 0D00                    DB 13, 0
+       3014                     LOOP:
+000014 3014 2A3330          16      LD HL,(COUNT)
+000017 3017 23               6      INC HL
+000018 3018 223330          16      LD (COUNT),HL
+00001B 301B CDBE1F          17      CALL PRTHL
+00001E 301E CDEE1F          17      CALL LTNL
+                                
+                                    ; PAUSE TEST
+000021 3021 CDC71F          17      CALL PAUSE
+000024 3024 2930                    DW BRKJOB
+000026 3026 C31430          10      JP LOOP
+       3029                     BRKJOB:
+                                
+000029 3029 CDE21F          17      CALL MPRINT
+00002C 302C 45584954                DB "EXIT"
+000030 3030 0D00                    DB 13, 0
+000032 3032 C9              10      RET
+       3033                     COUNT:
+000033 3033 0000                    DW 0
+[EOF:testPause.z80:UTF_8]
