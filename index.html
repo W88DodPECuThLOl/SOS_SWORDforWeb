@@ -7,6 +7,9 @@
 		<script src="./js/sos/SOSErrorCode.js"></script>
 		<script src="./js/sos/SOSInfomationBlock.js"></script>
 		<script src="./js/sos/SOS.js"></script>
+		<script src="./js/sos/taskLineInput.js"></script>
+		<script src="./js/sos/taskPlatformMonitor.js"></script>
+		<script src="./js/sos/taskContext.js"></script>
 		<script src="./js/z80Emu.js"></script>
 		<script src="./js/taskMonitor.js"></script>
 		<link rel="stylesheet" href="./css/catTextScreen.css">
@@ -42,6 +45,7 @@
 			var z80Emu = new Z80Emu();
 			var taskLineInput = new TaskLineInput();
 			var taskMonitor = new TaskMonitor();
+			var taskPlatformMonitor = new TaskPlatformMonitor();
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
 			var catSnd = {
@@ -115,7 +119,7 @@
 					//return ch32;
 				}
 			);
-			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, disks, catSnd);
+			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd);
 			function diskSetup()
 			{
 				for(let i = 0; i < 1; i++) {
@@ -145,6 +149,7 @@
 				taskLineInput.update(ctx);
 				// モニタ
 				taskMonitor.update(ctx);
+				taskPlatformMonitor.update(ctx);
 				// テキスト描画
 				if(catTextScreen.isModified()) {
 					document.getElementById("sos_output").innerHTML = catTextScreen.draw();
