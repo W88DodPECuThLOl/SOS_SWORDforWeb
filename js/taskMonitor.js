@@ -947,15 +947,12 @@ class TaskMonitor {
 		this.#state = new Array();
 		this.#state[this.#state_idle] = (ctx)=>{};
 		this.#state[this.#state_start] = (ctx)=>{
-			// プロンプト表示
-			ctx.PRINT(0x23); // #
-
 			if(this.#runningBatch) {
 				// バッチ実行中
 				if(this.#batchBuffer.length > 0) {
 					// バッチから１行取得
 					this.#commandBuffer.length = 0
-					this.#commandBuffer.shift(0x23); // #
+					this.#commandBuffer.push(0x23); // #
 					while(this.#batchBuffer.length > 0) {
 						let ch = this.#batchBuffer.shift();
 						if(ch == 0x00 || ch == this.#keyCodeCR) {
@@ -972,9 +969,14 @@ class TaskMonitor {
 					this.#runningBatch = false;
 				}
 			}
-			// ライン入力開始
-			ctx.startLineInput();
-			this.changeState(this.#state_input_wait);
+			if(!this.#runningBatch) {
+				// バッチ処理中出なければ
+				// プロンプト表示して
+				ctx.PRINT(0x23); // #
+				// ライン入力開始へ
+				ctx.startLineInput();
+				this.changeState(this.#state_input_wait);
+			}
 		};
 		this.#state[this.#state_input_wait] = (ctx)=>{
 			if(!ctx.isFinishLineInput()) {
@@ -1289,9 +1291,9 @@ class TaskMonitor {
 							// アスキーファイル
 							if(!this.#runningBatch) {
 								// 読み込んだデータをバッチバッファへ
-								ctx.#batchBuffer.length = 0;
+								this.#batchBuffer.length = 0;
 								for(let i = 0; i < result.value.length; ++i) {
-									ctx.#batchBuffer.push(result.value[i]);
+									this.#batchBuffer.push(result.value[i]);
 								}
 								// バッチ開始
 								this.#runningBatch = true;

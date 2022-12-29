@@ -235,11 +235,13 @@ export default class {
 				
 				let Data = Sector.GetDataForRead();
 				let Eof = false;
+				/* メモ）そのまま使用するように変更
 				if (AsciiMode) {
-					const AsciiData = this.#ConvertAscii(Sector.Data);
+					const AsciiData = this.#ConvertAscii(Data);
 					Eof = AsciiData.Eof;
 					Data = AsciiData.Data;
 				}
+				*/
 
 				this.Log.Verbose("Cluster:" + c + " Sector:" + CurrentSector + " Position:0x" + Sector.Position .toString(16));
 
