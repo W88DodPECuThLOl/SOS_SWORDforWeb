@@ -1,0 +1,110 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; S-OS FILE WRITE TEST
+                                ;
+                                ; ・#FILE、#WOPEN、#WRDのテスト
+                                ; ・Aドライブに、アスキーファイルでファイル名「SOS_TEST.BAT」を作成する
+                                ; ・エラーが発生した場合は、エラーを表示して終了する
+                                ; ・書き込まれるファイルの内容は、バッチのテスト用で下記のテストを行うもの
+                                ;   ・コメント 「;」
+                                ;   ・ポーズ 「P」
+                                ;   ・ディレクトリ表示 「D」
+                                ;   ・ライトプロテクトの設定と解除 「ST」
+                                ;
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+       2033                     ERROR   EQU $2033
+       1FA3                     FILE    EQU $1FA3
+       1FAF                     WOPEN   EQU $1FAF
+       1FAC                     WRD     EQU $1FAC
+                                
+       1F70                     DTADR   EQU $1F70
+       1F72                     SIZE    EQU $1F72
+       1F6E                     EXADR   EQU $1F6E
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 532D4F532046494C        DB "S-OS FILE WRITE TEST"
+            4520575249544520    
+            54455354            
+000017 3017 0D00                    DB 13, 0
+                                
+                                    ;
+                                    ; ファイルの書き込み
+                                    ; 1. #FILE
+                                    ; 2. #WOPEN
+                                    ; 3. #WRD
+                                    ;
+                                
+                                    ; 1. #FILE
+000019 3019 CDE21F          17      CALL MPRINT
+00001C 301C 532D4F532046494C        DB "S-OS FILE", 13, 0
+            450D00              
+000027 3027 3A7730          13      LD A,(FILE_ATTR)  ; ファイル属性
+00002A 302A 117830          10      LD DE,FILE_NAME   ; ファイル名のアドレス
+00002D 302D CDA31F          17      CALL FILE         ; IB(InfomationBlock)に設定
+000030 3030 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                    ; 2. #WOPEN
+000033 3033 CDE21F          17      CALL MPRINT
+000036 3036 532D4F5320574F50        DB "S-OS WOPEN", 13, 0
+            454E0D00            
+000042 3042 218730          10      LD HL,DATA_ADDR   ; 書き込むデータのアドレス
+000045 3045 22701F          16      LD (DTADR),HL
+000048 3048 216D00          10      LD HL,DATA_SIZE   ; 書き込むデータのサイズ（バイト単位）
+00004B 304B 22721F          16      LD (SIZE),HL
+00004E 304E 218730          10      LD HL,EXE_ADDR    ; 実行するときのアドレス アスキーファイルの場合どうなるんだろう？
+000051 3051 226E1F          16      LD (EXADR),HL
+000054 3054 CDAF1F          17      CALL WOPEN        ; ファイルを書き込みモードでオープン
+000057 3057 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                    ; 3. #WRD
+00005A 305A CDE21F          17      CALL MPRINT
+00005D 305D 532D4F5320575244        DB "S-OS WRD", 13, 0
+            0D00                
+000067 3067 CDAC1F          17      CALL WRD          ; IB(InfomationBlock)の設定で書き込む
+00006A 306A DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+00006D 306D CDE21F          17      CALL MPRINT
+000070 3070 45584954                DB "EXIT"
+000074 3074 0D00                    DB 13, 0
+000076 3076 C9              10      RET
+                                
+                                ; ファイルの属性(ファイルモード)
+                                ; $1 : バイナリファイル
+                                ; $4 : アスキーファイル
+       3077                     FILE_ATTR:
+000077 3077 04                      DB $4
+                                ; ファイル名は、13文字+"."+3文字
+       3078                     FILE_NAME:
+000078 3078 413A534F535F5445        DB "A:SOS_TEST.BAT", 0
+            53542E42415400      
+                                ; 書き込むデータ
+       3087                     DATA_ADDR:
+000087 3087 3B20424154434820        DB "; BATCH FILE TEST", 13 ; コメント
+            46494C4520544553    
+            540D                
+000099 3099 4420413A0D              DB "D A:", 13              ; Aドライブのディレクトリの内容を表示
+00009E 309E 500D                    DB "P", 13                 ; 何か押されるまで待機、ブレイク(ESC)キーでバッチ処理停止
+                                
+0000A0 30A0 3B20534554205052        DB "; SET PROTECT", 13
+            4F544543540D        
+0000AE 30AE 535420413A534F53        DB "ST A:SOS_TEST.BAT:P", 13   ; ライトプロテクトを設定
+            5F544553542E4241    
+            543A500D            
+0000C2 30C2 4420413A0D              DB "D A:", 13
+0000C7 30C7 500D                    DB "P", 13
+                                
+0000C9 30C9 3B20524553455420        DB "; RESET PROTECT", 13
+            50524F544543540D    
+0000D9 30D9 535420413A534F53        DB "ST A:SOS_TEST.BAT:R", 13   ; ライトプロテクトを解除
+            5F544553542E4241    
+            543A520D            
+0000ED 30ED 4420413A0D              DB "D A:", 13
+0000F2 30F2 500D                    DB "P", 13
+       30F4                     DATA_ADDR_END:
+                                ; 書き込むデータサイズ
+       006D                     DATA_SIZE EQU DATA_ADDR_END - DATA_ADDR
+                                ; 実行アドレス
+       3087                     EXE_ADDR  EQU DATA_ADDR
+[EOF:testWopen.z80:UTF_8]

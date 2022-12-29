@@ -1,0 +1,94 @@
+;
+; S-OS FILE WRITE TEST
+;
+; ・#FILE、#WOPEN、#WRDのテスト
+; ・Aドライブに、アスキーファイルでファイル名「SOS_TEST.BAT」を作成する
+; ・エラーが発生した場合は、エラーを表示して終了する
+; ・書き込まれるファイルの内容は、バッチのテスト用で下記のテストを行うもの
+;   ・コメント 「;」
+;   ・ポーズ 「P」
+;   ・ディレクトリ表示 「D」
+;   ・ライトプロテクトの設定と解除 「ST」
+;
+	org $3000
+
+MPRINT	EQU	$1FE2
+ERROR   EQU $2033
+FILE    EQU $1FA3
+WOPEN	EQU	$1FAF
+WRD     EQU	$1FAC
+
+DTADR   EQU $1F70
+SIZE    EQU $1F72
+EXADR   EQU $1F6E
+
+	CALL MPRINT
+	DB "S-OS FILE WRITE TEST"
+	DB 13, 0
+
+	;
+	; ファイルの書き込み
+	; 1. #FILE
+	; 2. #WOPEN
+	; 3. #WRD
+	;
+
+	; 1. #FILE
+	CALL MPRINT
+	DB "S-OS FILE", 13, 0
+	LD A,(FILE_ATTR)  ; ファイル属性
+	LD DE,FILE_NAME   ; ファイル名のアドレス
+	CALL FILE         ; IB(InfomationBlock)に設定
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	; 2. #WOPEN
+	CALL MPRINT
+	DB "S-OS WOPEN", 13, 0
+	LD HL,DATA_ADDR   ; 書き込むデータのアドレス
+	LD (DTADR),HL
+	LD HL,DATA_SIZE   ; 書き込むデータのサイズ（バイト単位）
+	LD (SIZE),HL
+	LD HL,EXE_ADDR    ; 実行するときのアドレス アスキーファイルの場合どうなるんだろう？
+	LD (EXADR),HL
+	CALL WOPEN        ; ファイルを書き込みモードでオープン
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	; 3. #WRD
+	CALL MPRINT
+	DB "S-OS WRD", 13, 0
+	CALL WRD          ; IB(InfomationBlock)の設定で書き込む
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	CALL MPRINT
+	DB "EXIT"
+	DB 13, 0
+	RET
+
+; ファイルの属性(ファイルモード)
+; $1 : バイナリファイル
+; $4 : アスキーファイル
+FILE_ATTR:
+	DB $4
+; ファイル名は、13文字+"."+3文字
+FILE_NAME:
+	DB "A:SOS_TEST.BAT", 0
+; 書き込むデータ
+DATA_ADDR:
+	DB "; BATCH FILE TEST", 13 ; コメント
+	DB "D A:", 13              ; Aドライブのディレクトリの内容を表示
+	DB "P", 13                 ; 何か押されるまで待機、ブレイク(ESC)キーでバッチ処理停止
+
+	DB "; SET PROTECT", 13
+	DB "ST A:SOS_TEST.BAT:P", 13   ; ライトプロテクトを設定
+	DB "D A:", 13
+	DB "P", 13
+
+	DB "; RESET PROTECT", 13
+	DB "ST A:SOS_TEST.BAT:R", 13   ; ライトプロテクトを解除
+	DB "D A:", 13
+	DB "P", 13
+DATA_ADDR_END:
+; 書き込むデータサイズ
+DATA_SIZE EQU DATA_ADDR_END - DATA_ADDR
+; 実行アドレス
+EXE_ADDR  EQU DATA_ADDR
