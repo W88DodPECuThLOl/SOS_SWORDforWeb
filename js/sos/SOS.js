@@ -241,7 +241,7 @@ class SOS {
 		}
 		// ファイル名
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
-			const ch = this.#memReadU8(filenamePtr)
+			const ch = this.#memReadU8(filenamePtr);
 			if(ch == 0 || ch == 0x2E || ch == 0x3A) { break; } // "." ":"
 			if(ch != 0x0D) {
 				filename[i] = ch;
@@ -1200,19 +1200,21 @@ class SOS {
 		this.#Log("sos_file");
 		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
 		// 属性
-		this.#memWriteU8(ib_base + SOSWorkAddr.ib_attribute, this.#getA());
+		this.#memWriteU8(ib_base + SOSInfomationBlock.ib_attribute, this.#getA());
 		// パスワードなし
-		this.#memWriteU8(ib_base + SOSWorkAddr.ib_password, 0x20);
+		this.#memWriteU8(ib_base + SOSInfomationBlock.ib_password, 0x20);
 		// ファイル名を分割して
 		const result = this.#splitPath(this.#getDE());
 		// デバイス名に設定
 		this.#memWriteU8(SOSWorkAddr.DSK, result.deviceName);
 		// ファイル名も設定
-		for(let i = 0; i < 13; ++i) { this.#memWriteU8(ib_base + SOSWorkAddr.ib_filename + i, result.filename[i]); }
+		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) { this.#memWriteU8(ib_base + SOSInfomationBlock.ib_filename + i, result.filename[i]); }
 		// 拡張子にも設定
-		for(let i = 0; i < 3; ++i) { this.#memWriteU8(ib_base + SOSWorkAddr.ib_extension + i, result.extension[i]); }
+		for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) { this.#memWriteU8(ib_base + SOSInfomationBlock.ib_extension + i, result.extension[i]); }
 		// 忘れずにDEを更新しとく
 		this.#setDE(result.filenamePtr);
+		// 一応キャリーフラグをリセットしておく
+		this.#clearCY();
 		return 0;
 	}
 	/**
