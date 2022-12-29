@@ -559,7 +559,7 @@ export default class {
 			fileMode: fe.FileMode,			// ファイルモード
 			loadAddress: fe.LoadAddress,	// 読み込みアドレス
 			execAddress: fe.ExecuteAddress,	// 実行アドレス
-			fileSize: fe.size				// ファイルサイズ
+			fileSize: fe.Size				// ファイルサイズ
 		};
 	}
 

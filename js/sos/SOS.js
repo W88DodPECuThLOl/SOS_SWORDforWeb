@@ -1513,6 +1513,9 @@ class SOS {
 	 * ゼロフラグは常にリセットとなる。  
 	 * いずれの場合にも、エラーが発生したときにはキャリでリターンする。  
 	 * またファイルの情報は、(#DATADR)，(#SIZE)，(#EXADR)へ転送される。
+	 * 
+	 * http://000.la.coocan.jp/p6/sword/index.html  
+	 * テープの場合は、#FILEでセットしたファイル名と読み込んだヘッダを比較し、同一ならZフラグセットでリターン。ディスクの場合は、ファイルが存在するかチェックする。
 	 * @param {TaskContext} ctx 
 	 * @returns {number}
 	 */
@@ -1548,7 +1551,7 @@ class SOS {
 		this.#memWriteU16(SOSWorkAddr.SIZE, result.fileSize);
 		this.#memWriteU16(SOSWorkAddr.EXADR, result.execAddress);
 		// 正常終了
-		this.#clearZ();
+		this.#setZ();     // ディスクの場合は、ゼロフラグをセット（ファイルが見つかった）
 		this.#clearCY();
 		return 0;
 	}
