@@ -1,0 +1,90 @@
+;
+; S-OS FILE READ TEST
+;
+; ・#FILE、#ROPEN、#RDDのテスト
+; ・Aドライブのアスキーファイル「SOS_TEST.BAT」を読み込み内容を表示する
+; ・エラーが発生した場合は、エラーを表示して終了する
+;
+	org $3000
+
+MPRINT	EQU	$1FE2
+ERROR   EQU $2033
+MSX     EQU $1FE5
+NL      EQU $1FEB
+FILE    EQU $1FA3
+ROPEN   EQU	$2009
+RDD     EQU	$1FA6
+FPRNT   EQU	$1F9D
+
+DTADR   EQU $1F70
+SIZE    EQU $1F72
+
+FDATA	EQU	$3100 ; ファイルの読み込み先
+
+	CALL MPRINT
+	DB "S-OS FILE READ TEST"
+	DB 13, 0
+
+	;
+	; ファイルの読み込み
+	; 1. #FILE
+	; 2. #ROPEN
+	; 3. #RDD
+	;
+
+	; 1. #FILE
+	CALL MPRINT
+	DB "S-OS FILE", 13, 0
+	LD A,(FILE_ATTR)  ; ファイル属性
+	LD DE,FILE_NAME   ; ファイル名のアドレス
+	CALL FILE         ; IB(InfomationBlock)に設定
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	; 2. #ROPEN
+	CALL MPRINT
+	DB "S-OS ROPEN", 13, 0
+LOOP:
+	CALL ROPEN        ; 読み込みでファイルをオープンする
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+	JR Z,ZAP1         ; ファイルがオープンできたので、次の処理へ
+	CALL FPRNT        ; テープの場合
+	                  ;   読み込んだファイル名を表示
+					  ;   FILEで指定したファイルじゃないので
+					  ;   次のファイルへ
+	CALL NL           ; 行の先頭以外なら改行
+	JR LOOP
+ZAP1:
+	CALL FPRNT        ; 読み込んだファイル名を表示してみる
+	CALL NL           ; 行の先頭以外なら改行
+
+	; 3. #RDD
+	CALL MPRINT
+	DB "S-OS RDD", 13, 0
+	LD HL,FDATA       ; 読み込むデータのアドレスを設定
+	LD (DTADR),HL
+	CALL RDD          ; 読み込む
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	; 読み込んだ内容を表示
+	LD HL,(SIZE)      ; 念のためデータの終わりに文字列の終端記号の0を書き込む
+	LD DE,FDATA
+	ADD HL,DE
+	XOR A             ; A=0
+	LD (HL),A
+	LD DE,FDATA       ; データを表示
+	CALL MSX
+
+	; 終わり
+	CALL MPRINT
+	DB "EXIT"
+	DB 13, 0
+	RET
+
+; ファイルの属性(ファイルモード)
+; $1 : バイナリファイル
+; $4 : アスキーファイル
+FILE_ATTR:
+	DB $4
+; ファイル名は、13文字+"."+3文字
+FILE_NAME:
+	DB "A:SOS_TEST.BAT", 0

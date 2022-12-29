@@ -1,0 +1,98 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; S-OS FILE READ TEST
+                                ;
+                                ; ・#FILE、#ROPEN、#RDDのテスト
+                                ; ・Aドライブのアスキーファイル「SOS_TEST.BAT」を読み込み内容を表示する
+                                ; ・エラーが発生した場合は、エラーを表示して終了する
+                                ;
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+       2033                     ERROR   EQU $2033
+       1FE5                     MSX     EQU $1FE5
+       1FEB                     NL      EQU $1FEB
+       1FA3                     FILE    EQU $1FA3
+       2009                     ROPEN   EQU $2009
+       1FA6                     RDD     EQU $1FA6
+       1F9D                     FPRNT   EQU $1F9D
+                                
+       1F70                     DTADR   EQU $1F70
+       1F72                     SIZE    EQU $1F72
+                                
+       3100                     FDATA   EQU $3100 ; ファイルの読み込み先
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 532D4F532046494C        DB "S-OS FILE READ TEST"
+            4520524541442054    
+            455354              
+000016 3016 0D00                    DB 13, 0
+                                
+                                    ;
+                                    ; ファイルの読み込み
+                                    ; 1. #FILE
+                                    ; 2. #ROPEN
+                                    ; 3. #RDD
+                                    ;
+                                
+                                    ; 1. #FILE
+000018 3018 CDE21F          17      CALL MPRINT
+00001B 301B 532D4F532046494C        DB "S-OS FILE", 13, 0
+            450D00              
+000026 3026 3A8930          13      LD A,(FILE_ATTR)  ; ファイル属性
+000029 3029 118A30          10      LD DE,FILE_NAME   ; ファイル名のアドレス
+00002C 302C CDA31F          17      CALL FILE         ; IB(InfomationBlock)に設定
+00002F 302F DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                    ; 2. #ROPEN
+000032 3032 CDE21F          17      CALL MPRINT
+000035 3035 532D4F5320524F50        DB "S-OS ROPEN", 13, 0
+            454E0D00            
+       3041                     LOOP:
+000041 3041 CD0920          17      CALL ROPEN        ; 読み込みでファイルをオープンする
+000044 3044 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+000047 3047 2808            12      JR Z,ZAP1         ; ファイルがオープンできたので、次の処理へ
+000049 3049 CD9D1F          17      CALL FPRNT        ; テープの場合
+                                                      ;   読み込んだファイル名を表示
+                                                      ;   FILEで指定したファイルじゃないので
+                                                      ;   次のファイルへ
+00004C 304C CDEB1F          17      CALL NL           ; 行の先頭以外なら改行
+00004F 304F 18F0            12      JR LOOP
+       3051                     ZAP1:
+000051 3051 CD9D1F          17      CALL FPRNT        ; 読み込んだファイル名を表示してみる
+000054 3054 CDEB1F          17      CALL NL           ; 行の先頭以外なら改行
+                                
+                                    ; 3. #RDD
+000057 3057 CDE21F          17      CALL MPRINT
+00005A 305A 532D4F5320524444        DB "S-OS RDD", 13, 0
+            0D00                
+000064 3064 210031          10      LD HL,FDATA       ; 読み込むデータのアドレスを設定
+000067 3067 22701F          16      LD (DTADR),HL
+00006A 306A CDA61F          17      CALL RDD          ; 読み込む
+00006D 306D DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                    ; 読み込んだ内容を表示
+000070 3070 2A721F          16      LD HL,(SIZE)      ; 念のためデータの終わりに文字列の終端記号の0を書き込む
+000073 3073 110031          10      LD DE,FDATA
+000076 3076 19              11      ADD HL,DE
+000077 3077 AF               4      XOR A             ; A=0
+000078 3078 77               7      LD (HL),A
+000079 3079 110031          10      LD DE,FDATA       ; データを表示
+00007C 307C CDE51F          17      CALL MSX
+                                
+                                    ; 終わり
+00007F 307F CDE21F          17      CALL MPRINT
+000082 3082 45584954                DB "EXIT"
+000086 3086 0D00                    DB 13, 0
+000088 3088 C9              10      RET
+                                
+                                ; ファイルの属性(ファイルモード)
+                                ; $1 : バイナリファイル
+                                ; $4 : アスキーファイル
+       3089                     FILE_ATTR:
+000089 3089 04                      DB $4
+                                ; ファイル名は、13文字+"."+3文字
+       308A                     FILE_NAME:
+00008A 308A 413A534F535F5445        DB "A:SOS_TEST.BAT", 0
+            53542E42415400      
+[EOF:testRopen.z80:UTF_8]
