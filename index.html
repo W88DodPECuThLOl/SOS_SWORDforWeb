@@ -12,10 +12,12 @@
 		<script src="./js/sos/taskContext.js"></script>
 		<script src="./js/z80Emu.js"></script>
 		<script src="./js/taskMonitor.js"></script>
+		<script src="./js/cat/catAudio.js"></script>
 		<link rel="stylesheet" href="./css/catTextScreen.css">
 	</head>
 	<body>
 		<input type="file" id="disk0" accept=".d88"/>
+		<input type="checkbox" id="sound">Snd</input>
 		<div class="canvas-wrapper">
 			<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
 			<div id="sos_output" class="console"></div>
@@ -28,12 +30,11 @@
 			// SOS
 			import CatKey from './js/cat/catKey.js';
 			import CatTextScreen from './js/cat/catTextScreen.js';
-				// グラフィック
-				const graphicCanvas = document.getElementById("graphicCanvas");
-				graphicCanvas.setAttribute("width", 640);
-				graphicCanvas.setAttribute("height", 200);
-				var graphicCanvasCtx = graphicCanvas.getContext("2d");
-
+			// グラフィック
+			const graphicCanvas = document.getElementById("graphicCanvas");
+			graphicCanvas.setAttribute("width", 640);
+			graphicCanvas.setAttribute("height", 200);
+			var graphicCanvasCtx = graphicCanvas.getContext("2d");
 			// ディスクドライブ
 			var disks = [
 				new HuBasicDisk(new Context()),
@@ -42,12 +43,14 @@
 				new HuBasicDisk(new Context())
 			];
 
-			var z80Emu = new Z80Emu();
+			var audio = new CatAudio();
+			var z80Emu = new Z80Emu(audio);
 			var taskLineInput = new TaskLineInput();
 			var taskMonitor = new TaskMonitor();
 			var taskPlatformMonitor = new TaskPlatformMonitor();
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
+			//var sound = new Audio('wav/X1BEEP.WAV');
 			var catSnd = {
 				/**
 				 * ビープ音を再生する
@@ -59,11 +62,11 @@
 					// - 8bit!
 					// - 耳障りではないこと
 					// - 個性的でないこと
-					//const sound = new Audio('wav/bell.wav');
+					//sound.currentTime = 0;
+					//sound.volume = 0.3; // 音量
 					//sound.play();
 				}
 			}
-
 
 			// SMILEBASIC.ttf用の文字変換テーブル
 			const tblMojiEncode = [
@@ -145,6 +148,20 @@
 			{
 				// Z80えみゅ
 				z80Emu.update(ctx);
+
+				/*
+				audio.writeReg(0, 0,  0x1C);
+				audio.writeReg(0, 1,  0x01);
+				audio.writeReg(0, 7,  0x3E);
+				audio.writeReg(0, 8,  0x06);
+				audio.writeReg(0, 9,  0);
+				audio.writeReg(0, 10, 0);
+
+				audio.writeReg(0, 11, 0xB);
+				audio.writeReg(0, 12, 0x0);
+				audio.writeReg(0, 13, 0x0);
+				*/
+
 				// ライン入力
 				taskLineInput.update(ctx);
 				// モニタ
@@ -161,7 +178,14 @@
 			}
 
 			// ページ読み込み後に実行される
-			window.onload = function() {
+			window.onload = async function() {
+				let psgBin = await (await fetch('./psg.wasm')).arrayBuffer();
+				const soundOn = document.getElementById("sound");
+				soundOn.addEventListener("change", ()=>{
+					audio.init(psgBin);
+					soundOn.style.visibility = 'hidden';
+				});
+
 				z80Emu.setup().then(
 					(emu)=> {
 						// ディスク
