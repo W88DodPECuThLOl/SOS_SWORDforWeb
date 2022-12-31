@@ -43,6 +43,8 @@ class Z80Emu {
 	 */
 	#sos;
 
+	#audio;
+
 	/**
 	 * WASMのセットアップ
 	 * 
@@ -114,6 +116,10 @@ class Z80Emu {
 				out   :()=>{ return this.#sos.sos_out   (this.#ctx); },
 				widch :()=>{ return this.#sos.sos_widch (this.#ctx); },
 				error :()=>{ return this.#sos.sos_error (this.#ctx); },
+			},
+			// IO
+			io: {
+				writePSG:(executedClock, reg, value)=>{ this.#audio.writePSG(executedClock, reg, value); }
 			}
 		};
 		return WebAssembly.instantiateStreaming(fetch("sos.wasm"), importObject).then(
@@ -130,12 +136,14 @@ class Z80Emu {
 	/**
 	 * コンストラクタ
 	 */
-	constructor()
+	constructor(audio)
 	{
 		// メモリ確保
 		this.#memory = new WebAssembly.Memory({ initial: ~~(this.#heapSize/(64*1024)), maximum: ~~(this.#heapSize/(64*1024) + 1) });
 		// SOSのサブルーチン
 		this.#sos = new SOS(this);
+		// オーディオ
+		this.#audio = audio;
 	}
 
 	/**
@@ -160,7 +168,8 @@ class Z80Emu {
 	 */
 	update(ctx) {
 		this.#ctx = ctx;
-		return this.wasm.exeute(4194304 / 60 | 0); // 約4Mzの60FPS
+		return this.wasm.exeute(4000000 / 60 | 0); // 約4Mzの60FPS
+		//return this.wasm.exeute(4194304 / 60 | 0); // 約4Mzの60FPS
 		//return this.wasm.exeute(8388608 / 60 | 0); // 約8Mzの60FPS
 	}
 
@@ -277,6 +286,7 @@ class Z80Emu {
 	setHL(HL) { this.#Z80Regs[6] = HL >> 8; this.#Z80Regs[7] = HL; }
 	getHL() { return (this.#Z80Regs[6] << 8) | this.#Z80Regs[7]; }
 	setPC(PC) { this.#Z80Regs[16] = PC; this.#Z80Regs[17] = PC >> 8; }
+	getPC() { return (this.#Z80Regs[17] << 8) | this.#Z80Regs[16]; }
 	setSP(SP) { this.#Z80Regs[18] = SP; this.#Z80Regs[19] = SP >> 8; }
 	getSP() { return this.#Z80Regs[18] | (this.#Z80Regs[19] << 8); }
 	setIX(IX) { this.#Z80Regs[20] = IX; this.#Z80Regs[21] = IX >> 8; }

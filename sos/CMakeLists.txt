@@ -16,7 +16,7 @@ set(CMAKE_CONFIGURATION_TYPES "Debug;Release" CACHE STRING "" FORCE)
 #-------------------------------------------------------------------------------------
 # SOSのファイル
 #-------------------------------------------------------------------------------------
-file(GLOB_RECURSE PRIVATE_SOURCE_FILES RELATIVE "${CMAKE_SOURCE_DIR}" "*.cpp")
+file(GLOB_RECURSE PRIVATE_SOURCE_FILES RELATIVE "${CMAKE_SOURCE_DIR}" "*.c*")
 file(GLOB_RECURSE PRIVATE_HEADER_FILES RELATIVE "${CMAKE_SOURCE_DIR}" "*.h*")
 
 # 実行ファイルを追加

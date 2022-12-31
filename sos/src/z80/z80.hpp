@@ -5845,7 +5845,7 @@ class Z80
         requestBreakFlag = true;
     }
 
-    void generateIRQ(unsigned char vector)
+    void generateIRQ(const unsigned char vector)
     {
         reg.interrupt |= 0b01000000;
         reg.interruptVector = vector;
@@ -5869,9 +5869,11 @@ class Z80
         return result;
     }
 
+    int executed;
+    inline int getExecutedClock() const noexcept { return executed; }
     inline int execute(int clock)
     {
-        int executed = 0;
+        executed = 0;
         requestBreakFlag = false;
         reg.consumeClockCounter = 0;
         while (0 < clock && !requestBreakFlag) {
@@ -5883,6 +5885,7 @@ class Z80
                 if (wtc.fetch) consumeClock(wtc.fetch);
                 checkBreakPoint();
                 if(requestBreakFlag) {
+                    // ブレイク中...
                     break;
                 }
                 reg.execEI = 0;

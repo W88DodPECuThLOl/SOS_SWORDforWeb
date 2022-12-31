@@ -87,8 +87,7 @@ class TaskContext {
 	{
 		this.catTextScreen.clearScreen();
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
-		this.printNativeMsg("Version 0.00.00 猫大名 ねこ猫\n");
-		this.printNativeMsg(" M command is not implemented.\n");
+		this.printNativeMsg("Version 0.00.01 猫大名 ねこ猫\n");
 	}
 
 	/**

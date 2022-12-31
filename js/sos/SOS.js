@@ -347,6 +347,7 @@ class SOS {
 	#setHL(HL) { this.#z80.setHL(HL); }
 	#getHL() { return this.#z80.getHL(); }
 	setPC(PC) { this.#z80.setPC(PC); }
+	#getPC() { return this.#z80.getPC(); }
 	setSP(SP) { this.#z80.setSP(SP); }
 	#getSP() { return this.#z80.getSP(); }
 	#setIX(IX) { this.#z80.setIX(IX); }
@@ -370,7 +371,7 @@ class SOS {
 		this.#memWriteU8(  SOSWorkAddr.DVSW,   0 );
 		this.#memWriteU8(  SOSWorkAddr.LPSW,   0 );
 		this.#memWriteU16( SOSWorkAddr.PRCNT,  0 );
-		this.#memWriteU16( SOSWorkAddr.XYADR,  0x0010 );
+		//this.#memWriteU16( SOSWorkAddr.XYADR,  0x0180 );
 		//this.#memWriteU16( SOSWorkAddr.KBFAD,  ADDRESS_KBFAD );
 		//this.#memWriteU16( SOSWorkAddr.IBFAD,  ADDRESS_IBFAD );
 		this.#memWriteU16( SOSWorkAddr.SIZE,   0 );
@@ -427,7 +428,7 @@ class SOS {
 			ctx.taskMonitor.start();
 			this.#isCpuOccupation = false;
 			this.#pauseState = PauseState.Idle;
-			return 1;
+			return 0;
 		} else {
 			if(ctx.taskMonitor.isFinished()) {
 				this.#Log("sos_hot - z80 wakeup!");
@@ -443,11 +444,10 @@ class SOS {
 				// 各種ローカルの設定を初期化
 				this.#isCpuOccupation = false;
 				this.#pauseState = PauseState.Idle;
-				// CPU停止していたのを終わらせる
 				return 0;
 			} else {
 				this.#Log("sos_hot - mon working");
-				return 1; // まだ、モニタが動作中なので、CPUは停止状態にしておく
+				return 0;
 			}
 		}
 	}
@@ -701,7 +701,7 @@ class SOS {
 			// １行入力を起動する
 			ctx.taskLineInput.start();
 			this.#getl_dstAddr = this.#getDE();
-			return 1;
+			return 0;
 		} else {
 			if(ctx.taskLineInput.isFinished()) {
 				this.#Log("sos_getl - z80 wakeup!");
@@ -716,10 +716,11 @@ class SOS {
 				// カーソル位置をS-OSのワークに設定する
 				this.#endCursor(ctx);
 				// CPU停止していたのを終わらせる
+				this.setPC(this.#getPC() + 3);
 				return 0;
 			} else {
 				this.#Log("sos_getl - working");
-				return 1; // まだ、動作中なので、CPUは停止状態にしておく
+				return 0;
 			}
 		}
 	}
@@ -770,7 +771,7 @@ class SOS {
 			this.#Log("sos_inkey - z80 freeze");
 			ctx.keyMan.keyBufferClear();
 			this.#isCpuOccupation = true;
-			return 1;
+			return 0;
 		} else {
 			let key = Number(ctx.keyMan.inKey());
 			if(isNaN(key)) {
@@ -780,10 +781,12 @@ class SOS {
 				this.#Log("sos_inkey - z80 wakeup!");
 				this.#isCpuOccupation = false;
 				this.#setA(key);
+
+				this.setPC(this.#getPC() + 3);
 				return 0;
 			} else {
 				this.#Log("sos_inkey - working");
-				return 1; // まだ、動作中なので、CPUは停止状態にしておく
+				return 0;
 			}
 		}
 	}
@@ -814,10 +817,12 @@ class SOS {
 				this.#pauseState = PauseState.Pause;
 				// カーソル表示
 				ctx.setDisplayCursor(true);
-				return 1;
+				return 0;
 			} else {
 				// 戻るアドレスを書き換える
 				this.#memWriteU16(this.#getSP(), retAddress + 2);
+				// CPU停止していたのを終わらせる
+				this.setPC(this.#getPC() + 3);
 				return 0;
 			}
 		} else if(this.#pauseState == PauseState.Pause) {
@@ -832,6 +837,8 @@ class SOS {
 				ctx.keyMan.keyBufferClear();
 				// カーソル非表示
 				ctx.setDisplayCursor(false);
+				// CPU停止していたのを終わらせる
+				this.setPC(this.#getPC() + 3);
 				return 0;
 			} else {
 				let key = Number(ctx.keyMan.inKey());
@@ -846,10 +853,12 @@ class SOS {
 					ctx.keyMan.keyBufferClear();
 					// カーソル非表示
 					ctx.setDisplayCursor(false);
+					// CPU停止していたのを終わらせる
+					this.setPC(this.#getPC() + 3);
 					return 0;
 				} else {
 					// ポーズ継続
-					return 1;
+					return 0;
 				}
 			}
 		}
@@ -1736,7 +1745,7 @@ class SOS {
 			ctx.setScreenLocate({x: pos & 0xFF, y:pos >> 8});
 			// カーソル表示
 			ctx.setDisplayCursor(true);
-			return 1;
+			return 0;
 		} else {
 			let key = Number(ctx.keyMan.inKey());
 			if(isNaN(key)) { key = 0; }
@@ -1748,10 +1757,12 @@ class SOS {
 				ctx.setDisplayCursor(true);
 				// 正常終了
 				this.#clearCY();
+				// CPU停止していたのを終わらせる
+				this.setPC(this.#getPC() + 3);
 				return 0;
 			} else {
 				//this.#Log("sos_flget - working");
-				return 1; // まだ、動作中なので、CPUは停止状態にしておく
+				return 0;
 			}
 		}
 	}
