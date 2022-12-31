@@ -1,0 +1,102 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; Z80 CTC TEST
+                                ;
+                                ; ・CTCの割り込みを使い、グラフィック画面を描画する
+                                ; ・もう一度実行すると、CTCをリセットし動作を停止する
+                                ;
+                                ; Z80 CTCのデータシート
+                                ; https://arcarc.xmission.com/Tech/Datasheets/Z80%20CTC.pdf
+                                ;
+                                
+000000 8000                         org $8000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+                                
+       1FA0                     CTC_ADDR EQU    $1FA0 ; CTCのIOアドレス
+                                
+000000 8000 CDE21F          17      CALL MPRINT
+000003 8003 5A38302043544320        DB "Z80 CTC TEST"
+            54455354            
+00000F 800F 0D00                    DB 13, 0
+                                
+000011 8011 F3               4      DI ; 割り込み無効
+                                
+                                    ; CTCリセット
+000012 8012 CD4280          17      CALL CTC_RESET
+                                
+                                    ; 呼び出すたびに、実行、停止させる
+000015 8015 3A7880          13      LD A,(CNT)
+000018 8018 3C               4      INC A
+000019 8019 E601             7      AND 1
+00001B 801B 327880          13      LD (CNT),A
+00001E 801E 2820            12      JR Z,EXIT
+                                
+                                    ; 呼び出される割り込み処理
+000020 8020 215380          10      LD HL,INT
+000023 8023 225E00          16      LD ($005E),HL
+                                
+                                    ; CTC Ch.0設定
+000026 8026 01A01F          10      LD BC,CTC_ADDR
+000029 8029 3E07             7      LD A,$07   ; 割り込み無効、タイマモード、16分周
+00002B 802B ED79            12      OUT (C),A
+00002D 802D 3E7D             7      LD A,125   ; 125*16/4MHzで、ZC/TR出力（CTC Ch.3のカウンタが１つ加算される）
+00002F 802F ED79            12      OUT (C),A
+000031 8031 3E58             7      LD A,$58   ; 割り込みベクタ
+000033 8033 ED79            12      OUT (C),A
+                                    ; CTC Ch.3設定
+000035 8035 01A31F          10      LD BC,CTC_ADDR + 3
+000038 8038 3EC7             7      LD A,$C7   ; 割り込み有効、カウンタモード
+00003A 803A ED79            12      OUT (C),A
+00003C 803C 3E40             7      LD A,64    ; 割り込みの間隔 64回で割り込み発生
+00003E 803E ED79            12      OUT (C),A
+       8040                     EXIT:
+000040 8040 FB               4      EI ; 割り込み有効
+000041 8041 C9              10      RET
+                                ;
+                                ; CTC リセット
+                                ;
+       8042                     CTC_RESET:
+000042 8042 01A01F          10      LD BC,CTC_ADDR
+000045 8045 3E03             7      LD A,3
+000047 8047 ED79            12      OUT (C),A
+000049 8049 0C               4      INC C
+00004A 804A ED79            12      OUT (C),A
+00004C 804C 0C               4      INC C
+00004D 804D ED79            12      OUT (C),A
+00004F 804F 0C               4      INC C
+000050 8050 ED79            12      OUT (C),A
+000052 8052 C9              10      RET
+                                ;
+                                ; CTCの割り込みで呼び出される
+                                ;
+       8053                     INT:
+000053 8053 F5              11      PUSH AF
+000054 8054 C5              11      PUSH BC
+000055 8055 ED4B7980        20      LD BC,(GADD)
+000059 8059 78               4      LD A,B
+00005A 805A FE40             7      CP $40
+00005C 805C 300B            12      JR NC,OKOUT
+00005E 805E 010040          10      LD BC,$4000
+000061 8061 3A7B80          13      LD A,(GPAT)
+000064 8064 EECC             7      XOR $CC
+000066 8066 327B80          13      LD (GPAT),A
+       8069                     OKOUT:
+000069 8069 3A7B80          13      LD A,(GPAT)
+00006C 806C ED79            12      OUT (C),A
+00006E 806E 03               6      INC BC
+00006F 806F ED437980        20      LD (GADD),BC
+000073 8073 C1              10      POP BC
+000074 8074 F1              10      POP AF
+000075 8075 FB               4      EI
+000076 8076 ED4D            15      RETI
+                                ;
+                                ; ワーク
+                                ;
+       8078                     CNT:
+000078 8078 00                      DB $00
+       8079                     GADD:
+000079 8079 0040                    DW $4000
+       807B                     GPAT:
+00007B 807B CC                      DB $CC
+[EOF:testCTC.z80:UTF_8]

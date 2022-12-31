@@ -1,0 +1,96 @@
+;
+; Z80 CTC TEST
+;
+; ・CTCの割り込みを使い、グラフィック画面を描画する
+; ・もう一度実行すると、CTCをリセットし動作を停止する
+;
+
+	org $8000
+
+MPRINT	EQU	$1FE2
+
+CTC_ADDR EQU	$1FA0 ; CTCのIOアドレス
+
+	CALL MPRINT
+	DB "Z80 CTC TEST"
+	DB 13, 0
+
+	DI ; 割り込み無効
+
+	; CTCリセット
+	CALL CTC_RESET
+
+	; 呼び出すたびに、実行、停止させる
+	LD A,(CNT)
+	INC A
+	AND 1
+	LD (CNT),A
+	JR Z,EXIT
+
+	; 呼び出される割り込み処理
+	LD HL,INT
+	LD ($005E),HL
+
+	; CTC Ch.0設定
+	LD BC,CTC_ADDR
+	LD A,$07   ; 割り込み無効、タイマモード、16分周
+	OUT (C),A
+	LD A,125   ; 125*16/4MHzで、ZC/TR出力（CTC Ch.3のカウンタが１つ加算される）
+	OUT (C),A
+	LD A,$58   ; 割り込みベクタ
+	OUT (C),A
+	; CTC Ch.3設定
+	LD BC,CTC_ADDR + 3
+	LD A,$C7   ; 割り込み有効、カウンタモード
+	OUT (C),A
+	LD A,64    ; 割り込みの間隔 64回で割り込み発生
+	OUT (C),A
+EXIT:
+	EI ; 割り込み有効
+	RET
+;
+; CTC リセット
+;
+CTC_RESET:
+	LD BC,CTC_ADDR
+	LD A,3
+	OUT (C),A
+	INC C
+	OUT (C),A
+	INC C
+	OUT (C),A
+	INC C
+	OUT (C),A
+	RET
+;
+; CTCの割り込みで呼び出される
+;
+INT:
+	PUSH AF
+	PUSH BC
+	LD BC,(GADD)
+	LD A,B
+	CP $40
+	JR NC,OKOUT
+	LD BC,$4000
+	LD A,(GPAT)
+	XOR $CC
+	LD (GPAT),A
+OKOUT:
+	LD A,(GPAT)
+	OUT (C),A
+	INC BC
+	LD (GADD),BC
+	POP BC
+	POP AF
+	EI
+	RETI
+;
+; ワーク
+;
+CNT:
+	DB $00
+GADD:
+	DW $4000
+GPAT:
+	DB $CC
