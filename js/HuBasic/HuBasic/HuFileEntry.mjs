@@ -87,6 +87,11 @@ export default class {
 	DateTimeData = new Array(6);
 
 	/**
+	 * @type {Uint8Array}
+	 */
+	IB;
+
+	/**
 	 * IPLエントリかどうか
 	 * @type {boolean}
 	 */
@@ -397,6 +402,8 @@ export default class {
 		this.DateTimeData = dc.Copy(pos + 0x18, 6);
 		this.StartCluster = dc.GetByte(pos + 0x1e);
 		this.StartCluster |= dc.GetByte(pos + 0x1f) << 7;
+		// IB丸ごと
+		this.IB = dc.Copy(pos, 0x20);
 	}
 
 	isEqualFilename(Filename, Extension)

@@ -359,6 +359,7 @@ class TaskContext {
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス
 	 *		fileSize: number		// ファイルサイズ
+	 *		IB: Uint8Array			// IB
 	 * }} インフォメーションブロック
 	 */
 	GetInfomationBlock(descriptor, DirRecord, Filename, Extension)

@@ -81,7 +81,7 @@ class SOS {
 	 */
 	#Log(text)
 	{
-		//console.log(text);
+//		console.log(text);
 	}
 
 	/**
@@ -446,7 +446,7 @@ class SOS {
 				this.#pauseState = PauseState.Idle;
 				return 0;
 			} else {
-				this.#Log("sos_hot - mon working");
+				//this.#Log("sos_hot - mon working");
 				return 0;
 			}
 		}
@@ -719,7 +719,7 @@ class SOS {
 				this.setPC(this.#getPC() + 3);
 				return 0;
 			} else {
-				this.#Log("sos_getl - working");
+				//this.#Log("sos_getl - working");
 				return 0;
 			}
 		}
@@ -1430,9 +1430,12 @@ class SOS {
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		let record = this.#getDE();
 		let dstAddress = this.#getHL();
+		this.#Log("A(ReadSize):" + this.#getA());
+		this.#Log("DE(RecordNo):" + record);
+		this.#Log("HL(DstAddr):" + dstAddress);
 		for(let i = 0; i < this.#getA(); ++i) {
 			// 読み込み
-			data = ctx.ReadRecord(deviceName, record + i);
+			const data = ctx.ReadRecord(deviceName, record + i);
 			if(data.result != 0) {
 				// エラー
 				this.#setA(data.result);
@@ -1535,6 +1538,10 @@ class SOS {
 		// ディレクトリのレコード
 		const entrySector = this.#memReadU8(SOSWorkAddr.DIRPS);
 		// 問い合わせ
+		this.#Log("device:" + filename.deviceName); // デバイス名
+		this.#Log("filename:" + filename.filename); // ファイル名
+		this.#Log("extension:" + filename.extension); // 拡張子
+		this.#Log("dirRecord:" + entrySector); // ディレクトリのレコード
 		const result = ctx.GetInfomationBlock(filename.deviceName, entrySector, filename.filename, filename.extension);
 		// 処理
 		if(result.result != 0) {
@@ -1559,6 +1566,13 @@ class SOS {
 		this.#memWriteU16(SOSWorkAddr.DTADR, result.loadAddress);
 		this.#memWriteU16(SOSWorkAddr.SIZE, result.fileSize);
 		this.#memWriteU16(SOSWorkAddr.EXADR, result.execAddress);
+		this.#Log("SOSWorkAddr.DTADR:" + result.loadAddress);
+		this.#Log("SOSWorkAddr.SIZE:" + result.fileSize);
+		this.#Log("SOSWorkAddr.EXADR:" + result.execAddress);
+		// IBも設定しておく
+		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
+			this.#memWriteU8(ib_base + i, result.IB[i]);
+		}
 		// 正常終了
 		this.#setZ();     // ディスクの場合は、ゼロフラグをセット（ファイルが見つかった）
 		this.#clearCY();

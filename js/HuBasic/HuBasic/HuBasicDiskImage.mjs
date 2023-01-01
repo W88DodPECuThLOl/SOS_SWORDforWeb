@@ -504,7 +504,7 @@ export default class {
 	 * @param {number} EntrySector 
 	 * @param {Uint8Array} Filename 
 	 * @param {Uint8Array} Extension 
-	 * @returns {boolean}
+	 * @returns {HuFileEntry}
 	 */
 	#findFileEntry(EntrySector, Filename, Extension)
 	{
@@ -528,7 +528,8 @@ export default class {
 	 *		fileMode: number,		// ファイルモード
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス
-	 *		fileSize: number		// ファイルサイズ
+	 *		fileSize: number,		// ファイルサイズ
+	 *		IB: Uint8Array			// IB
 	 *	}}
 	 */
     GetInfomationBlock(EntrySector, Filename, Extension)
@@ -539,7 +540,8 @@ export default class {
 				fileMode: 0,
 				loadAddress: 0x0000,
 				execAddress: 0x0000,
-				fileSize: 0
+				fileSize: 0,
+				IB: new Uint8Array(32)
 			};
 		}
 		// ファイルエントリ検索
@@ -551,7 +553,8 @@ export default class {
 				fileMode: 0,
 				loadAddress: 0x0000,
 				execAddress: 0x0000,
-				fileSize: 0
+				fileSize: 0,
+				IB: new Uint8Array(32)
 			};
 		}
 		return {
@@ -559,7 +562,8 @@ export default class {
 			fileMode: fe.FileMode,			// ファイルモード
 			loadAddress: fe.LoadAddress,	// 読み込みアドレス
 			execAddress: fe.ExecuteAddress,	// 実行アドレス
-			fileSize: fe.Size				// ファイルサイズ
+			fileSize: fe.Size,				// ファイルサイズ
+			IB: fe.IB						// IB
 		};
 	}
 

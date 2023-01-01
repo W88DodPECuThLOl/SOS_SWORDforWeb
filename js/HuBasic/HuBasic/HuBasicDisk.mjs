@@ -258,7 +258,8 @@ export default class {
 	 *		fileMode: number,		// ファイルモード
 	 *		loadAddress: number,	// 読み込みアドレス
 	 *		execAddress: number,	// 実行アドレス
-	 *		fileSize: number		// ファイルサイズ
+	 *		fileSize: number,		// ファイルサイズ
+	 *		IB: Uint8Array			// IB
 	 *	}} インフォメーションブロックの情報
 	 */
 	GetInfomationBlock(DirRecord, Filename, Extension)
