@@ -5,8 +5,8 @@ Z80エミュレート等のハード部分をWebAssemblyでS-OS"SWORD"のサブ�
 
 ```mermaid
 graph LR;
-    Z80Emulator\nWebAssembly<-->S-OSサブルーチン\nJavaScript;
-    S-OSサブルーチン\nJavaScript<-->コンソール\netc.;
+    Z80Emu[Z80Emulator<br/>WebAssembly] <--> Sub[S-OSサブルーチン<br/>JavaScript];
+    Sub <--> Con[コンソール, etc.<br/>JavaScript];
 ```
 
 ## メモリマップ
@@ -40,15 +40,15 @@ graph LR;
 | Port | Description |
 | --- | --- |
 | 10xxh b<br>11xxh r<br>12xxh g | X1のグラフィックパレット<br>※未テスト |
-| 1Bxxh data<br>1Cxxh reg. | PSG<br>※未テスト |
+| 1Bxxh data<br>1Cxxh reg. | AY-3-8910<br>※未テスト |
 | 1FA0h<br>1FA1h<br>1FA2h<br>1FA3h | Z80 CTC |
 | 4000h~FFFFh | X1のグラフィックVRAM |
 
-- PSG 入力4MHz
+- AY-3-8910 入力2MHz?
 - Z80 CTC
   - 入力4MHz
   - ch0 のTRGはch3に接続
-  - ch1、ch2のTRGは2MHz
+  - ch1、ch2のCLK/TRGは2MHz
 
 ## S-OS モニタ
 
@@ -56,7 +56,22 @@ S-OS標準のモニタです。
 
 ### コマンド
 
-- 工事中...
+| Command | Description |
+| --- | --- |
+| #D [<デバイス名>:] | ディレクトリを表示する。<br>例）「#D」「#D A:」 |
+| #DV <デバイス名>: | デフォルトのディレクトリを変更する。<br>例）「#DV B:」|
+| #J <アドレス> | 指定された<アドレス>を呼び出す。<br>アドレスは16進数4桁。<br>例）「#J 3000」「#J B000」|
+| #K <ファイル名> | ファイルを削除する<br>例）「#K TEST.obj」「#K A:TEST2」「K A:TEST3.TXT」 |
+| #L <ファイル名>[:<アドレス>] | ファイルを指定された<アドレス>へ読み込む。<br><アドレス>が省略された場合は、ファイルの読み込みアドレスが使用される。<br>例）「#L TEST.obj」「#L A:TEST2:ABCD」 |
+| #M | 各機種のモニタを起動する。 |
+| #N <ファイル名1>:<ファイル名2>| <ファイル名1>を<ファイル名2>にリネームする。<br><ファイル名2>のデバイスは無視される。<br>例）「#N HOGE.obj:FUGA.obj」 |
+| #S <ファイル名>:<アドレス1>:<アドレス2>[:<アドレス3>] | <アドレス1>から<アドレス2>までの内容をファイルを保存する。<br><アドレス3>は実行するときのアドレス。省略時は<アドレス1>と同じ値になる。<br>例）「#S TEST:3000:3FFF」<br>「#S TEST1.obj:B000:BC00:B005」 |
+| #ST <ファイル名>:P | <ファイル名>にライトプロテクトを設定する。<br>例）「#ST A:HOGE.TXT:P」 |
+| #ST <ファイル名>:R | <ファイル名>のライトプロテクトを解除する。<br>例）「#ST A:HOGE.TXT:R」「#ST FUGA:R」 |
+| #W | 画面の横幅、40文字と80文字を入力のたび切り替える。<br>例「#W」 |
+| #! | ブートする。<br>ワーク領域などをできる限り初期化しリセットする。<br>例「#!」 |
+
+※[]記号は省略可能
 
 ## プラットフォーム固有のモニタ
 
