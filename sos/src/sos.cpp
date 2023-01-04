@@ -176,7 +176,7 @@ class SOS_Context {
 			{ POKE_, poke_}, // POKE@
 			{ PEEK,	 peek },
 			{ PEEK_, peek_}, // PEEK@
-			{ MON,   mon  },
+			{ MON,   mon, true },
 //			{ _HL_,  _hl_ }, // [HL]   メモ)Z80のコードで直接書く
 //			{ GETPC, getpc}, //        メモ)Z80のコードで直接書く
 			{ DRDSB, drdsb},

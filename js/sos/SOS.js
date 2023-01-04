@@ -1456,11 +1456,28 @@ class SOS {
 	 * #MON(1F8EH)
 	 * 
 	 * 各機種のﾓﾆﾀにｼﾞｬﾝﾌﾟする。
-	 * @todo 実装すること
 	 * @param {TaskContext} ctx 
 	 */
 	sos_mon(ctx){
-		this.#Log("sos_mon");
+		if(!ctx.taskPlatformMonitor.isActive()) {
+			this.#Log("sos_mon - z80 freeze");
+			// キーバッファをクリア
+			ctx.keyMan.keyBufferClear();
+			// プラットフォームモニタ開始
+			ctx.taskPlatformMonitor.start(ctx);
+			return;
+		} else {
+			if(!ctx.taskPlatformMonitor.isFinished()) {
+				// モニタ動作中
+				return;
+			} else {
+				// カーソル位置をS-OSのワークに設定する
+				this.#endCursor(ctx);
+				// CPU停止していたのを終わらせる
+				this.setPC(this.#getPC() + 3);
+				return;
+			}
+		}
 	}
 	/*
 	 * [HL](1F81H)
