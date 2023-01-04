@@ -1,4 +1,6 @@
-﻿// LogData
+﻿"use strict";
+
+// LogData
 export default class {
 	/**
 	 * @type {LogType}

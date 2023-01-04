@@ -1,4 +1,6 @@
-﻿import HuBasicDiskImage from './HuBasicDiskImage.mjs';
+﻿"use strict";
+
+import HuBasicDiskImage from './HuBasicDiskImage.mjs';
 
 // HuBasicDisk
 export default class {

@@ -1,3 +1,5 @@
+"use strict";
+
 class Z80Emu {
 	/**
 	 * Wasmのエクスポート部分
@@ -96,8 +98,8 @@ class Z80Emu {
 				peek  :()=>{ return this.#sos.sos_peek  (this.#ctx); },
 				peek_ :()=>{ return this.#sos.sos_peek_ (this.#ctx); },
 				mon   :()=>{ return this.#sos.sos_mon   (this.#ctx); },
-				_hl_  :()=>{ return this.#sos.sos__hl_  (this.#ctx); },
-				getpc :()=>{ return this.#sos.sos_getpc (this.#ctx); },
+				//_hl_  :()=>{ return this.#sos.sos__hl_  (this.#ctx); }, // メモ)Z80のコードで直接書く
+				//getpc :()=>{ return this.#sos.sos_getpc (this.#ctx); }, // メモ)Z80のコードで直接書く
 				drdsb :()=>{ return this.#sos.sos_drdsb (this.#ctx); },
 				dwtsb :()=>{ return this.#sos.sos_dwtsb (this.#ctx); },
 				dir   :()=>{ return this.#sos.sos_dir   (this.#ctx); },
@@ -116,6 +118,21 @@ class Z80Emu {
 				out   :()=>{ return this.#sos.sos_out   (this.#ctx); },
 				widch :()=>{ return this.#sos.sos_widch (this.#ctx); },
 				error :()=>{ return this.#sos.sos_error (this.#ctx); },
+				// DOSモジュール
+				rdi   :()=>{ return this.#sos.sos_rdi   (this.#ctx); },
+				tropn :()=>{ return this.#sos.sos_tropn (this.#ctx); },
+				wri   :()=>{ return this.#sos.sos_wri   (this.#ctx); },
+				twrd  :()=>{ return this.#sos.sos_twrd  (this.#ctx); },
+				trdd  :()=>{ return this.#sos.sos_trdd  (this.#ctx); },
+				tdir  :()=>{ return this.#sos.sos_tdir  (this.#ctx); },
+				p_fnam:()=>{ return this.#sos.sos_p_fnam(this.#ctx); },
+				devchk:()=>{ return this.#sos.sos_devchk(this.#ctx); },
+				tpchk :()=>{ return this.#sos.sos_tpchk (this.#ctx); },
+				parsc :()=>{ return this.#sos.sos_parsc (this.#ctx); },
+				parcs :()=>{ return this.#sos.sos_parcs (this.#ctx); },
+				// ディスクI/O
+				dread :()=>{ return this.#sos.sos_dread (this.#ctx); },
+				dwrite:()=>{ return this.#sos.sos_dwrite(this.#ctx); },
 			},
 			// IO
 			io: {
@@ -168,9 +185,7 @@ class Z80Emu {
 	 */
 	update(ctx) {
 		this.#ctx = ctx;
-		return this.wasm.exeute(4000000 / 60 | 0); // 約4Mzの60FPS
-		//return this.wasm.exeute(4194304 / 60 | 0); // 約4Mzの60FPS
-		//return this.wasm.exeute(8388608 / 60 | 0); // 約8Mzの60FPS
+		return this.wasm.exeute(4000000 / 60 | 0); // 4Mzの60FPS
 	}
 
 	/**

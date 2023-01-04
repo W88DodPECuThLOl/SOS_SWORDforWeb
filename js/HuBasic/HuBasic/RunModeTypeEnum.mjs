@@ -1,4 +1,6 @@
-﻿export const RunModeTypeEnum = {
+﻿"use strict";
+
+export const RunModeTypeEnum = {
 	None: 0,
 	Add: 1,
 	Extract: 2,

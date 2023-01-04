@@ -1,3 +1,5 @@
+"use strict";
+
 class TaskContext {
 	/**
 	 * Z80のエミュレータ
@@ -315,22 +317,10 @@ class TaskContext {
 		// 空きクラスタサイズ
 		this.printNativeMsg("$" + (result.freeClusters).toString(16).toUpperCase() + " Clusters Free\n");
 		for(let entry of result.entries) {
-			let text = "";
-			// 属性
-			if(entry.attribute & 0x80) {
-				text = "Dir";
-			} else if(entry.attribute & 0x01) {
-				text = "Bin";
-			} else if(entry.attribute & 0x02) {
-				text = "Bas";
-			} else if(entry.attribute & 0x04) {
-				text = "Asc";
-			} else {
-				text = "???";
-			}
-			// ライトプロテクト
-			text += (entry.attribute & 0x40) ? "* " : "  ";
+			// 属性とライトプロテクト
+			this.PrintFileAttribute(entry.attribute);
 			// デバイス名
+			let text = "";
 			text += String.fromCodePoint(result.deviceName) + ":";
 			this.printNativeMsg(text);
 			// ファイル名
@@ -338,13 +328,30 @@ class TaskContext {
 			this.PRINT(0x2E); // "."
 			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) { this.PRINT(entry.extension[i]); }
 			// 読み込みアドレス
-			text = ":" + (entry.loadAddress).toString(16).padStart(4, 0).toUpperCase();
+			text = ":" + this.ToStringHex4(entry.loadAddress);
 			// 終了アドレス
-			text += ":" + (entry.loadAddress + entry.size - 1).toString(16).padStart(4, 0).toUpperCase();
+			text += ":" + this.ToStringHex4(entry.loadAddress + entry.size - 1);
 			// 実行アドレス
-			text += ":" + (entry.executeAddress).toString(16).padStart(4, 0).toUpperCase();
+			text += ":" + this.ToStringHex4(entry.executeAddress);
 			this.printNativeMsg(text + "\n");
 		}
+	}
+	ToStringHex4(value)
+	{
+		return (value).toString(16).padStart(4, 0).toUpperCase();
+	}
+	PrintFileAttribute(attribute)
+	{
+		let text;
+		// 属性
+		if(attribute & 0x80) {
+			text = "Dir";
+		} else {
+			text = ["Nul","Bin","Bas","???","Asc","???","???","???"][attribute & 7];
+		}
+		// ライトプロテクト
+		text += (attribute & 0x40) ? "* " : "  ";
+		this.printNativeMsg(text);
 	}
 
 	/**

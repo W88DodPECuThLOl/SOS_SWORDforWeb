@@ -1,4 +1,6 @@
-﻿// DataController
+﻿"use strict";
+
+// DataController
 export default class {
 	/**
 	 * バッファ

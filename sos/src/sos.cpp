@@ -47,46 +47,49 @@ class SOS_Context {
 	 * @brief S-OSのサブルーチンアドレス
 	 */
 	enum SubroutineAddress : u16 {
-		COLD    = 0x1FFD,
-		HOT     = 0x1FFA,
-		VER     = 0x1FF7,
-		PRINT   = 0x1FF4,
-		PRNTS   = 0x1FF1,
-		LTNL    = 0x1FEE,
-		NL      = 0x1FEB,
-		MSG     = 0x1FE8,
-		MSX     = 0x1FE5,
-		MPRNT	= 0x1FE2,
-		TAB	    = 0x1FDF,
-		LPRNT	= 0x1FDC,
-		LPTON	= 0x1FD9,
-		LPTOF	= 0x1FD6,
-		GETL	= 0x1FD3,
-		GETKY	= 0x1FD0,
-		BRKEY	= 0x1FCD,
-		INKEY	= 0x1FCA,
-		PAUSE	= 0x1FC7,
-		BELL	= 0x1FC4,
-		PRTHX	= 0x1FC1,
-		PRTHL	= 0x1FBE,
-		ASC	    = 0x1FBB,
-		HEX	    = 0x1FB8,
-		_2HEX	= 0x1FB5, // 2HEX
-		HLHEX	= 0x1FB2,
-		WOPEN	= 0x1FAF,
-		WRD	    = 0x1FAC,
-		FCB	    = 0x1FA9,
-		RDD     = 0x1FA6,
-		FILE	= 0x1FA3,
-		FSAME	= 0x1FA0,
-		FPRNT	= 0x1F9D,
-		POKE	= 0x1F9A,
-		POKE_	= 0x1F97, // POKE@
-		PEEK	= 0x1F94,
-		PEEK_	= 0x1F91, // PEEK@
+		// この２つは特殊
+		//GETPC	= 0x1F80,
+		//_HL_  = 0x1F81, // [HL]
+		//
 		MON     = 0x1F8E,
-		_HL_    = 0x1F81, // [HL]
-		GETPC	= 0x1F80,
+		PEEK_	= 0x1F91, // PEEK@
+		PEEK	= 0x1F94,
+		POKE_	= 0x1F97, // POKE@
+		POKE	= 0x1F9A,
+		FPRNT	= 0x1F9D,
+		FSAME	= 0x1FA0,
+		FILE	= 0x1FA3,
+		RDD     = 0x1FA6,
+		FCB	    = 0x1FA9,
+		WRD	    = 0x1FAC,
+		WOPEN	= 0x1FAF,
+		HLHEX	= 0x1FB2,
+		_2HEX	= 0x1FB5, // 2HEX
+		HEX	    = 0x1FB8,
+		ASC	    = 0x1FBB,
+		PRTHL	= 0x1FBE,
+		PRTHX	= 0x1FC1,
+		BELL	= 0x1FC4,
+		PAUSE	= 0x1FC7,
+		INKEY	= 0x1FCA,
+		BRKEY	= 0x1FCD,
+		GETKY	= 0x1FD0,
+		GETL	= 0x1FD3,
+		LPTOF	= 0x1FD6,
+		LPTON	= 0x1FD9,
+		LPRNT	= 0x1FDC,
+		TAB	    = 0x1FDF,
+		MPRNT	= 0x1FE2,
+		MSX     = 0x1FE5,
+		MSG     = 0x1FE8,
+		NL      = 0x1FEB,
+		LTNL    = 0x1FEE,
+		PRNTS   = 0x1FF1,
+		PRINT   = 0x1FF4,
+		VER     = 0x1FF7,
+		HOT     = 0x1FFA,
+		COLD    = 0x1FFD,
+
 		DRDSB	= 0x2000,
 		DWTSB	= 0x2003,
 		DIR     = 0x2006,
@@ -105,6 +108,23 @@ class SOS_Context {
 		OUT     = 0x202D,
 		WIDCH	= 0x2030,
 		ERROR	= 0x2033,
+
+		// DOSモジュール
+		RDI     = 0x2900,
+		TROPN   = 0x2903,
+		WRI     = 0x2906,
+		TWRD    = 0x2909,
+		TRDD    = 0x290c,
+		TDIR    = 0x290f,
+		P_FNAM  = 0x2912,
+		DEVCHK  = 0x2915,
+		TPCHK   = 0x2918,
+		PARSC   = 0x292a,
+		PARCS   = 0x293f,
+
+		// ディスクI/O
+		DREAD   = 0x2B00,
+		DWRITE  = 0x2B03,
 	};
 
 	/**
@@ -157,8 +177,8 @@ class SOS_Context {
 			{ PEEK,	 peek },
 			{ PEEK_, peek_}, // PEEK@
 			{ MON,   mon  },
-			{ _HL_,  _hl_ }, // [HL]
-			{ GETPC, getpc},
+//			{ _HL_,  _hl_ }, // [HL]   メモ)Z80のコードで直接書く
+//			{ GETPC, getpc}, //        メモ)Z80のコードで直接書く
 			{ DRDSB, drdsb},
 			{ DWTSB, dwtsb},
 			{ DIR,   dir  },
@@ -177,6 +197,21 @@ class SOS_Context {
 			{ OUT,   out  },
 			{ WIDCH, widch},
 			{ ERROR, error},
+			// DOSモジュール
+			{ RDI,   rdi},
+			{ TROPN, tropn},
+			{ WRI,   wri},
+			{ TWRD,  twrd},
+			{ TRDD,  trdd},
+			{ TDIR,  tdir},
+			{ P_FNAM, p_fnam},
+			{ DEVCHK, devchk},
+			{ TPCHK, tpchk},
+			{ PARSC, parsc},
+			{ PARCS, parcs},
+			// ディスクI/O
+			{ DREAD, dread},
+			{ DWRITE, dwrite},
 		};
 		u8* dst = &RAM[0];
 		WRITE_JP(dst, SubroutineAddress::COLD); // COLDにジャンプ
@@ -246,8 +281,8 @@ class SOS_Context {
 	SOS_HOOK(peek )
 	SOS_HOOK(peek_)
 	SOS_HOOK(mon  )
-	SOS_HOOK(_hl_ )
-	SOS_HOOK(getpc)
+//	SOS_HOOK(_hl_ ) // メモ)Z80のコードで直接書く
+//	SOS_HOOK(getpc) // メモ)Z80のコードで直接書く
 	SOS_HOOK(drdsb)
 	SOS_HOOK(dwtsb)
 	SOS_HOOK(dir  )
@@ -266,6 +301,21 @@ class SOS_Context {
 	SOS_HOOK(out  )
 	SOS_HOOK(widch)
 	SOS_HOOK(error)
+	// DOSモジュール
+	SOS_HOOK(rdi)
+	SOS_HOOK(tropn)
+	SOS_HOOK(wri)
+	SOS_HOOK(twrd)
+	SOS_HOOK(trdd)
+	SOS_HOOK(tdir)
+	SOS_HOOK(p_fnam)
+	SOS_HOOK(devchk)
+	SOS_HOOK(tpchk)
+	SOS_HOOK(parsc)
+	SOS_HOOK(parcs)
+	// ディスクI/O
+	SOS_HOOK(dread)
+	SOS_HOOK(dwrite)
 #undef SOS_HOOK
 
 	void setResult(s32 resultCode)

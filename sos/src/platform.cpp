@@ -355,6 +355,7 @@ platformOutPort(u16 port, u8 value)
 		// @todo
 		port = 0xFFFF;
 	}
+#endif // IS_TARGET_X1_SERIES(TARGET)
 	return port;
 }
 
@@ -362,15 +363,21 @@ platformOutPort(u16 port, u8 value)
 void
 adjustPlatformClock(s32& clock)
 {
+#if IS_TARGET_X1_SERIES(TARGET)
 	// CTC
 	ctc->adjustClock(clock);
+#endif // IS_TARGET_X1_SERIES(TARGET)
 }
 
 // プラットフォーム側を実行
 s32
 execPlatform(s32 clock)
 {
+#if IS_TARGET_X1_SERIES(TARGET)
 	// CTC
 	auto intVector = ctc->execute(clock);
 	return intVector;
+#else
+	return -1;
+#endif // IS_TARGET_X1_SERIES(TARGET)
 }

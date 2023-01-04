@@ -1,3 +1,5 @@
+"use strict";
+
 // Stream
 export default class {
 	/**

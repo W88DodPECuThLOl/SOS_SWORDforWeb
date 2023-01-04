@@ -1,4 +1,6 @@
-﻿export const OptionType = {
+﻿"use strict";
+
+export const OptionType = {
 	None: 0,
 	Go: 1,
 	Read: 2,

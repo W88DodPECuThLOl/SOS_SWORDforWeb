@@ -1,4 +1,6 @@
-﻿import Stream from '../Utils/Stream.mjs';
+﻿"use strict";
+
+import Stream from '../Utils/Stream.mjs';
 import DiskImage from '../Disk/DiskImage.mjs';
 import HuFileEntry from './HuFileEntry.mjs';
 import { OpenEntryResult } from './OpenEntryResult.mjs';
@@ -184,7 +186,8 @@ export default class {
 	GetFreeBytes(FreeCluster) { return FreeCluster * this.ClusterPerSector() * this.DefaultSectorBytes; }
 
 	/**
-	 * @returns {number}
+	 * 空きクラスタを数える
+	 * @returns {number} 空いているクラスタ数
 	 */
 	CountFreeClusters() {
 		let Result = 0;
@@ -209,6 +212,7 @@ export default class {
 
 		let AsciiMode = fe.IsAscii(); // bool
 
+		// 開始クラスタ
 		let c = StartCluster;
 		let LeftSize = Size;
 
@@ -227,7 +231,7 @@ export default class {
 				break;
 			}
 			// セクタ数
-			const SectorCount = end ? (next & 0x0f) + 1 : this.ClusterPerSector();
+			const SectorCount = end ? (next - 0x7F) : this.ClusterPerSector();
 
 			for (let i = 0; i < SectorCount; i++) {
 				const CurrentSector = (c * this.ClusterPerSector()) + i;
@@ -235,13 +239,15 @@ export default class {
 				
 				let Data = Sector.GetDataForRead();
 				let Eof = false;
-				/* メモ）そのまま使用するように変更
 				if (AsciiMode) {
+					// メモ
+					// ASCII files may have an incorrect size — loading continues until the character 0x0D
+					// is followed by character 0x1A.
+					// https://www.z88dk.org/tools/x1/XBrowser_User_Guide.pdf
 					const AsciiData = this.#ConvertAscii(Data);
 					Eof = AsciiData.Eof;
 					Data = AsciiData.Data;
 				}
-				*/
 
 				this.Log.Verbose("Cluster:" + c + " Sector:" + CurrentSector + " Position:0x" + Sector.Position .toString(16));
 
@@ -278,11 +284,11 @@ export default class {
 				break;
 			}
 			Result.push(b);
-			if (b == 0x0d) {
-				Result.push(0x0a);
-			}
+//			if (b == 0x0d) {
+//				Result.push(0x0a);
+//			}
 		}
-		return new AsciiData(Result.ToArray(), Eof);
+		return new AsciiData(Uint8Array.from(Result), Eof);
 	}
 
 	#FillAllocationTable() {
@@ -683,9 +689,11 @@ export default class {
 	#SetAllocateController() {
 		this.#AllocationController = new Array(2); // new DataController[2];
 		this.#AllocationController[0] = this.DiskImage.GetDataControllerForWrite(this.AllocationTableStart());
-		if (this.DiskType.IsNot2D()) {
+		//if (this.DiskType.IsNot2D()) {
+			// @todo フォーマットに関係なく、次のセクタも含めてみる。本来は、やってはいけない。
+			//       ちゃんと調べること
 			this.#AllocationController[1] = this.DiskImage.GetDataControllerForWrite(this.AllocationTableStart() + 1);
-		}
+		//}
 	}
 
 
@@ -768,6 +776,13 @@ export default class {
 	/**
 	 * @param {number} pos
 	 * @retutns {number}
+	 * 
+	 * メモ）
+	 * posが0x80～0xFFなら次のセクタのデータを参照
+	 * 
+	 * FAT
+	 * 0x00～0x7F セクタの下位7ビット分  MSBは終了フラグ
+	 * 0x80～0xFF セクタの上位8ビット分　系15ビット
 	 */
 	#GetClusterValue(pos) {
 		const offset = pos / 0x80 | 0;
@@ -778,6 +793,7 @@ export default class {
 	}
 
 	/**
+	 * 
 	 * @param {number} pos
 	 * @returns {boolean}
 	 */

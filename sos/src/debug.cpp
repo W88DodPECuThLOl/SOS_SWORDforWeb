@@ -253,15 +253,19 @@ SOS_FUNC(mon  )
 	return 0;
 }
 
+/*
+// メモ)Z80のコードで直接書く
 SOS_FUNC(_hl_ )
 {
 	return 0;
 }
 
+// メモ)Z80のコードで直接書く
 SOS_FUNC(getpc)
 {
 	return 0;
 }
+*/
 
 SOS_FUNC(drdsb)
 {
@@ -349,6 +353,63 @@ SOS_FUNC(widch)
 }
 
 SOS_FUNC(error)
+{
+	return 0;
+}
+
+// DOSモジュール
+SOS_FUNC(rdi)
+{
+	return 0;
+}
+SOS_FUNC(tropn)
+{
+	return 0;
+}
+SOS_FUNC(wri)
+{
+	return 0;
+}
+SOS_FUNC(twrd)
+{
+	return 0;
+}
+SOS_FUNC(trdd)
+{
+	return 0;
+}
+SOS_FUNC(tdir)
+{
+	return 0;
+}
+SOS_FUNC(p_fnam)
+{
+	return 0;
+}
+SOS_FUNC(devchk)
+{
+	return 0;
+}
+SOS_FUNC(tpchk)
+{
+	return 0;
+}
+SOS_FUNC(parsc)
+{
+	return 0;
+}
+SOS_FUNC(parcs)
+{
+	return 0;
+}
+
+// IO
+SOS_FUNC(dread)
+{
+	return 0;
+}
+
+SOS_FUNC(dwrite)
 {
 	return 0;
 }

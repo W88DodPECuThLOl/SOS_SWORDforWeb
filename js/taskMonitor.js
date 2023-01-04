@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * S-OS標準モニタのタスク
  */
@@ -367,7 +369,7 @@ class TaskMonitor {
 						const filename = this.#parseFilename(ctx, this.#commandBuffer);
 						if(!this.#checkResult(ctx, filename)) { return; }
 						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 						// ファイル削除
 						let result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
 						if(!this.#checkResult(ctx, result)) { return; }
@@ -395,7 +397,7 @@ class TaskMonitor {
 							isSetLoadAddress = true;
 						}
 						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 						// 読み込む
 						let data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
 						if(!this.#checkResult(ctx, data)) { return; }
@@ -433,7 +435,7 @@ class TaskMonitor {
 						const newFilename = this.#parseFilename(ctx, this.#commandBuffer);
 						if(!this.#checkResult(ctx, newFilename)) { return; }
 						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 						// リネーム
 						const result = ctx.Rename(oldFilename.deviceName, dirRecord,
 							oldFilename.filename, oldFilename.extension,
@@ -463,13 +465,13 @@ class TaskMonitor {
 							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
 							if(this.#commandBuffer[0] == 0x50) { // 'P'
 								// ディレクトリのレコード
-								const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+								const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 								// ライトプロテクト設定
 								const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 								if(!this.#checkResult(ctx, result)) { return; }
 							} else if(this.#commandBuffer[0] == 0x52) { // 'R'
 								// ディレクトリのレコード
-								const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+								const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 								// ライトプロテクト解除
 								const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 								if(!this.#checkResult(ctx, result)) { return; }
@@ -529,7 +531,7 @@ class TaskMonitor {
 								data[i] = ctx.z80Emu.memReadU8(saveAddress.value + i);
 							}
 							// ディレクトリのレコード
-							const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+							const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 							// 属性
 							const fileMode = 0x01; // BIN
 							// セーブ
@@ -570,7 +572,7 @@ class TaskMonitor {
 						if(!this.#checkResult(ctx, filename)) { return; }
 
 						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU8(SOSWorkAddr.DIRPS);
+						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 						// 読み込む
 						let result = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
 						if(!this.#checkResult(ctx, result)) { return; }

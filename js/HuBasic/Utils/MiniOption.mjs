@@ -1,4 +1,6 @@
-﻿import { OptionType } from '../HuBasic/OptionType.mjs';
+﻿"use strict";
+
+import { OptionType } from '../HuBasic/OptionType.mjs';
 
 export class DefineData {
 	/**

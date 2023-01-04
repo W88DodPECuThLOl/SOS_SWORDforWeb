@@ -150,6 +150,14 @@ enum WorkAddress : u16 {
 	DSK    = 0x1F5D,
 	WIDTH  = 0x1F5C,
 	MAXLIN = 0x1F5B,
+
+	// DOSモジュール ワーク
+	OPNFG   = 0x291e, 
+	FTYPE   = 0x291f,
+	DFDV    = 0x2920,
+
+	// ディスクI/O ワーク
+	UNITNO = 0x2B06,
 };
 
 /**
@@ -159,9 +167,13 @@ enum WorkAddress : u16 {
  */
 static constexpr u16 ADDRESS_JUMPTABLE = 0x0100; // ～ 0x017F
 /**
+ * @brief S-OS IBバッファのアドレス
+ */
+static constexpr u16 ADDRESS_IBFAD     = 0x0180; // ～ 0x019F
+/**
  * @brief S-OSカーソルのアドレス
  */
-static constexpr u16 ADDRESS_XYADR     = 0x0180; // ～ 0x0181
+static constexpr u16 ADDRESS_XYADR     = 0x01A0; // ～ 0x01A1
 /**
  * @brief S-OSキーボードバッファのアドレス
  */
@@ -175,15 +187,9 @@ static constexpr u16 ADDRESS_FATBF     = 0x0300; // ～ 0x03FF
  */
 static constexpr u16 ADDRESS_DTBUF     = 0x0400; // ～ 0x04FF
 /**
- * @brief S-OS IBバッファのアドレス
- * 
- * @todo サイズは0x20バイトでいいかもしれない
- */
-static constexpr u16 ADDRESS_IBFAD     = 0x0500; // ～ 0x05FF
-/**
  * @brief S-OS スタックアドレス
  */
-static constexpr u16 ADDRESS_STKAD     = 0x0700; // 0x0600 ～ 0x06FF
+static constexpr u16 ADDRESS_STKAD     = 0x0800; // 0x0500 ～ 0x07FF
 /**
  * @brief S-OS 使用できるメモリの最大アドレス
  * 
@@ -241,8 +247,8 @@ static constexpr u16 ADDRESS_MEMAX     = 0xFFFF;
 	SOS_FUNC(peek )
 	SOS_FUNC(peek_)
 	SOS_FUNC(mon  )
-	SOS_FUNC(_hl_ )
-	SOS_FUNC(getpc)
+//	SOS_FUNC(_hl_ ) メモ)Z80のコードで直接書く
+//	SOS_FUNC(getpc) メモ)Z80のコードで直接書く
 	SOS_FUNC(drdsb)
 	SOS_FUNC(dwtsb)
 	SOS_FUNC(dir  )
@@ -261,5 +267,20 @@ static constexpr u16 ADDRESS_MEMAX     = 0xFFFF;
 	SOS_FUNC(out  )
 	SOS_FUNC(widch)
 	SOS_FUNC(error)
+	// DOSモジュール
+	SOS_FUNC(rdi)
+	SOS_FUNC(tropn)
+	SOS_FUNC(wri)
+	SOS_FUNC(twrd)
+	SOS_FUNC(trdd)
+	SOS_FUNC(tdir)
+	SOS_FUNC(p_fnam)
+	SOS_FUNC(devchk)
+	SOS_FUNC(tpchk)
+	SOS_FUNC(parsc)
+	SOS_FUNC(parcs)
+	// ディスクI/O
+	SOS_FUNC(dread)
+	SOS_FUNC(dwrite)
 #undef SOS_FUNC
 #undef SOS_ARGS

@@ -1,53 +1,94 @@
-﻿import DataController from './DataController.mjs';
+﻿"use strict";
+
+import DataController from './DataController.mjs';
 
 // SectorData
 export default class {
+	// -----------------------------
+	// セクタヘッダ部分
+	// -----------------------------
+
 	/**
+	 * シリンダ(C)
+	 * 
+	 * 0オリジン
 	 * @type {number}
 	 */
-	Track;
+	Cylinder;
 	/**
+	 * サイド(H)
+	 * 
+	 * 0:表面 1:裏面
 	 * @type {number}
 	 */
 	Side;
 	/**
+	 * セクタ(R)
+	 * 
+	 * 1オリジン
 	 * @type {number}
 	 */
 	Sector;
 	/**
+	 * セクタサイズ(N)
+	 * 
+	 * 0:128bytes  
+	 * 1:256bytes  
+	 * 2:512bytes  
+	 * 4:1024bytes
 	 * @type {number}
 	 */
-	NumOfSector;
+	SectorSize;
 	/**
+	 * トラック中のセクタ数
 	 * @type {number}
 	 */
 	SectorsInTrack;
 
 	/**
+	 * 記録密度
+	 * 
+	 * 0x00 倍密度  
+	 * 0x40 単密度    
+	 * 0x01 高密度
 	 * @type {number}
 	 */
 	Density;
-
 	/**
+	 * 削除マーク
+	 * 
+	 * 0x00 ノーマル  
+	 * 0x10 DELETED
 	 * @type {boolean}
 	 */
 	IsDelete;
 	/**
+	 * ステータス
+	 * 
+	 * 0x00:	正常  
+	 * 0x10:	正常(DELETED DATA)  
+	 * 0xa0:	ID CRC エラー  
+	 * 0xb0:	データ CRC エラー  
+	 * 0xe0:	アドレスマークなし  
+	 * 0xf0:	データマークなし
 	 * @type {number}
 	 */
 	Status;
 
 	/**
-	 * long
-	 * @type {number}
-	 */
-	Position;
-
-	/**
-	 * データ部分のサイズ
+	 * セクタのデータ部分のサイズ
 	 * @type {number}
 	 */
 	DataSize;
+
+	// -----------------------------
+	// -----------------------------
+
+	/**
+	 * ディスクイメージ上での位置
+	 * @type {number}
+	 */
+	Position;
 
 	/**
 	 * セクタのデータ部分
@@ -60,6 +101,9 @@ export default class {
 	 */
 	#Header;
 
+
+
+	
 	/**
 	 * セクタを作成したときのデータの初期値。0～255の値(byte)
 	 * @type {number}
@@ -71,7 +115,7 @@ export default class {
 	 */
 	IsDirty;
 	/**
-	 * デフォルトのセクタサイズ int
+	 * デフォルトのセクタサイズ
 	 * @type {number}
 	 */
 	#DefaultSectorSize = 256;
@@ -93,41 +137,42 @@ export default class {
 	 * @param {number} Position ディスク内でのオフセット位置
 	 */
 	Format(t, s, TrackPerSector, SectorSize, Position) {
-		this.#Make(t >> 1, t & 1, s + 1, 1, TrackPerSector, 0, false, 0, SectorSize);
+		const cylinder = t >> 1;
+		const side     = t & 1;
+		const sector   = s + 1;
+		this.#Make(cylinder, side, sector, SectorSize, TrackPerSector, 0, false, 0);
 		this.Position = Position;
 	}
-
 	/**
 	 * セクタを作成する
-	 * @param {number} Track 
-	 * @param {number} Side 
-	 * @param {number} Sector 
-	 * @param {number} NumOfSector 
+	 * @param {number} Cylinder シリンダ(C)(0～)
+	 * @param {number} Side サイド(H)(0:表面 1:裏面)
+	 * @param {number} Sector セクタ(R)(1～)
+	 * @param {number} SectorSize セクタサイズ（バイト単位）
 	 * @param {number} SectorsInTrack 
-	 * @param {number} Density 
-	 * @param {boolean} Delete 
-	 * @param {number} Status 
-	 * @param {number} DataSize データサイズ（バイト単位）
+	 * @param {number} Density 記録密度(0x00:倍密度 0x40:単密度 0x01:高密度)
+	 * @param {boolean} Delete 削除マーク
+	 * @param {number} Status ステータス
 	 */
-	#Make(Track, Side, Sector, NumOfSector, SectorsInTrack, Density, Delete, Status, DataSize) {
+	#Make(Cylinder, Side, Sector, SectorsInTrack, Density, Delete, Status, SectorSize) {
 		this.#Header = new Uint8Array(0x10);
 		const dc = new DataController(Header);
 
-		this.Track = Track;
+		this.Cylinder = Cylinder;
 		this.Side = Side;
 		this.Sector = Sector;
-		this.NumOfSector = NumOfSector;
+		this.SectorSize = SectorSize >> 8; // 128:0 256:1 512:2 1024:4
 		this.SectorsInTrack = SectorsInTrack;
 		this.Density = Density;
 		this.IsDelete = !!Delete;
 		this.Status = Status;
-		this.DataSize = DataSize;
+		this.DataSize = SectorSize;
 		this.IsDirty = true;
 
-		dc.SetByte(0, Track);
+		dc.SetByte(0, Cylinder);
 		dc.SetByte(1, Side);
 		dc.SetByte(2, Sector);
-		dc.SetByte(3, NumOfSector);
+		dc.SetByte(3, SectorSize);
 		dc.SetWord(4, SectorsInTrack);
 		dc.SetByte(6, Density);
 		dc.SetByte(7, this.IsDelete ? 0x10 : 0x00);
@@ -159,17 +204,23 @@ export default class {
 	}
 
 	/**
-	 * セクタへデータを設定する
+	 * セクタ部分を読み込む
 	 * @param {boolean} IsPlain プレーンなセクタかどうか（ヘッダが無い場合true）
 	 * @param {Stream} fs ファイルストリーム
 	 * @returns {boolean} 読み込めたかどうか
 	 */
 	Read(IsPlain, fs) {
+		// ディスクイメージ上での位置
 		this.Position = fs.GetPosition();
+		// セクタデータサイズ
 		this.DataSize = this.#DefaultSectorSize;
-		if (!IsPlain && !this.#ReadSectorHeader(fs)) return false;
+		// ヘッダ部分を読み込む
+		if(!IsPlain && !this.#ReadSectorHeader(fs)) {
+			return false; // エラー
+		}
+		// セクタのデータ部分を読み込む
 		this.#Data = new Uint8Array(this.DataSize);
-		return (fs.Read(this.#Data, 0, this.DataSize) == this.DataSize);
+		return fs.Read(this.#Data, 0, this.DataSize) == this.DataSize;
 	}
 
 	/**
@@ -180,12 +231,13 @@ export default class {
 	#ReadSectorHeader(fs) {
 		this.#Header = new Uint8Array(0x10);
 		const s = fs.Read(this.#Header, 0, 0x10);
-		if (s < 0x10) return false;
+		if (s != 0x10) { return false; }
+
 		const dc = new DataController(this.#Header);
-		this.Track = dc.GetByte(0);
+		this.Cylinder = dc.GetByte(0);
 		this.Side = dc.GetByte(1);
 		this.Sector = dc.GetByte(2);
-		this.NumOfSector = dc.GetByte(3);
+		this.SectorSize = dc.GetByte(3);
 		this.SectorsInTrack = dc.GetWord(4);
 		this.Density = dc.GetByte(6);
 		this.IsDelete = dc.GetByte(7) != 0x00;
@@ -194,12 +246,12 @@ export default class {
 		return true;
 	}
 
-
 	/**
-	 * 中身をログに出力する
+	 * セクタのヘッダ部分をログに出力する
+	 * デバッグ用
 	 */
 	Description() {
-		console.log("C:" + this.Track + " H:" + this.Side + " R:" + this.Sector + " N:" + this.NumOfSector
+		console.log("C:" + this.Cylinder + " H:" + this.Side + " R:" + this.Sector + " N:" + this.SectorSize
 			+ " SectorsInTrack:" + this.SectorsInTrack +" Density:" + this.Density
 			+ " DeleteFlag:"+ this.IsDelete + " Status:" + this.Status + " DataSize:" + this.DataSize);
 	}

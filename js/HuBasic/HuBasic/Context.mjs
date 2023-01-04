@@ -1,4 +1,6 @@
-﻿import { OptionType } from './OptionType.mjs';
+﻿"use strict";
+
+import { OptionType } from './OptionType.mjs';
 import { RunModeTypeEnum } from './RunModeTypeEnum.mjs';
 import Setting from './Setting.mjs';
 import Log from '../Utils/Log.mjs';

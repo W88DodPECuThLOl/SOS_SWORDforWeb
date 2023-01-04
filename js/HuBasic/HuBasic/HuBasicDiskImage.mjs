@@ -1,4 +1,6 @@
-﻿import HuBasicDiskEntry from './HuBasicDiskEntry.mjs';
+﻿"use strict";
+
+import HuBasicDiskEntry from './HuBasicDiskEntry.mjs';
 import HuFileEntry from './HuFileEntry.mjs';
 import Stream from '../Utils/Stream.mjs';
 import { OpenEntryResult } from './OpenEntryResult.mjs';
@@ -585,7 +587,7 @@ export default class {
 	{
 		if(!this.#deviceOnline) {
 			return {
-				result: 2, // Device Offline デバイスがつなかっていない
+				result: 2, // Device Offline デバイスがつながっていない
 				attribute: 0,
 				value: new Uint8Array(),
 				loadAddress: 0x0000,

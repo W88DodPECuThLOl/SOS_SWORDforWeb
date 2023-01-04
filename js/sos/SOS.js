@@ -1,3 +1,29 @@
+"use strict";
+
+class DOSWorkAddr {
+	static OPNFG = 0x291e;
+	static FTYPE = 0x291f;
+/*
+	_RDI	equ	2900h
+	_TROPN	equ	2903h
+	_WRI	equ	2906h
+	_TWRD	equ	2909h
+	_TRDD	equ	290ch
+	_TDIR	equ	290fh
+	_DEVCHK	equ	2915h
+	_OPNFG	equ	291eh
+	_FTYPE	equ	291fh
+	_DFDV	equ	2920h
+	_PARSC	equ	292ah
+	_PARCS	equ	293fh
+	;EXCOM	equ	1cc0h		;for original RUN & SUBMIT
+	EXCOM	equ	1c00h		;for RUN & SUBMIT
+*/
+}
+class DiskWorkAddr {
+	static UNITNO = 0x2b06;
+}
+
 /**
  * #PAUSEの状態
  */
@@ -30,7 +56,7 @@ class SOS {
 	 * 特殊ワーク
 	 * @type {Uint8Array}
 	 */
-	#specialRAM = new Array(0x10000);
+	#specialRAM = new Uint8Array(0x10000);
 	/**
 	 * 特殊ワークのアドレスマスク
 	 * 
@@ -81,7 +107,7 @@ class SOS {
 	 */
 	#Log(text)
 	{
-//		console.log(text);
+		//console.log(text);
 	}
 
 	/**
@@ -371,7 +397,7 @@ class SOS {
 		this.#memWriteU8(  SOSWorkAddr.DVSW,   0 );
 		this.#memWriteU8(  SOSWorkAddr.LPSW,   0 );
 		this.#memWriteU16( SOSWorkAddr.PRCNT,  0 );
-		//this.#memWriteU16( SOSWorkAddr.XYADR,  0x0180 );
+		//this.#memWriteU16( SOSWorkAddr.XYADR,  0x01A0 );
 		//this.#memWriteU16( SOSWorkAddr.KBFAD,  ADDRESS_KBFAD );
 		//this.#memWriteU16( SOSWorkAddr.IBFAD,  ADDRESS_IBFAD );
 		this.#memWriteU16( SOSWorkAddr.SIZE,   0 );
@@ -391,6 +417,13 @@ class SOS {
 		//this.#memWriteU8(  SOSWorkAddr.WIDTH,  80 );
 		//this.#memWriteU8(  SOSWorkAddr.MAXLIN, 25 );
 
+		// DOSモジュール ワーク
+		this.#memWriteU8( 0x291e, 0 ); // OPNFG
+		this.#memWriteU8( 0x291f, 0 ); // FTYPE
+		this.#memWriteU8( 0x2920, 0x41 ); // DFDV
+		// ディスクI/O ワーク
+		this.#memWriteU8( 0x2B06, 0 ); // UNITNO
+
 		// 画面サイズを変更
 		ctx.changeScreenSize(this.#memReadU8(SOSWorkAddr.WIDTH), this.#memReadU8(SOSWorkAddr.MAXLIN));
 		// 初期化メッセージ表示
@@ -403,10 +436,16 @@ class SOS {
 		this.setPC(0x0003);
 		this.#memWriteU16(0x0004, this.#memReadU16(SOSWorkAddr.USR));
 
+		// ジャンプテーブルに出来なかったので、直接書く
+		// S-OS #GETPC
+		this.#memWriteU8(0x1F80, 0xE1); // POP HL
+		// S-OS #[HL]
+		this.#memWriteU8(0x1F81, 0xE9); // JP (HL)
+
 		// メモリクリア
-		for(let i = 0x3000; i <= 0xFFFF; ++i) { this.#memWriteU8(i, 0); }
+//		for(let i = 0x3000; i <= 0xFFFF; ++i) { this.#memWriteU8(i, 0); }
 		// IOクリア
-		for(let i = 0x4000; i <= 0xFFFF; ++i) { this.#ioWrite(i, 0); }
+//		for(let i = 0x4000; i <= 0xFFFF; ++i) { this.#ioWrite(i, 0); }
 
 		// 各種ローカルの設定を初期化
 		this.#isCpuOccupation = false;
@@ -989,7 +1028,7 @@ class SOS {
 		const value3 = this.#memReadU8(address + 2);
 		const value4 = this.#memReadU8(address + 3);
 		if(this.#checkHex(value1) && this.#checkHex(value2) && this.#checkHex(value3) && this.#checkHex(value4)) {
-			this.#setA(
+			this.#setHL(
 				  (this.#hex(value1) << 12)
 				| (this.#hex(value2) <<  8)
 				| (this.#hex(value3) <<  4)
@@ -1015,16 +1054,7 @@ class SOS {
 	 */
 	sos_wopen(ctx){
 		this.#Log("sos_wopen");
-
-		// @todo 新しいﾌｧｲﾙかどうかのﾁｪｯｸを行う。
-		// メモ） #WRD側で、よきにはからうので、不要かもしれない
-		if(false) {
-			// エラー
-			this.#setA(SOSErrorCode.DeviceIOError);
-			this.#setCY();
-			return 0;
-		}
-		this.#clearCY();
+		this.#dos_wopen(ctx);
 		return 0;
 	}
 	/**
@@ -1037,6 +1067,9 @@ class SOS {
 	 */
 	sos_wrd(ctx){
 		this.#Log("sos_wrd");
+		this.#dos_wrd(ctx);
+		return 0;
+		/*
 		const saveAddress = this.#memReadU16(SOSWorkAddr.DTADR);
 		const dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
 		const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);
@@ -1055,7 +1088,7 @@ class SOS {
 			data[i] = this.#memReadU8(saveAddress + i);
 		}
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// ファイル名
 		const filename = this.#getFilenameFromIB();
 		// 書き込む
@@ -1073,6 +1106,7 @@ class SOS {
 		// 正常終了
 		this.#clearCY();
 		return 0;
+		*/
 	}
 	/**
 	 * #FCB●(旧#RDI)(1FA9H)
@@ -1173,13 +1207,16 @@ class SOS {
 	 */
 	sos_rdd(ctx){
 		this.#Log("sos_rdd");
+		this.#dos_rdd(ctx);
+		return 0;
+		/*
 		// @todo オープンチェック
 		const loadAddress = this.#memReadU16(SOSWorkAddr.DTADR);	// 読み込みアドレス
 		const fileSize = this.#memReadU16(SOSWorkAddr.SIZE);		// ファイルサイズ
 		//const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);	// 実行アドレス
 		const filename = this.#getFilenameFromIB();				// ファイル名
 		// 読み込む
-		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
 		let data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		if(data.result != 0) {
 			this.#setA(data.result);
@@ -1194,6 +1231,7 @@ class SOS {
 		// 正常終了
 		this.#clearCY();
 		return 0;
+		*/
 	}
 
 	/**
@@ -1207,9 +1245,43 @@ class SOS {
 	 */
 	sos_file(ctx){
 		this.#Log("sos_file");
+		/*
+		;------------------------
+		;**  FILE - File descripter set
+		
+		FILE
+			call	FNAME
+			push	de
+			ld	hl,NAMEBF
+			ld	de,@IBUF
+			ld	bc,18
+			ldir
+			pop	de
+			call	SPCUT
+			or	a
+			ret
+		*/
+		/*
+		GETDEV
+			call	SPCUT
+			inc	de
+			ld	a,(de)
+			dec	de
+			cp	":"
+			jr	z,GETDEV_1
+			call	_RDVSW
+			ret
+			;
+		GETDEV_1
+			ld	a,(de)
+			inc	de
+			inc	de
+		;
+		*/
 		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
 		// 属性
 		this.#memWriteU8(ib_base + SOSInfomationBlock.ib_attribute, this.#getA());
+		this.#memWriteU8(DOSWorkAddr.FTYPE, this.#getA()); // for DOSモジュール
 		// パスワードなし
 		this.#memWriteU8(ib_base + SOSInfomationBlock.ib_password, 0x20);
 		// ファイル名を分割して
@@ -1226,6 +1298,84 @@ class SOS {
 		this.#clearCY();
 		return 0;
 	}
+	/*
+		FNAME
+			ld	hl,NAMEBF
+			ld	(hl),a
+			inc	hl
+			ld	(_FTYPE),a
+			call	GETDEV
+			call	_DEVCHK
+			ret	c
+			ld	(_DSK),a	; Device name set
+		FILE2
+			ld	b,13
+			call	FILE3
+			ld	a,(de)
+			jr	nz,FILE2_1
+			ld	a," "
+			dec	de
+		FILE2_1
+			cp	"."
+			jr	nz,FILE2_2
+			ld	a," "
+			dec	de
+		FILE2_2
+			ld	(hl),a
+			inc	de
+			inc	hl
+			djnz	FILE2+2
+			ld	a,(de)
+			cp	"."
+			jr	nz,FILE21
+			inc	de
+		FILE21
+			ld	b,3
+			call	FILE3
+			ld	a,(de)
+			jr	nz,FILE21_1
+			ld	a," "
+			dec	de
+		FILE21_1
+			ld	(hl),a
+			inc	de
+			inc	hl
+			djnz	FILE21+2
+			ld	(hl)," "
+		;
+			ld	a,(_DSK)
+			call	_TPCHK
+			ret	nz
+			cp	"S"
+			ret	z
+		;
+			ld	hl,NAMEBF+17
+			ld	b,17
+		MZ0DF
+			ld	a,(hl)
+			cp	" "+1
+			ret	nc
+			ld	(hl),0dh
+			dec	hl
+			djnz	MZ0DF
+			ret
+		
+		FILE3
+			push	de
+			call	SPCUT
+			ld	a,(de)
+			pop	de
+			cp	":"
+			ret	z
+			cp	20h
+			ret	nc
+			cp	a
+		FILE3_1
+			ret
+	*/
+
+
+
 	/**
 	 * #FSAME●(1FA0H)
 	 * 
@@ -1318,7 +1468,8 @@ class SOS {
 		this.#Log("sos_poke");
 		const offset = this.#getHL();
 		const value = this.#getA();
-		this.#specialRAM[offset & this.#specialRamMask] = value & 0xFF;
+		//this.#Log("hl(offset address):" + (offset).toString(16) + " a(value):" + (value).toString(16));
+		this.#specialRAM[offset] = value;
 		return 0;
 	}
 	/**
@@ -1335,7 +1486,7 @@ class SOS {
 		let dst = this.#getDE();
 		const size = this.#getBC();
 		for(let i = 0; i < size; ++i) {
-			this.#specialRAM[dst++ & this.#specialRamMask] = this.#memReadU8(src++) & 0xFF;
+			this.#specialRAM[dst++ & this.#specialRamMask] = this.#memReadU8(src++);
 		}
 		return 0;
 	}
@@ -1350,7 +1501,8 @@ class SOS {
 	sos_peek(ctx){
 		this.#Log("sos_peek");
 		const offset = this.#getHL();
-		this.#setA(this.#specialRAM[offset & this.#specialRamMask] & 0xFF);
+		this.#setA(this.#specialRAM[offset]);
+		//this.#Log("hl(offset address):" + (offset).toString(16) + " a(value):" + (this.#getA()).toString(16));
 		return 0;
 	}
 	/**
@@ -1383,34 +1535,21 @@ class SOS {
 		this.#Log("sos_mon");
 		return 0;
 	}
-	/**
+	/*
 	 * [HL](1F81H)
 	 * 
 	 * HLﾚｼﾞｽﾀにｺｰﾙしたいｱﾄﾞﾚｽを入れ、  
 	 *    CALL [HL]  
 	 * と使うことにより、擬次的な相対ｺｰﾙが可能。  
-	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
-	sos__hl_(ctx){
-		this.#Log("sos_[hl]");
-		this.setPC(this.#getHL());
-		return 0;
-	}
-	/**
+	// Z80で直接記述
+	/*
 	 * #GETPC(1F80H)
 	 * 
 	 * 現在のﾌﾟﾛｸﾞﾗﾑｶｳﾝﾀの値をHLにｺﾋﾟｰする。
-	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
-	sos_getpc(ctx){
-		this.#Log("sos_getpc");
-		// 戻るアドレスを取得
-		const retAddress = this.#memReadU16(this.#getSP());
-		this.#setHL(retAddress);
-		return 0;
-	}
+	// Z80で直接記述
+
 	/**
 	 * #DRDSB※(2000H)
 	 * 
@@ -1427,22 +1566,34 @@ class SOS {
 	 */
 	sos_drdsb(ctx){
 		this.#Log("sos_drdsb");
+		let record = this.#getDE();
+		let buffer = this.#getHL();
+		let recordSize = this.#getA();
+		this.#Log("A(RecordSize):" + recordSize);
+		this.#Log("HL(Buffer):0x" + (buffer).toString(16));
+		this.#Log("DE(RecordNo):" + record);
+		this.#dos_dskred(ctx, buffer, record, recordSize);
+		return 0;
+		/*
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		let record = this.#getDE();
 		let dstAddress = this.#getHL();
-		this.#Log("A(ReadSize):" + this.#getA());
+		let readRecordSize = this.#getA();
+		this.#Log("A(ReadSize):" + readRecordSize);
 		this.#Log("DE(RecordNo):" + record);
-		this.#Log("HL(DstAddr):" + dstAddress);
-		for(let i = 0; i < this.#getA(); ++i) {
+		this.#Log("HL(DstAddr):0x" + (dstAddress).toString(16));
+		for(let i = 0; i < readRecordSize; ++i) {
 			// 読み込み
 			const data = ctx.ReadRecord(deviceName, record + i);
 			if(data.result != 0) {
 				// エラー
 				this.#setA(data.result);
 				this.#setCY();
+				this.#Log("Error:" + data.result);
 				return 0;
 			}
 			// コピー
+			//this.#Log("書き込みアドレス:" + (dstAddress).toString(16) + " 読み込んだバイト数:" + data.value.length);
 			for(let j = 0; j < 0x100; ++j) {
 				this.#memWriteU8(dstAddress + j, data.value[j]);
 			}
@@ -1450,6 +1601,7 @@ class SOS {
 		}
 		this.#clearCY();
 		return 0;
+		*/
 	}
 	/**
 	 * #DWTSB※(2003H)
@@ -1462,7 +1614,15 @@ class SOS {
 	 */
 	sos_dwtsb(ctx){
 		this.#Log("sos_dwtsb");
-
+		let record = this.#getDE();
+		let buffer = this.#getHL();
+		let recordSize = this.#getA();
+		this.#Log("A(RecordSize):" + recordSize);
+		this.#Log("DE(RecordNo):" + record);
+		this.#Log("HL(Buffer):0x" + (buffer).toString(16));
+		this.#dos_dskwrt(ctx, buffer, record, recordSize);
+		return 0;
+		/*
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		let record = this.#getDE();
 		let srcAddress = this.#getHL();
@@ -1484,6 +1644,7 @@ class SOS {
 		}
 		this.#clearCY();
 		return 0;
+		*/
 	}
 	/**
 	 * #DIR※(2006H)
@@ -1495,6 +1656,9 @@ class SOS {
 	 */
 	sos_dir(ctx){
 		this.#Log("sos_dir");
+		this.#dos_dir(ctx);
+		return 0;
+		/*
 		// デバイス名
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		// ディレクトリのレコード
@@ -1516,6 +1680,7 @@ class SOS {
 		// 正常終了
 		this.#clearCY();
 		return 0;
+		*/
 	}
 	/**
 	 * #ROPEN(2009H)※
@@ -1533,10 +1698,14 @@ class SOS {
 	 */
 	sos_ropen(ctx){
 		this.#Log("sos_ropen");
+		this.#dos_ropen(ctx);
+		return 0;
+
+		/*
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const entrySector = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const entrySector = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		this.#Log("device:" + filename.deviceName); // デバイス名
 		this.#Log("filename:" + filename.filename); // ファイル名
@@ -1577,6 +1746,7 @@ class SOS {
 		this.#setZ();     // ディスクの場合は、ゼロフラグをセット（ファイルが見つかった）
 		this.#clearCY();
 		return 0;
+		*/
 	}
 	/**
 	 * #SET※(200CH)
@@ -1590,7 +1760,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
@@ -1616,7 +1786,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
@@ -1646,7 +1816,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Rename(filename.deviceName, dirRecord, filename.filename, filename.extension, newFilename.filename, newFilename.extension);
 		// 処理
@@ -1672,7 +1842,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU8(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
@@ -1874,5 +2044,1746 @@ class SOS {
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
 		return 0;
+	}
+
+	// --------------------------------------------------------------------------------------------------------------------
+	// DOS MODULE
+	// --------------------------------------------------------------------------------------------------------------------
+
+	// ディレクトリのセクタ
+	#dos_DEBUF;
+	// IBのアドレス
+	#dos_HLBUF;
+	// ?
+	#dos_RETPOI;
+
+	/**
+	 * 
+	 * @returns {boolean} 正常終了時 true
+	 */
+	#dos_wopen(ctx)
+	{
+		/*
+		;-----------------------------
+		;**  WOPEN - Open write file
+		
+		WOPEN
+			call	CLOSE
+			ld	a,(_DSK)
+			call	DEVCHK
+			ret	c
+			jp	z,_WRI
+			call	DSKCHK
+			jr	nc,WOPEN1
+			ret		; Reserved feature
+		;
+		WOPEN1
+			call	FATRED
+			ret	c	; Read error
+			call	FCBSCH
+			jr	nz,WOPEN2	;New file
+		;
+			ld	a,(hl)
+			call	WPCHK
+			ret	c	; Write protected
+			call	FMCHK
+			ret	c	; Bad file mode
+			;
+			push	hl
+			ld	bc,1eh
+			add	hl,bc
+			ld	a,(hl)		; Start record No. get
+			pop	hl
+			call	ERAFAT
+			ret	c	; Bad allocation table
+			jr	WOPEN3
+			;
+		WOPEN2
+			call	FRESCH
+			ld	a,9	; Device full
+			ret	c
+		
+		WOPEN3
+			ld	(DEBUF),de
+			ld	(HLBUF),hl
+			call	_PARCS
+			call	OPEN
+			xor	a
+			ret
+		*/
+		this.#dos_close();
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_devchk(dsk)) {
+			return false; // Bad File Descripter
+		}
+		// jp	z,_WRI // @todo テープ未対応
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+		// FAT読み込み
+		if(!this.#dos_fatred(ctx)) {
+			return false; // Read error
+		}
+		// ファイル検索
+		let res = this.#dos_fcbsch(ctx);
+		if(res.result != 0) {
+			return false; // エラー
+		}
+		if(res.found) {
+			// ファイル見つかった 既存ファイルの上書き
+			const attribute = this.#memReadU8(res.ib_ptr + SOSInfomationBlock.ib_attribute);
+			if(!this.#dos_wpchk(attribute)) {
+				return false; // Write protected
+			}
+			if(!this.#dos_fmchk(attribute)) {
+				return false; // Bad file mode
+			}
+			// Start record No. get
+			const startRecord = this.#memReadU8(res.ib_ptr + SOSInfomationBlock.ib_cluster);
+			// まずは、FATから削除
+			if(!this.#dos_erafat(startRecord)) {
+				return false; // Bad allocation table
+			}
+		} else {
+			// 見つからなかった 新しくファイルを作成する
+			res = this.#dos_fresch(ctx); // 空き見つける
+			if(res.result != 0) {
+				this.#setA(SOSErrorCode.DeviceFull); // Device full ディスクが一杯
+				this.#setCY();
+				return false; // エラー
+			}
+		}
+
+		//ld	(DEBUF),de // ディレクトリのセクタ
+		//ld	(HLBUF),hl // IBのアドレス
+		this.#dos_DEBUF = res.dir;
+		this.#dos_HLBUF = res.ib_ptr; // メモ）DTBUF内のポインタ
+
+		// IB情報へコピー
+		this.#dos_parcs();
+
+		// ファイルオープン
+		this.#dos_open();
+
+		// 正常終了
+		this.#setA(0);
+		this.#setZ();
+		this.#clearCY();
+		return true;
+	}
+
+	#dos_ropen(ctx)
+	{
+		/*
+		;***************************************
+		;**  ROPEN - Open read file
+		
+		ROPEN
+			call	CLOSE
+			ld	a,(_DSK)
+			call	DEVCHK
+			ret	c	; Bad file descripter
+			jp	z,_TROPN	;TAPE
+			call	DSKCHK
+			jr	nc,ROPEN1
+			ret		; Reserved feature
+			;
+		ROPEN1
+			call	FCBSCH
+			ret	c
+			ld	A,8	; File not found
+			scf
+			ret	nz
+			push	hl
+			ld	de,(_IBFAD)
+			ld	bc,32
+			ldir
+			pop	hl
+			ld	a,(hl)
+			call	FMCHK
+			ret	c	; Bad file mode
+			;
+		ROPEN2
+			call	_PARSC
+			call	OPEN
+			xor	a
+			ret
+		*/
+		this.#dos_close();
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_devchk(dsk)) {
+			return false; // Bad File Descripter
+		}
+		// jp	z,_TROPN	;TAPE  // @todo テープ未対応
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+		// ファイル検索
+		const res = this.#dos_fcbsch(ctx);
+		if(res.result != 0) {
+			return false; // エラー
+		}
+		if(!res.found) {
+			this.#setA(SOSErrorCode.FileNotFound);
+			this.#setCY();
+			return false; // エラー
+		}
+		// 見つけたIBをS-OSのIBへコピー
+		const ib_ptr = this.#memReadU16(SOSWorkAddr.IBFAD);
+		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
+			this.#memWriteU8(ib_ptr + i, this.#memReadU8(res.ib_ptr + i));
+		}
+		// 属性チェック
+		const attribute = this.#memReadU8(res.ib_ptr + SOSInfomationBlock.ib_attribute);
+		if(!this.#dos_fmchk(attribute)) {
+			return false; // Bad file mode
+		}
+
+		this.#dos_parsc();
+		this.#dos_open();
+
+		this.#setA(0);
+		this.#clearCY();
+		return true;
+	}
+
+
+	#dos_wrd(ctx)
+	{
+		/*
+		;***************************************
+		;**  WRD - Write Data
+		
+		WRD
+			ld	a,(_DSK)
+			call	DEVCHK
+			ret	c
+			jp	z,_TWRD
+			ld	a,(_OPNFG)
+			or	a
+			jr	nz,WRD1
+			scf
+			ld	a,12	; File not open
+			ret
+			;
+		WRD1
+			call	CLOSE
+			ld	a,(_DSK)
+			call	DSKCHK
+			ret	c	;Reserved feature
+			;
+			call	DSAVE	; DISK
+			ret
+		*/	
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_devchk(dsk)) {
+			return false; // Bad File Descripter
+		}
+		// jp	z,_TWRD // @todo
+		if(!this.#dos_isOpen()) {
+			this.#setA(SOSErrorCode.FileNotOpen); // File not open
+			this.#setCY();
+			return false;
+		}
+		this.#dos_close();
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+
+		return this.#dos_dsave(ctx);
+	}
+
+	#dos_rdd(ctx)
+	{
+		/*
+		;***************************************
+		;**  RDD - Read Data
+		
+		RDD
+			ld	a,(_DSK)
+			call	DEVCHK
+			ret	c
+			jp	z,_TRDD
+			xor	a
+			ld	(_DIRNO),a
+			ld	(RETPOI),a
+			ld	a,(_OPNFG)
+			or	a
+			jr	nz,RDD1
+			scf
+			ld	a,12	; File not open
+			ret
+			;
+		RDD1
+			call	CLOSE
+			ld	a,(_DSK)
+			call	DSKCHK
+			ret	c	; Reserved Feature
+			;
+			call	FATRED
+			ret	c	;
+			call	DLOAD		; DISK
+			ret
+		*/
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_devchk(dsk)) {
+			return false; // Bad File Descripter
+		}
+		// jp	z,_TRDD // @todo
+
+		this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
+		this.#dos_RETPOI = 0; // ?
+
+		if(!this.#dos_isOpen()) {
+			this.#setA(SOSErrorCode.FileNotOpen); // File not open
+			this.#setCY();
+			return false;
+		}
+		this.#dos_close();
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+		// FAT読み込み
+		if(!this.#dos_fatred(ctx)) {
+			return false; // Read error
+		}
+		// 読み込み
+		return this.#dos_dload(ctx);
+	}
+
+	/*
+	;***************************************
+	;**  GETFCB -
+	
+	GETFCB:
+		call	CLOSE
+		ld	a,(_DSK)
+		call	DEVCHK
+		ret	c
+		jr	NZ,GETFC1	;*-*-
+		call	TRDVSW		;*-*-
+		ld	(_DSK),A	;*-*-
+		jp	_RDI		;*-*-
+	GETFC1
+		call	_GETKY
+		cp	1bH
+		jp	z,DEND
+		cp	0dh
+		jr	nz,GETFC2
+		ld	a,(RETPOI)
+		or	a
+		jr	nz,DECPOI
+	GETFC2
+		ld	a,(_DIRNO)
+		ld	c,a
+		ld	b,3
+	SFR41
+		srl	a
+		djnz	SFR41
+		ld	hl,(_DIRPS)
+		ld	d,0
+		ld	e,a
+		add	hl,de
+		ex	de,hl
+		ld	hl,(_DTBUF)
+		ld	a,1
+		call	DSKRED
+		jr	c,ERRRET
+		ld	a,c
+		and	07h
+		ld	b,5
+	SFL51
+		add	a,a
+		djnz	SFL51
+		ld	hl,(_DTBUF)
+		add	a,l
+		ld	l,a
+		jr	nc,$+3
+		inc	h
+		ld	a,(hl)
+		or	a
+		jr	z,NEXT1
+		cp	0ffh
+		jr	z,DEND
+	
+		ld	de,(_IBFAD)
+		ld	bc,20h
+		ldir
+		call	INCPOI
+		jp	ROPEN2
+	
+	NEXT1
+		call	INCPOI
+		jr	nc,GETFC1
+		ret		;File not found *-*-*-
+	
+	INCPOI
+		ld	hl,_DIRNO
+		inc	(hl)
+		ld	A,(hl)
+		ld	hl,_MXTRK
+		cp	(hl)
+		jr	z,DEND
+		ld	(RETPOI),a
+		or	a
+		ret
+	ERRRET
+		push	af
+		call	DEND
+		pop	af
+		ret
+	
+	DECPOI
+		ld	hl,_DIRNO
+		ld	a,(hl)
+		or	a
+		jr	z,$+3
+		dec	(hl)
+		xor	a
+		jr	DEND1
+	DEND
+		xor	a
+		ld	(_DIRNO),a
+	DEND1
+		ld	(RETPOI),a
+		ld	a,8
+		scf
+		ret
+	
+	
+	RETPOI	db	0
+	*/
+
+	#dos_dir(ctx)
+	{
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_devchk(dsk)) {
+			return false; // Bad File Descripter
+		}
+		// jp	z,_TDIR // @todo
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+		// FAT読み込み
+		if(!this.#dos_fatred(ctx)) {
+			return false; // Read error
+		}
+		// 空き容量
+		this.#beginCursor(ctx); // S-OSのワークからカーソル位置を設定する
+		const freeClusters = this.#dos_freclu();
+		ctx.printNativeMsg("$" + (freeClusters).toString(16).toUpperCase().padStart(2, "0") + " Clusters Free\n");
+		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
+
+		// ディレクトリのレコード
+		const dirRecord  = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dataBuffer = this.#memReadU16(SOSWorkAddr.DTBUF);
+		for(let i = 0; i < 16; ++i) {
+			// ディレクトリ読み込み
+			if(!this.#dos_dskred(ctx, dataBuffer, dirRecord + i, 1)) {
+				return false; // エラー
+			}
+			// 内容表示
+			if(!this.#dos_dirprt(ctx, dataBuffer)) {
+				break;
+			}
+		}
+		this.#setA(0);
+		this.#setZ();
+		this.#clearCY();
+		return true;
+		/*
+		;***************************************
+		;**  DIR - Directory display
+		
+		DIR
+			ld	a,(_DSK)
+			call	DEVCHK
+			ret	c	; Bad File Descripter
+			jp	z,_TDIR
+			call	DSKCHK
+			ret	c	; Reserved Feature
+			;
+			call	FATRED
+			ret	c	; Disk error
+			ld	A,"$"
+			call	_PRINT
+			call	FRECLU
+			call	_PRTHX
+			ld	de,CSTMES
+			call	_MSX
+			ld	b,16
+			ld	de,(_DIRPS)	; Directory start
+		
+		DIRL
+			ld	hl,(_DTBUF)
+			ld	a,1
+			call	DSKRED
+			ret	c	; Disk error
+
+			call	DIRPRT
+			ret	z
+			inc	de
+			djnz	DIRL
+			xor	a
+			ret
+		*/
+	}
+	#dos_dirprt(ctx, buffer)
+	{
+		for(let i = 0; i < (256 / SOSInfomationBlock.InfomationBlockSize | 0); ++i) {
+			const ib = buffer + SOSInfomationBlock.InfomationBlockSize * i;
+			const attribute = this.#memReadU8(ib + SOSInfomationBlock.ib_attribute);
+			if(attribute == 0) { continue; }
+			if(attribute == 0xFF) { return false; }
+			//
+			this.#dos_P_FNAM(ctx, ib);
+			this.sos_ltnl(ctx);
+			// @todo pause
+		}
+		return true;
+		/*
+		DIRPRT
+			push	bc
+			push	de
+			ld	b,8
+		DIRPL
+			ld	a,(hl)
+			or	a
+			jr	z,DIRN
+			cp	0ffh
+			jr	z,DIRPE
+			call	P_FNAM
+			call	_LTNL
+			call	_PAUSE
+			dw	DIRPE
+		DIRN
+			ld	de,20h
+			add	hl,de
+			djnz	DIRPL
+			db	3eh	; Skip next operation
+		DIRPE
+			xor	a
+			pop	de
+			pop	bc
+			or	a
+			ret
+		*/
+	}
+	#dos_P_FNAM(ctx, ib)
+	{
+		/*
+		P_FNAM
+			push	bc
+			push	de
+			push	hl
+			ld	de,(_IBFAD)
+			ld	bc,20h
+			ldir
+			call	ATRPRT
+			ld	a,(_DSK)
+			call	_PRINT
+			ld	a,":"
+			call	_PRINT
+			call	_FPRNT
+			;
+			call	adrPRT
+		*/
+		const ib_ptr = this.#memReadU16(SOSWorkAddr.IBFAD);
+		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
+			this.#memWriteU8(ib_ptr + i, this.#memReadU8(ib + i));
+		}
+		// 属性、ライトプロテクト
+		this.#dos_atrprt(ctx, this.#memReadU8(ib_ptr + SOSInfomationBlock.ib_attribute));
+		// デバイス名
+		this.#beginCursor(ctx);
+		ctx.PRINT(this.#memReadU8(SOSWorkAddr.DSK));
+		ctx.PRINT(0x3a); // ":"
+		this.#endCursor(ctx);
+		// ファイル名
+		this.sos_fprnt(ctx);
+		// アドレス
+		this.#dos_adrprt(ctx);
+	}
+	#dos_adrprt(ctx)
+	{
+		/*
+		ADRPRT
+			call	_PARSC
+			ld	bc,(_SIZE)
+			ld	hl,(_DTADR)
+			ld	de,(_EXADR)
+			call	PHEX
+			add	hl,bc
+			dec	hl
+			call	PHEX
+			ex	de,hl
+			call	PHEX
+			pop	hl
+			pop	de
+			pop	bc
+			ret
+		*/
+		this.#dos_parsc();
+		const dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
+		const address     = this.#memReadU16(SOSWorkAddr.DTADR);
+		const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);
+		this.#dos_phex(ctx, address);
+		this.#dos_phex(ctx, address + dataSize - 1);
+		this.#dos_phex(ctx, execAddress);
+	}
+	#dos_phex(ctx, value)
+	{
+		this.#beginCursor(ctx); // S-OSのワークからカーソル位置を設定する
+		ctx.printNativeMsg(":" + ctx.ToStringHex4(value));
+		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
+		/*
+		PHEX
+			ld	a,":"
+			call	_PRINT
+			call	_PRTHL
+			ret
+		*/
+	}
+
+	#dos_atrprt(ctx, attr)
+	{
+		this.#beginCursor(ctx); // S-OSのワークからカーソル位置を設定する
+		ctx.PrintFileAttribute(attr);
+		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
+		/*
+		; FILE ATTRIBUTE PRINT
+
+		ATRPRT
+			push	af
+			ld	de,ATRMES
+			bit	7,a
+			jr	z,ATRP1
+			ld	a,8
+			db	11h	; Skip next operation
+		ATRP1
+			and	7
+			ld	l,a
+			ld	h,0
+			add	hl,hl
+			add	hl,hl
+			ld	de,ATRMES
+			add	hl,de
+			ex	de,hl
+			call	_MSX
+			pop	af
+			bit	6,a
+			ld	a,"*"
+			jr	nz,ATRP2
+			ld	a," "
+		ATRP2
+			call	_PRINT
+			call	_PRNTS
+			ret
+		*/
+	}
+
+	/**
+	 * セクタリード
+	 * @param {number} buffer	読み込み先(HL)
+	 * @param {number} sector	読み込むセクタ(DE)
+	 * @param {number} size		読み込むセクタ数(A)
+	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
+	 */
+	#dos_dskred(ctx, buffer, sector, size)
+	{
+		/*
+		;***************************************
+		;**  SECRD - Sector read
+		
+		DSKRED
+			ex	af,af'
+			ld	a,(_DSK)
+			call	ALCHK
+			ret	c
+			call	DSKCHK
+			ret	c
+			sub	"A"
+			ld	(UNITNO),a
+			ex	af,af'
+			call	DREAD
+			ret
+		*/
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_alchk(dsk)) {
+			return false;
+		}
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+		this.#memWriteU8(DiskWorkAddr.UNITNO, dsk - 0x41);
+		return this.#disk_dread(ctx, buffer, sector, size);
+	}
+
+	/**
+	 * セクタライト
+	 * @param {number} buffer	書き込むバッファ(HL)
+	 * @param {number} sector	書き込むセクタ(DE)
+	 * @param {number} size		書き込むセクタ数(A)
+	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
+	 */
+	#dos_dskwrt(ctx, buffer, sector, size)
+	{
+		/*
+		;***************************************
+		;**  SECWR - Sector write
+		
+		DSKWRT
+			ex	af,af'
+			ld	a,(_DSK)
+			call	ALCHK
+			ret	c
+			call	DSKCHK
+			ret	c
+			sub	"A"
+			ld	(UNITNO),a
+			ex	af,af'
+			call	DWRITE
+			ret
+		*/
+		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		if(!this.#dos_alchk(dsk)) {
+			return false;
+		}
+		if(!this.#dos_dskchk(dsk)) {
+			return false; // Reserved feature
+		}
+		this.#memWriteU8(DiskWorkAddr.UNITNO, dsk - 0x41);
+		return this.#disk_dwrite(ctx, buffer, sector, size);
+	}
+	
+	// -----------------------------
+	//   SUBROUTINES
+	// -----------------------------
+
+	//  OPEN FLAG SET/RESET/CHECK
+
+	#dos_open() { this.#memWriteU8(DOSWorkAddr.OPNFG, 1); }
+	#dos_close() { this.#memWriteU8(DOSWorkAddr.OPNFG, 0); }
+	#dos_isOpen() { return this.#memReadU8(DOSWorkAddr.OPNFG) != 0; }
+
+	// FILE WRITE PROTECT CHECK
+
+	/**
+	 * ライトプロテクトが設定されているかどうかをチェックする  
+	 * 設定されていれば、Aにエラーコードを設定し、キャリを立てる
+	 * @param {number} attribute 属性(ファイルモード)
+	 * @returns {boolean} ライトプロテクトが設定されていなければ、trueを返す
+	 */
+	#dos_wpchk(attribute)
+	{
+		if((attribute & 0x40) == 0) {
+			return true; // ライトプロテクトが設定されていないので大丈夫
+		}
+		// ライトプロテクトが設定されているので、エラーコード、キャリフラグを立てる
+		this.#setA(4); // Write protected
+		this.#setCY();
+		return false; // エラー
+	}
+
+	#dos_fmchk(attribute)
+	{
+		/*
+			; FILE MODE CHECK
+
+			FMCHK
+				push	hl
+				AND	87h	; 10000111B
+				ld	hl,_FTYPE
+				cp	(hl)
+				pop	hl
+				ret	z
+				ld	a,6	; Bad file mode
+				scf
+				ret
+		*/
+		if(this.#memReadU8(DOSWorkAddr.FTYPE) == (attribute & 0x87)) {
+			return true;
+		}
+		this.#setA(SOSErrorCode.BadFileMode); // Bad file mode
+		this.#setCY();
+		return false; // エラー
+	}
+
+	#dos_devchk(device)
+	{
+		/*
+		DEVCHK
+			call	TPCHK
+			ret	z
+			cp	"A"
+			jr	c,DEVCH1
+			cp	"L"+1
+			ccf
+			jr	c,$+4
+			or	a
+			ret
+		DEVCH1
+			ld	a,3	; Bad file descripter
+			ret
+		*/
+		if(this.#dos_tpchk(device)) {
+			return true; // テープデバイス
+		}
+		if(device < 0x41) {
+			this.#setA(SOSErrorCode.BadFileDescripter);
+			this.#setCY();
+			return false;
+		}
+		this.#clearCY();
+		this.#setZ();
+		// Z
+		return true;
+	}
+	/**
+	 * テープデバイスかどうか
+	 * @param {number} device デバイス名
+	 * @returns {boolean} テープデバイスだったらtrue、Zセット。
+	 */
+	#dos_tpchk(device)
+	{
+		/*
+		TPCHK
+			cp	"T"
+			ret	z
+			cp	"S"
+			ret	z
+			cp	"Q"
+			ret
+		 */
+		if(device == 0x54 || device == 0x53 || device == 0x51) {
+			// Z
+			this.#setZ();
+			this.#clearCY();
+			return true;
+		}
+		// NZ
+		this.#clearZ();
+		return false;
+	}
+	
+	#dos_dskchk(device)
+	{
+		/*
+			; DISK DEVICE NAME CHECK
+		DSKCHK
+			cp	"A"
+			jr	c,DSKCH1
+			cp	"D"+1
+			ccf
+			ret	nc
+		DSKCH1
+			ld	a,11	;Reserved dfFeature
+			ret
+		*/
+
+		// メモ）A～Dのみ対応にしとく
+		// テープ等未対応
+		if(0x41 <= device && device <= 0x44) {
+			this.#clearCY();
+			return true;
+		}
+		this.#setA(SOSErrorCode.ReservedFeature); // Reserved dfFeature
+		this.#setCY();
+		return false;
+	}
+
+	#dos_alchk(device)
+	{
+		/*
+		; All Device Check
+
+		ALCHK
+			call	DEVCHK
+			ret	c	; Bad file descripter
+			call	TPCHK
+			jr	nz,$+6
+			ld	a,3
+			scf
+			ret
+			call	DSKCHK
+			ret		;Reserved feature
+		*/
+		if(!this.#dos_devchk(device)) {
+			return false; // Bad File Descripter
+		}
+		if(this.#dos_tpchk(device)) {
+			// テープデバイス
+			this.#setA(SOSErrorCode.BadFileDescripter);
+			this.#setCY();
+			return false;
+		}
+		if(!this.#dos_dskchk(device)) {
+			return false; // Reserved feature
+		}
+		return true;
+	}
+	/*
+	RDVSW
+		ld	a,(_DFDV)
+		call	TPCHK
+		ret	nz
+	*/
+	/*
+	TRDVSW
+		ld	a,(_DVSW)
+		or	a
+		jr	nz,$+4
+		ld	a,"T"
+		cp	1
+		jr	nz,$+4
+		ld	A,"S"
+		cp	3
+		jr	nz,$+4
+		ld	a,"Q"
+		ret
+	*/
+	/*
+	SDVSW
+		push	af
+		ld	(_DFDV),a
+		cp	"T"
+		jr	nz,$+3
+		xor	a
+		cp	"S"
+		jr	nz,$+4
+		ld	a,1
+		cp	"Q"
+		jr	nz,$+4
+		ld	a,3
+		ld	(_DVSW),a
+		pop	af
+		ret
+	*/
+
+	#dos_dload(ctx)
+	{
+		/*
+		; LOAD FROM DISK
+		
+		DLOAD
+			ld	hl,(_IBFAD)
+			ld	bc,1eh
+			add	hl,bc
+			ld	a,(hl)		; Record No.
+			ld	(NXCLST),a
+			ld	bc,(_SIZE)
+			ld	hl,(_DTADR)
+		DLOAD1
+			push	hl
+			ld	a,(NXCLST)
+			ld	hl,(_FATBF)
+			ld	e,a
+			ld	d,0
+			add	hl,de
+			ld	a,(hl)
+			ld	(NXCLST),a
+			ex	de,hl
+			add	hl,hl
+			add	hl,hl
+			add	hl,hl
+			add	hl,hl
+			ex	de,hl
+			pop	hl
+			or	a
+			jr	z,DLOAD2
+			cp	80h
+			jr	nc,DLOAD3
+			ld	a,10h
+			call	DSKRED
+			ret	c	; Disk error
+			ld	de,1000h
+			add	hl,de
+			push	hl
+			ld	l,c
+			ld	h,b
+			or	a
+			sbc	hl,de
+			ld	c,l
+			ld	b,h
+			pop	hl
+			jr	nc,DLOAD1
+		DLOAD2
+			ld	a,7	; Bad allocation table
+			scf
+			ret
+			;
+		DLOAD3
+			sub	7fh
+			cp	10h+1
+			jr	nc,DLOAD2
+			dec	a
+			dec	bc
+			cp	b
+			jr	nz,DLOAD2
+			ld	b,0
+			inc	bc
+			or	a
+			jr	z,DLOAD4
+			push	af
+			call	DSKRED
+			jr	c,DLOAD5
+			pop	af
+		DLOAD4
+			push	de
+			ld	e,0
+			ld	d,a
+			add	hl,de
+			ex	(sp),hl
+			ld	e,a
+			ld	d,0
+			add	hl,de
+			ex	de,hl
+			ld	hl,(_DTBUF)
+			ld	a,1
+			call	DSKRED
+		DLOAD5
+			pop	de
+			ret	c	; Disk error
+			ldir
+			xor	a
+			ret
+		*/
+		const ib_base     = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const fatbf       = this.#memReadU16(SOSWorkAddr.FATBF);
+		const dtbuf       = this.#memReadU16(SOSWorkAddr.DTBUF);
+		let   loadAddress = this.#memReadU16(SOSWorkAddr.DTADR);
+		let   dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
+		// 初めのクラスタ
+		let current = this.#memReadU8(ib_base + SOSInfomationBlock.ib_cluster);
+		while(dataSize > 0) {
+			// 読み込むサイズ
+			let next = this.#memReadU8(fatbf + current);
+			const readSectorSize = (next < 0x80) ? 0x10 : (next - 0x7F);
+			if(next >= 0x80) {
+				// 最後のクラスタ
+				// ・最後のクラスタの最後の１セクタは、分けて読み込む
+				let c = current * 16;
+				if(readSectorSize > 1) {
+					if(!this.#dos_dskred(ctx, loadAddress, c, readSectorSize - 1)) {
+						return false; // エラー
+					}
+					loadAddress += (readSectorSize - 1) * 0x100;
+					dataSize    -= (readSectorSize - 1) * 0x100;
+					c += readSectorSize - 1;
+				}
+				// 最後の最後の１セクタの読み込み
+				if(!this.#dos_dskred(ctx, dtbuf, c, 1)) {
+					return false; // エラー
+				}
+				// コピー
+				if(dataSize > 0x100) {
+					// 最後の１セクタなのに、残りサイズが大きい
+					this.setA(SOSErrorCode.BadAllocationTable);
+					this.setCY();
+					return false;
+				}
+				for(let i = 0; i < dataSize; ++i) {
+					this.#memWriteU8(loadAddress + i, this.#memReadU8(dtbuf + i));
+				}
+				break; // 終わり
+			} else {
+				// 続きがある場合
+				if(!this.#dos_dskred(ctx, loadAddress, current * 16, readSectorSize)) {
+					return false; // エラー
+				}
+				loadAddress += readSectorSize * 0x100;
+				dataSize    -= readSectorSize * 0x100;
+				current = next;
+			}
+		}
+		// 正常終了
+		this.#setA(0);
+		this.#clearCY();
+		return true;
+	}
+
+	#dos_dsave(ctx)
+	{
+		/*
+		; SAVE TO DISK
+		
+		DSAVE
+			ld	de,(DEBUF)
+			ld	hl,(HLBUF)
+			ld	bc,(_SIZE)
+			push	bc
+			dec	bc
+			srl	b
+			srl	b
+			srl	b
+			srl	b
+			inc	b
+			call	FRECLU
+			cp	b
+			pop	bc
+			ld	a,9	; Device full
+			ret	c
+			ld	hl,(_IBFAD)
+			push	hl
+			push	de
+			push	bc
+			ld	de,18h
+			add	hl,de
+			ld	e,l
+			ld	d,h
+			inc	de
+			ld	(hl),0
+			ld	bc,7
+			ldir
+			pop	bc
+			pop	de
+			pop	hl
+			ld	a,1eh
+			add	a,l
+			ld	l,a
+			jr	nc,$+3
+			inc	h
+			call	FCGET
+			ld	(hl),a	; Record No.
+			ld	hl,(_DTADR)
+		;
+		DSAVE1
+			push	hl
+			ld	hl,(_FATBF)
+			ld	e,a
+			ld	d,0
+			add	hl,de
+			ex	de,hl
+			add	hl,hl
+			add	hl,hl
+			add	hl,hl
+			add	hl,hl
+			ex	de,hl
+			dec	bc
+			ld	a,b
+			inc	bc
+			cp	10h
+			jr	c,DSAVE3
+			ld	(hl),80h
+			call	FCGET
+			ld	(hl),a
+			pop	hl
+			push	af
+			ld	a,10h
+			call	DSKWRT
+			jr	c,DSAVE2	; Disk error
+			ld	de,1000h
+			add	hl,de
+			push	hl
+			ld	l,c
+			ld	h,b
+			or	a
+			sbc	hl,de
+			ld	c,l
+			ld	b,h
+			pop	hl
+			pop	af
+			jr	DSAVE1
+			;
+		DSAVE2
+			pop	hl
+			ret
+			;
+		DSAVE3
+			inc	a
+			push	af
+			add	a,7fh
+			ld	(hl),a
+			pop	af
+			pop	hl
+			call	DSKWRT
+			ret	c	; Disk error
+			call	FATWRT
+			ret	c	; Disk error
+			ld	hl,(_IBFAD)
+			ld	de,(HLBUF)
+		;	inc	de
+			ld	bc,20h	;***
+			ldir
+			ld	hl,(_DTBUF)
+			ld	de,(DEBUF)
+			ld	a,1
+			call	DSKWRT		; Directory write
+			ret	c	; Disk error
+			xor	a
+			ret
+		*/
+		// 書き込める容量があるかどうかを確認
+		let dataSize = this.#memReadU16(SOSWorkAddr.SIZE); // _SIZE
+		const needCluster = ((((dataSize-1) & 0xFFFF) >> 4) + 0x100) >> 8;
+		if(this.#dos_freclu() < needCluster) {
+			this.#setA(SOSErrorCode.DeviceFull);
+			this.#setCY();
+			return false;
+		}
+		// @todo 日付設定
+		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		for(let i = 0; i < 6; ++i) {
+			this.#memWriteU8(ib_base + SOSInfomationBlock.ib_date + i, 0);
+		}
+		// 開始クラスタを設定
+		let freePos = this.#dos_fcget(); // 空きクラスタを取得
+		if(freePos < 0) {
+			// メモ）空きを確認しているので、ここには来ない
+			this.#setA(SOSErrorCode.DeviceFull);
+			this.#setCY();
+			return false;
+		}
+		this.#memWriteU8(ib_base + SOSInfomationBlock.ib_cluster, freePos);
+
+		//
+		//
+		//
+
+		let saveAddress = this.#memReadU16(SOSWorkAddr.DTADR); // _DTADR
+		let remainSector = dataSize ? (((dataSize - 1) >> 8) + 1) : 1; // 書き込むデータサイズが0の場合は1セクタにする
+		while(remainSector > 0) {
+			const writeSectorSize = this.#min(16, remainSector);
+			if(!this.#dos_dskwrt(ctx, saveAddress, freePos * 16, writeSectorSize)) {
+				// 書き込みエラー
+				return false;
+			}
+			saveAddress += 256 * writeSectorSize; // 書き込むアドレスを進める
+			remainSector -= writeSectorSize; // 書き込んだ分セクタを減らす
+
+			// FATの繋がりを設定
+			const currentFat = this.#memReadU16(SOSWorkAddr.FATBF) + freePos;
+			if(remainSector == 0) {
+				// 最後のクラスタ
+				this.#memWriteU8(currentFat, writeSectorSize + 0x7F);
+			} else {
+				// まだ残ってるので、次の空いているクラスタを取得
+				this.#memWriteU8(currentFat, 0x80); // 別の空きクラスタ位置を取得したいので、一旦使用中にする。
+				freePos = this.#dos_fcget(); // 次に続く空きクラスタ位置を取得
+				if(freePos < 0) {
+					// メモ）空きを確認しているので、ここには来ない
+					this.#setA(SOSErrorCode.DeviceFull);
+					this.#setCY();
+					return false;
+				}
+				this.#memWriteU8(currentFat, freePos); // 次に続く空きクラスタ位置を設定
+			}
+		}
+
+		// FAT書き込み
+		if(!this.#dos_fatwrt(ctx)) {
+			return false; // Disk error
+		}
+		// IB書き込み
+		// バッファへ書き戻して
+		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
+			this.#memWriteU8( this.#dos_HLBUF + i, this.#memReadU8(ib_base + i));
+		}
+		// 書き込み
+		if(!this.#dos_dskwrt(ctx, this.#memReadU16(SOSWorkAddr.DTBUF), this.#dos_DEBUF, 1)) {
+			// 書き込みエラー
+			return false;
+		}
+		this.#setA(0);
+		this.#setZ();
+		this.#clearCY();
+		return true;
+	}
+
+	/**
+	 * FATをFATバッファへ読み込む
+	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
+	 */
+	#dos_fatred(ctx)
+	{
+		/*
+		; FAT READ TO BUFFER
+		FATRED
+			push	de
+			push	hl
+			ld	de,(_FATPS)	; FAT position
+			ld	hl,(_FATBF)
+			ld	a,1
+			call	DSKRED
+			pop	hl
+			pop	de
+			ret
+		*/
+		const fatps = this.#memReadU16(SOSWorkAddr.FATPOS);
+		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		return this.#dos_dskred(ctx, fatbf, fatps, 1);
+	}
+
+	/**
+	 * FATバッファをFATへ書き込む
+	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
+	 */
+	#dos_fatwrt(ctx)
+	{
+		/*
+		FATWRT
+			push	de
+			push	hl
+			ld	de,(_FATPS)	; FAT position
+			ld	hl,(_FATBF)
+			ld	a,1
+			call	DSKWRT
+			pop	hl
+			pop	de
+			ret
+		*/
+		const fatps = this.#memReadU16(SOSWorkAddr.FATPOS);
+		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		return this.#dos_dskwrt(ctx, fatbf, fatps, 1);
+	}
+
+	#dos_freclu()
+	{
+		/*
+		; FREE CLUSTERS GET
+		
+		FRECLU
+			push	bc
+			push	hl
+			ld	b,80h
+			ld	c,0
+			ld	hl,(_FATBF)
+		FRECL1
+			ld	a,(hl)
+			or	a
+			jr	nz,FRECL2
+			inc	c
+		FRECL2
+			inc	hl
+			djnz	FRECL1
+			ld	a,c
+			pop	hl
+			pop	bc
+			ret
+		*/
+		let freeClusters = 0;
+		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		for(let i = 0; i < 0x80; ++i) {
+			if(this.#memReadU16(fatbf + i) == 0) {
+				freeClusters++;
+			}
+		}
+		return freeClusters;
+	}
+
+	/**
+	 * 
+	 * @returns {number} 空きがない時は -1 を返す
+	 */
+	#dos_fcget()
+	{
+		/*
+		; FREE CLUSTER POSITION GET
+		
+		FCGET
+			push	bc
+			push	hl
+			ld	b,80h
+			ld	hl,(_FATBF)
+		FCGET2
+			ld	a,(hl)
+			or	a
+			jr	z,FCGET3
+			inc	hl
+			djnz	FCGET2
+			scf
+			jr	FCGET4
+		FCGET3
+			ld	a,80h
+			sub	b
+			or	a
+		FCGET4
+			pop	hl
+			pop	bc
+			ret
+		*/
+		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		for(let i = 0; i < 0x80; ++i) {
+			if(this.#memReadU16(fatbf + i) == 0) {
+				this.#clearCY();
+				return i;
+			}
+		}
+		// エラー
+		this.#setCY();
+		return -1;
+	}
+		
+	/**
+	 * 
+	 * @param {number} startCluster 
+	 * @returns {boolean}
+	 */
+	#dos_erafat(startCluster)
+	{
+		/*
+		; FAT EERASE
+
+		ERAFAT
+			push	de
+			push	hl
+			ld	de,(_FATBF)
+		ERAFA1
+			ld	l,a
+			ld	h,0
+			add	hl,de
+			ld	a,(hl)
+			ld	(hl),0
+			cp	80h
+			jr	c,ERAFA1
+			pop	hl
+			pop	de
+			cp	90h
+			jr	nc,ERAFA2
+			xor	a
+			ret
+			;
+		ERAFA2:	ld	a,7	; Bad allocation table
+			scf
+			ret
+		*/
+		let next = startCluster;
+		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		while(true) {
+			const tempAddr = fatbf + next;
+			next = this.#memReadU8(tempAddr);
+			this.#memWriteU8(tempAddr, 0);
+			if(next < 0x80) {
+				continue;
+			}
+			if(next < 0x90) {
+				// 0x80～0x8F
+				this.#clearCY();
+				return true; // 終わり
+			}
+			// エラー
+			this.#setA(SOSErrorCode.BadAllocationTable); // Bad allocation table
+			this.#setCY();
+			return false;
+		}
+	}
+		
+	/**
+	 * ディレクトリを検索して同じファイルが存在するかどうかを調べる
+	 * @returns {{
+	 * 		result: number,		// 処理結果
+	 * 		found: boolean,		// 見つかったかどうか
+	 * 		dir: number,		// ディレクトリのセクタ
+	 * 		ib_ptr: number		// IBのアドレス
+	 * }}
+	 */
+	#dos_fcbsch(ctx)
+	{
+		/*
+		; FCS SEARCH
+
+		FCBSCH
+			push	bc
+			ld	c,16		; Directory length
+			ld	de,(_DIRPS)	; Directory start
+		FCBSC1
+			ld	hl,(_DTBUF)
+			ld	a,1
+			call	DSKRED
+			jr	c,FCBSC6
+			ld	b,8
+		FCBSC2
+			ld	a,(hl)
+			cp	0ffh
+			jr	z,FCBSC4
+			or	a
+			jr	z,FCBSC3
+			push	de
+			ld	de,(_IBFAD)
+			call	FCOMP
+			pop	de
+			jr	z,FCBSC5
+		FCBSC3
+			push	de
+			ld	de,32
+			add	hl,de
+			pop	de
+			djnz	FCBSC2
+			inc	de
+			dec	c
+			jr	nz,FCBSC1
+		FCBSC4
+			db	3eh
+		FCBSC5
+			xor	a
+			or	a
+		FCBSC6
+			pop	bc
+			ret
+		*/
+		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const dirps = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dtbuf = this.#memReadU16(SOSWorkAddr.DTBUF);
+		for(let c = 0; c < 16; ++c) {
+			// ディレクトリのレコードを読み込む
+			const dir = dirps + c;
+			if(!this.#dos_dskred(ctx, dtbuf, dir, 1)) {
+				return { result: this.#getA(), found: false }; // エラー
+			}
+			// メモ）レコードあたり8個のIBがある
+			const IBPerSector = 256 / SOSInfomationBlock.InfomationBlockSize | 0;
+			for(let i = 0; i < IBPerSector; ++i) {
+				const ib_ptr = dtbuf + i * SOSInfomationBlock.InfomationBlockSize;
+				// 属性を取得
+				const attribute = this.#memReadU8(ib_ptr + SOSInfomationBlock.ib_attribute);
+				if(attribute == 0x00) {
+					// 未使用なので、スキップ
+					continue;
+				} else if(attribute == 0xFF) {
+					// 終わりのマーカー
+					// NZ
+					return { result: 0, found: false, dir: dir, ib_ptr: ib_ptr };
+				}
+				// ファイル比較
+				if(this.#dos_fcomp(ib_base, ib_ptr)) {
+					// 見つかった
+					// Z
+					return { result: 0, found: true, dir: dir, ib_ptr: ib_ptr };
+				}
+			}
+		}
+		// 見つからなかった
+		// NZ
+		return { result: 0, found: false, dir: 0, ib_ptr: 0 };
+	}
+		
+	/**
+	 * 空きを見つける
+	 * @returns 
+	 */
+	#dos_fresch(ctx)
+	{
+		/*
+		; FREE FCB SEARCH
+
+		FRESCH
+			push	bc
+			ld	c,16		; Directory length
+			ld	de,(_DIRPS)	; Directory start
+		FRESC1
+			ld	hl,(_DTBUF)
+			ld	a,1
+			call	DSKRED
+			jr	c,FRESC3
+			ld	b,8
+		FRESC2
+			ld	a,(hl)
+			or	a
+			jr	z,FRESC4
+			cp	0ffh
+			jr	z,FRESC4
+			push	de
+			ld	de,32
+			add	hl,de
+			pop	de
+			djnz	FRESC2
+			inc	de
+			dec	c
+			jr	nz,FRESC1
+		FRESC3	db	3eh		;Skip next operation
+		FRESC4
+			xor	a
+			pop	bc
+			ret
+		*/
+		const dirps = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dtbuf = this.#memReadU16(SOSWorkAddr.DTBUF);
+		for(let c = 0; c < 16; ++c) {
+			// ディレクトリのレコードを読み込む
+			const dir = dirps + c;
+			if(!this.#dos_dskred(ctx, dtbuf, dir, 1)) {
+				// CY
+				return { result: this.#getA(), found: false, dir: 0, ib_ptr: 0 }; // エラー
+			}
+			// メモ）レコードあたり8個のIBがある
+			const IBPerSector = 256 / SOSInfomationBlock.InfomationBlockSize | 0;
+			for(let i = 0; i < IBPerSector; ++i) {
+				const ib_ptr = dtbuf + i * SOSInfomationBlock.InfomationBlockSize;
+				// 属性を取得
+				const attribute = this.#memReadU8(ib_ptr + SOSInfomationBlock.ib_attribute);
+				if(attribute == 0x00 || attribute == 0xFF) {
+					// 未使用
+					// 終わりのマーカー
+					return { result: 0, found: true, dir: dir, ib_ptr: ib_ptr };
+				}
+			}
+			// 見つからなかった
+			// Z
+			return { result: 0, found: false, dir: 0, ib_ptr: 0 };
+		}
+	}
+
+	/**
+	 * IBのファイル名、拡張子を比較して同じかどうかを調べる
+	 * @param {number} lhs IBのアドレス
+	 * @param {number} rhs IBのアドレス
+	 * @returns {{boolean}} 同じだったら true を返す
+	 */
+	#dos_fcomp(lhs, rhs)
+	{
+		/*
+		; FILE NAME COMPARE
+		FCOMP
+			push	bc
+			push	de
+			push	hl
+			ld	b,16	; Directory length
+		FCOMP1
+			inc	de
+			inc	hl
+			ld	a,(de)
+			cp	(hl)
+			jr	nz,FCOMP2
+			djnz	FCOMP1
+		FCOMP2
+			pop	hl
+			pop	de
+			pop	bc
+			ret
+		*/
+		// for デバッグ
+
+		let test = "lhs:";
+		for(let i = 1; i <= 16; ++i) { test += String.fromCodePoint(this.#memReadU8(lhs + i)); }
+		test += ",";
+		for(let i = 1; i <= 16; ++i) { test += String.fromCodePoint(this.#memReadU8(rhs + i)); }
+		this.#Log(test);
+
+		for(let i = 0; i < 16; ++i) {
+			if(this.#memReadU8(++lhs) != this.#memReadU8(++rhs)) {
+				// NZ
+				return false;
+			}
+		}
+		// Z
+		return true;
+	}
+
+	// ===============================
+	//   Disk IO  Sub Routine
+	// ===============================
+
+	/**
+	 * セクタリード
+	 * @param {number} buffer	読み込み先(HL)
+	 * @param {number} sector	読み込むセクタ(DE)
+	 * @param {number} size		読み込むセクタ数(A)
+	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
+	 */
+	#disk_dread(ctx, buffer, sector, size)
+	{
+		this.#Log("disk_dread");
+		const deviceName = this.#memReadU8(DiskWorkAddr.UNITNO) + 0x41;
+		for(let i = 0; i < size; ++i) {
+			// 読み込み
+			const data = ctx.ReadRecord(deviceName, sector + i);
+			if(data.result != 0) {
+				// エラー
+				this.#setA(data.result);
+				this.#setCY();
+				this.#Log("Error:" + data.result);
+				return false;
+			}
+			// コピー
+			for(let j = 0; j < 0x100; ++j) {
+				this.#memWriteU8(buffer + j, data.value[j]);
+			}
+			buffer += 0x100;
+		}
+		// 正常終了
+		this.#setA(0);
+		this.#clearCY();
+		this.#setZ();
+		return true;
+	}
+
+	/**
+	 * セクタライト
+	 * @param {number} buffer	書き込むデータ(HL)
+	 * @param {number} sector	書き込むセクタ(DE)
+	 * @param {number} size		書き込むセクタ数(A)
+	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
+	 */
+	#disk_dwrite(ctx, buffer, sector, size)
+	{
+		this.#Log("disk_dwrite");
+		const deviceName = this.#memReadU8(DiskWorkAddr.UNITNO) + 0x41;
+		for(let i = 0; i < size; ++i) {
+			// コピー
+			const data = new Uint8Array(0x100);
+			for(let j = 0; j < 0x100; ++j) {
+				data[j] = this.#memReadU8(buffer + j);
+			}
+			buffer += 0x100;
+			// 書き込み
+			const result = ctx.WriteRecord(deviceName, sector + i, data);
+			if(result.result != 0) {
+				// エラー
+				this.#setA(result.result);
+				this.#setCY();
+				return false;
+			}
+		}
+		// 正常終了
+		this.#setA(0);
+		this.#clearCY();
+		this.#setZ();
+		return true;
+	}
+
+	#dos_parsc()
+	{
+		/*
+		_PARSC
+		push	hl
+		ld	hl,(@SIZE)
+		ld	(_SIZE),hl
+		ld	hl,(@DTADR)
+		ld	(_DTADR),hl
+		ld	hl,(@EXADR)
+		ld	(_EXADR),hl
+		pop	hl
+		ret
+		*/
+		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const size  = this.#memReadU16(ib_base + SOSInfomationBlock.ib_size);
+		const dtadr = this.#memReadU16(ib_base + SOSInfomationBlock.ib_startAddress);
+		const exadr = this.#memReadU16(ib_base + SOSInfomationBlock.ib_executeAddress);
+		this.#memWriteU16(SOSWorkAddr.SIZE,  size);
+		this.#memWriteU16(SOSWorkAddr.DTADR, dtadr);
+		this.#memWriteU16(SOSWorkAddr.EXADR, exadr);
+	}
+	#dos_parcs()
+	{
+		/*
+			_PARCS
+			push	hl
+			ld	hl,(_SIZE)
+			ld	(@SIZE),hl
+			ld	hl,(_DTADR)
+			ld	(@DTADR),hl
+			ld	hl,(_EXADR)
+			ld	(@EXADR),hl
+			pop	hl
+			ret
+		_PARCS_end
+		*/
+		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const size  = this.#memReadU16(SOSWorkAddr.SIZE);
+		const dtadr = this.#memReadU16(SOSWorkAddr.DTADR);
+		const exadr = this.#memReadU16(SOSWorkAddr.EXADR);
+		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_size,  size);
+		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_startAddress, dtadr);
+		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_executeAddress, exadr);
 	}
 }

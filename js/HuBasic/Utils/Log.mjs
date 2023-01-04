@@ -1,4 +1,6 @@
-﻿import { LogType } from './LogType.mjs';
+﻿"use strict";
+
+import { LogType } from './LogType.mjs';
 import LogData from './LogData.mjs';
 
 //Log
@@ -33,6 +35,8 @@ export default class {
 		this.#ShowError = true;
 		this.#ShowWarning = true;
 		this.#ShowInfo = true;
+
+this.#ShowDebug = true;
 	}
 
 	SetQuite() {

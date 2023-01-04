@@ -1,4 +1,6 @@
-﻿/**
+﻿"use strict";
+
+/**
  * @type {number}
  */
 export const OpenEntryResult = {

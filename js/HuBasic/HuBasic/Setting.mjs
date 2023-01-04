@@ -1,4 +1,6 @@
-﻿import DiskType from '../Disk/DiskType.mjs';
+﻿"use strict";
+
+import DiskType from '../Disk/DiskType.mjs';
 
 // Setting
 export default class {
