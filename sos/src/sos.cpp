@@ -239,9 +239,9 @@ class SOS_Context {
 		}
 	}
 #ifndef BUILD_WASM
-#define SOS_HOOK(NAME) static void NAME(void* ctx_) { SOS_Context* ctx = (SOS_Context*)ctx_; ctx->setResult(sos_##NAME(&ctx->z80.reg, sizeof(z80.reg), &ctx->RAM[0], &ctx->IO[0])); }
+#define SOS_HOOK(NAME) static void NAME(void* ctx_) { SOS_Context* ctx = (SOS_Context*)ctx_; sos_##NAME(&ctx->z80.reg, sizeof(z80.reg), &ctx->RAM[0], &ctx->IO[0]); }
 #else
-#define SOS_HOOK(NAME) static void NAME(void* ctx_) { SOS_Context* ctx = (SOS_Context*)ctx_; ctx->setResult(sos_##NAME()); }
+#define SOS_HOOK(NAME) static void NAME(void* ctx_) { sos_##NAME(); }
 #endif
 	SOS_HOOK(cold )
 	SOS_HOOK(hot  )
@@ -317,15 +317,6 @@ class SOS_Context {
 	SOS_HOOK(dread)
 	SOS_HOOK(dwrite)
 #undef SOS_HOOK
-
-	void setResult(s32 resultCode)
-	{
-		status = resultCode;
-		if(resultCode == 0) [[likely]] {
-			return;
-		}
-		z80.requestBreak();
-	}
 
 	inline void WRITE_U16(u16 addr, u16 value) {
 		RAM[addr    ] = value & 0xFF;

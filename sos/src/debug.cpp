@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 #define SOS_ARGS Z80::Register* z80Regs, int z80RegsSize, u8* ram, u8* io
-#define SOS_FUNC(NAME) int sos_##NAME(SOS_ARGS)
+#define SOS_FUNC(NAME) void sos_##NAME(SOS_ARGS)
 
 #define WRITE_U16(addr, value) ram[addr    ] = value & 0xFF; ram[addr + 1] = value >> 8;
 #define WRITE_U8( addr, value) ram[addr    ] = value & 0xFF;
@@ -50,55 +50,43 @@ SOS_FUNC(cold)
 
 	z80Regs->PC = READ_U16(WorkAddress::USR);
 	z80Regs->SP = READ_U16(WorkAddress::STKAD);
-	return 0;
 }
 
 SOS_FUNC(hot  )
 {
 //	z80Regs->PC += 3;
-
-
-
-	return 0;
 }
 
 SOS_FUNC(ver  )
 {
 	z80Regs->pair.H = 0x00;
 	z80Regs->pair.L = 0x00;
-	return 0;
 }
 
 SOS_FUNC(print)
 {
 	sos_putchar(z80Regs->pair.A);
-	return 0;
 }
 
 SOS_FUNC(prnts)
 {
 	sos_putchar(0x20);
-	return 0;
 }
 
 SOS_FUNC(ltnl )
 {
-	return 0;
 }
 
 SOS_FUNC(nl   )
 {
-	return 0;
 }
 
 SOS_FUNC(msg  )
 {
-	return 0;
 }
 
 SOS_FUNC(msx  )
 {
-	return 0;
 }
 
 SOS_FUNC(mprnt)
@@ -110,308 +98,246 @@ SOS_FUNC(mprnt)
 	while((ch = *src++) != 0) { sos_putchar(ch); }
 	// 戻るアドレスを書き換える
 	WRITE_U16(z80Regs->SP, src - &ram[0]);
-	return 0;
 }
 
 SOS_FUNC(tab  )
 {
-	return 0;
 }
 
 SOS_FUNC(lprnt)
 {
-	return 0;
 }
 
 SOS_FUNC(lpton)
 {
-	return 0;
 }
 
 SOS_FUNC(lptof)
 {
-	return 0;
 }
 
 SOS_FUNC(getl )
 {
-	return 0;
 }
 
 SOS_FUNC(getky)
 {
-	return 0;
 }
 
 SOS_FUNC(brkey)
 {
-	return 0;
 }
 
 SOS_FUNC(inkey)
 {
-	return 0;
 }
 
 SOS_FUNC(pause)
 {
-	return 0;
 }
 
 SOS_FUNC(bell )
 {
-	return 0;
 }
 
 SOS_FUNC(prthx)
 {
-	return 0;
 }
 
 SOS_FUNC(prthl)
 {
-	return 0;
 }
 
 SOS_FUNC(asc  )
 {
-	return 0;
 }
 
 SOS_FUNC(hex  )
 {
-	return 0;
 }
 
 SOS_FUNC(_2hex)
 {
-	return 0;
 }
 
 SOS_FUNC(hlhex)
 {
-	return 0;
 }
 
 SOS_FUNC(wopen)
 {
-	return 0;
 }
 
 SOS_FUNC(wrd  )
 {
-	return 0;
 }
 
 SOS_FUNC(fcb  )
 {
-	return 0;
 }
 
 SOS_FUNC(rdd  )
 {
-	return 0;
 }
 
 SOS_FUNC(file )
 {
-	return 0;
 }
 
 SOS_FUNC(fsame)
 {
-	return 0;
 }
 
 SOS_FUNC(fprnt)
 {
-	return 0;
 }
 
 SOS_FUNC(poke )
 {
-	return 0;
 }
 
 SOS_FUNC(poke_)
 {
-	return 0;
 }
 
 SOS_FUNC(peek )
 {
-	return 0;
 }
 
 SOS_FUNC(peek_)
 {
-	return 0;
 }
 
 SOS_FUNC(mon  )
 {
-	return 0;
 }
 
 /*
 // メモ)Z80のコードで直接書く
 SOS_FUNC(_hl_ )
 {
-	return 0;
 }
 
 // メモ)Z80のコードで直接書く
 SOS_FUNC(getpc)
 {
-	return 0;
 }
 */
 
 SOS_FUNC(drdsb)
 {
-	return 0;
 }
 
 SOS_FUNC(dwtsb)
 {
-	return 0;
 }
 
 SOS_FUNC(dir  )
 {
-	return 0;
 }
 
 SOS_FUNC(ropen)
 {
-	return 0;
 }
 
 SOS_FUNC(set  )
 {
-	return 0;
 }
 
 SOS_FUNC(reset)
 {
-	return 0;
 }
 
 SOS_FUNC(name )
 {
-	return 0;
 }
 
 SOS_FUNC(kill )
 {
-	return 0;
 }
 
 SOS_FUNC(csr  )
 {
-	return 0;
 }
 
 SOS_FUNC(scrn )
 {
-	return 0;
 }
 
 SOS_FUNC(loc  )
 {
-	return 0;
 }
 
 SOS_FUNC(flget)
 {
-	return 0;
 }
 
 SOS_FUNC(rdvsw)
 {
-	return 0;
 }
 
 SOS_FUNC(sdvsw)
 {
-	return 0;
 }
 
 SOS_FUNC(inp  )
 {
-	return 0;
 }
 
 SOS_FUNC(out  )
 {
-	return 0;
 }
 
 SOS_FUNC(widch)
 {
-	return 0;
 }
 
 SOS_FUNC(error)
 {
-	return 0;
 }
 
 // DOSモジュール
 SOS_FUNC(rdi)
 {
-	return 0;
 }
 SOS_FUNC(tropn)
 {
-	return 0;
 }
 SOS_FUNC(wri)
 {
-	return 0;
 }
 SOS_FUNC(twrd)
 {
-	return 0;
 }
 SOS_FUNC(trdd)
 {
-	return 0;
 }
 SOS_FUNC(tdir)
 {
-	return 0;
 }
 SOS_FUNC(p_fnam)
 {
-	return 0;
 }
 SOS_FUNC(devchk)
 {
-	return 0;
 }
 SOS_FUNC(tpchk)
 {
-	return 0;
 }
 SOS_FUNC(parsc)
 {
-	return 0;
 }
 SOS_FUNC(parcs)
 {
-	return 0;
 }
 
 // IO
 SOS_FUNC(dread)
 {
-	return 0;
 }
 
 SOS_FUNC(dwrite)
 {
-	return 0;
 }
 
 int main()

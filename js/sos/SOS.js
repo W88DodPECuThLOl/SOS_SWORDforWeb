@@ -182,6 +182,23 @@ class SOS {
 	}
 
 	/**
+	 * 1文字出力する
+	 * 
+	 * S-OS #PRINT、#PRINTS、#LTNLの下請け関数
+	 * @param {TaskContext} ctx 
+	 * @param {number} ch 出力する１文字
+	 */
+	#putch(ctx, ch)
+	{
+		// S-OSのワークからカーソル位置を設定する
+		this.#beginCursor(ctx);
+		// Aレジスタ取得して1文字出力
+		ctx.PRINT(ch);
+		// カーソル位置をS-OSのワークに設定する
+		this.#endCursor(ctx);
+	}
+
+	/**
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから終端文字コードがあるまでｱｽｷｰｺｰﾄﾞとみなし文字列を表示する。
 	 * @param {TaskContext} ctx 
 	 * @param {number} terminator 終端文字コード
@@ -450,7 +467,6 @@ class SOS {
 		// 各種ローカルの設定を初期化
 		this.#isCpuOccupation = false;
 		this.#pauseState = PauseState.Idle;
-		return 0;
 	}
 
 	/**
@@ -458,20 +474,18 @@ class SOS {
 	 * 
 	 * S-OSのモニタになっており、プロンプト#が出てコマンド入力待ちになる。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_hot(ctx){
 		if(!ctx.taskMonitor.isActive()) {
 			this.#Log("sos_hot - z80 freeze");
-			// モニタ起動する
+			// S-OSモニタ起動する
 			ctx.taskMonitor.start();
 			this.#isCpuOccupation = false;
 			this.#pauseState = PauseState.Idle;
-			return 0;
 		} else {
 			if(ctx.taskMonitor.isFinished()) {
 				this.#Log("sos_hot - z80 wakeup!");
-				// モニタ完了した
+				// S-OSモニタ完了した
 				ctx.taskMonitor.changeState(0); // モニタをidle状態に設定
 				// カーソル位置をS-OSのワークに設定する
 				this.#endCursor(ctx);
@@ -483,10 +497,8 @@ class SOS {
 				// 各種ローカルの設定を初期化
 				this.#isCpuOccupation = false;
 				this.#pauseState = PauseState.Idle;
-				return 0;
 			} else {
 				//this.#Log("sos_hot - mon working");
-				return 0;
 			}
 		}
 	}
@@ -532,13 +544,12 @@ class SOS {
 	 * 91h	MSX/2/2+/turboR (漢字対応版)  
 	 * FFh	PC-G850  
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_ver(ctx){
 		this.#Log("sos_ver");
 		this.#setHL(0x7820); // @todo
-		return 0;
 	}
+
 	/**
 	 * #PRINT(1FF4H)
 	 * 
@@ -548,54 +559,33 @@ class SOS {
 	 */
 	sos_print(ctx){
 		this.#Log("sos_print");
-		// S-OSのワークからカーソル位置を設定する
-		this.#beginCursor(ctx);
-		// Aレジスタ取得して1文字出力
-		ctx.PRINT(this.#getA());
-		// カーソル位置をS-OSのワークに設定する
-		this.#endCursor(ctx);
-		return 0;
+		this.#putch(ctx, this.#getA());
 	}
 	/**
 	 * #PRINTS(1FF1H)
 	 * 
 	 * ｽﾍﾟｰｽをひとつ表示する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_prints(ctx){
 		this.#Log("sos_prints");
-		// S-OSのワークからカーソル位置を設定する
-		this.#beginCursor(ctx);
-		// スペース出力
-		ctx.PRINT(0x20);
-		// カーソル位置をS-OSのワークに設定する
-		this.#endCursor(ctx);
-		return 0;
+		this.#putch(ctx, 0x20);
 	}
 	/**
 	 * #LTNL(1FEEH)
 	 * 
 	 * 改行する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_ltnl(ctx){
 		this.#Log("sos_ltnl");
-		// S-OSのワークからカーソル位置を設定する
-		this.#beginCursor(ctx);
-		// 改行
-		ctx.PRINT(0x0D);
-		// カーソル位置をS-OSのワークに設定する
-		this.#endCursor(ctx);
-		return 0;
+		this.#putch(ctx, 0x0D);
 	}
 	/**
 	 * #NL(1FEBH)
 	 * 
 	 * ｶｰｿﾙが先頭になければ改行する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_nl(ctx){
 		this.#Log("sos_nl");
@@ -607,31 +597,26 @@ class SOS {
 			// カーソル位置をS-OSのワークに設定する
 			this.#endCursor(ctx);
 		}
-		return 0;
 	}
 	/**
 	 * #MSG(1FE8H)
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから0DＨがあるまでｱｽｷｰｺｰﾄﾞとみなし文字列を表示する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_msg(ctx){
 		this.#Log("sos_msg");
 		this.#msgSub(ctx, 0x0D);
-		return 0;
 	}
 	/**
 	 * #MSX(1FE5H)
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから00Ｈがあるまでｱｽｷｰｺｰﾄﾞとみなし文字列を表示する
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_msx(ctx){
 		this.#Log("sos_msx");
 		this.#msgSub(ctx, 0);
-		return 0;
 	}
 	/**
 	 * #MPRINT(1FE2H)
@@ -641,7 +626,6 @@ class SOS {
 	 *      DM   "MESSAGE"  
 	 *      DB   0
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_mprnt(ctx){
 		this.#Log("sos_mprnt");
@@ -659,14 +643,12 @@ class SOS {
 		this.#memWriteU16(this.#getSP(), retAddress);
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
-		return 0;
 	}
 	/**
 	 * #TAB(1FDFH)
 	 * 
 	 * Ｂﾚｼﾞｽﾀの値とｶｰｿﾙＸ座標との差だけｽﾍﾟｰｽを表示する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_tab(ctx){
 		this.#Log("sos_tab");
@@ -682,7 +664,6 @@ class SOS {
 		}
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
-		return 0;
 	}
 	/**
 	 * #LPRNT(1FDCH)
@@ -690,14 +671,12 @@ class SOS {
 	 * Ａﾚｼﾞｽﾀの内容をｱｽｷｰｺｰﾄﾞとみなしﾌﾟﾘﾝﾀのみに出力する。  
 	 * ﾌﾟﾘﾝﾀｴﾗｰがあった場合は、ｷｬﾘﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_lprnt(ctx){
 		this.#Log("sos_lprnt");
 		// エラー
-		this.#setA(SOSErrorCode.DeviceOffline);
+		this.#memWriteU8(SOSWorkAddr.LPSW, 0); // OFFにする
 		this.#setCY(); // キャリフラグをセット
-		return 0;
 	}
 	/**
 	 * #LPTON(1FD9H)
@@ -705,12 +684,10 @@ class SOS {
 	 * 上記#PRINT～#TAB、#PRTHX、#PRTHLの出力をﾃﾞｨｽﾌﾟﾚｲだけでなくﾌﾟﾘﾝﾀにも出力するかどうかのﾌﾗｸﾞ#LPTSWをｾｯﾄする。  
 	 * これをｺｰﾙしたあとは、上記ｻﾌﾞﾙｰﾁﾝでﾌﾟﾘﾝﾀにも出力される。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_lpton(ctx){
 		this.#Log("sos_lpton");
-		this.#memWriteU8(SOSWorkAddr.LPSW, 0xFF);
-		return 0;
+		this.#memWriteU8(SOSWorkAddr.LPSW, 1);
 	}
 	/**
 	 * #LPTOF(1FD6H)
@@ -718,12 +695,10 @@ class SOS {
 	 * ﾌﾗｸﾞ#LPTSWをﾘｾｯﾄする。  
 	 * これをｺｰﾙしたあとは、#PRINT～#TAB、#PRTHX、#PRTHLの出力をﾃﾞｨｽﾌﾟﾚｲのみにする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_lptof(ctx){
 		this.#Log("sos_lptof");
-		this.#memWriteU8(SOSWorkAddr.LPSW, 0x00);
-		return 0;
+		this.#memWriteU8(SOSWorkAddr.LPSW, 0);
 	}
 	/**
 	 * #GETL(1FD3H)
@@ -732,7 +707,6 @@ class SOS {
 	 * ｴﾝﾄﾞｺｰﾄﾞは00Ｈ。  
 	 * 途中でSHIFT+BREAKが押されたら、ﾊﾞｯﾌｧ先頭に1BＨが格納される。  
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_getl(ctx){
 		if(!ctx.taskLineInput.isActive()) {
@@ -740,7 +714,7 @@ class SOS {
 			// １行入力を起動する
 			ctx.taskLineInput.start();
 			this.#getl_dstAddr = this.#getDE();
-			return 0;
+			return;
 		} else {
 			if(ctx.taskLineInput.isFinished()) {
 				this.#Log("sos_getl - z80 wakeup!");
@@ -756,10 +730,10 @@ class SOS {
 				this.#endCursor(ctx);
 				// CPU停止していたのを終わらせる
 				this.setPC(this.#getPC() + 3);
-				return 0;
+				return;
 			} else {
 				//this.#Log("sos_getl - working");
-				return 0;
+				return;
 			}
 		}
 	}
@@ -769,7 +743,6 @@ class SOS {
 	 * ｷｰﾎﾞｰﾄﾞからﾘｱﾙﾀｲﾑｷｰ入力をする。  
 	 * 入力したﾃﾞｰﾀはＡﾚｼﾞｽﾀに格納され、何も押されていないときはＡﾚｼﾞｽﾀﾀに０をｾｯﾄしてﾘﾀｰﾝする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_getky(ctx){
 		this.#Log("sos_getky");
@@ -778,7 +751,6 @@ class SOS {
 			key = 0; // キー文字列の場合は、0にしておく
 		}
 		this.#setA(key);
-		return 0;
 	}
 	/**
 	 * #BRKEY(1FCDH)
@@ -786,7 +758,6 @@ class SOS {
 	 * ﾌﾞﾚｲｸｷｰが押されているかどうかをﾁｪｯｸする。  
 	 * 押されているときはｾﾞﾛﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_brkey(ctx){
 		this.#Log("sos_brkey");
@@ -795,7 +766,6 @@ class SOS {
 		} else {
 			this.#clearZ();
 		}
-		return 0;
 	}
 	/**
 	 * #INKEY(1FCAH)
@@ -803,14 +773,13 @@ class SOS {
 	 * 何かｷｰを押すまでｷｰ入力待ちをし、ｷｰ入力があるとﾘﾀｰﾝする。  
 	 * 押されたｷｰのｱｽｷｰｺｰﾄﾞはＡﾚｼﾞｽﾀにｾｯﾄされる。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_inkey(ctx){
 		if(!this.#isCpuOccupation) {
 			this.#Log("sos_inkey - z80 freeze");
 			ctx.keyMan.keyBufferClear();
 			this.#isCpuOccupation = true;
-			return 0;
+			return;
 		} else {
 			let key = Number(ctx.keyMan.inKey());
 			if(isNaN(key)) {
@@ -822,10 +791,10 @@ class SOS {
 				this.#setA(key);
 
 				this.setPC(this.#getPC() + 3);
-				return 0;
+				return;
 			} else {
 				this.#Log("sos_inkey - working");
-				return 0;
+				return;
 			}
 		}
 	}
@@ -841,7 +810,6 @@ class SOS {
 	 * 
 	 * @todo テスト
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_pause(ctx){
 		this.#Log("sos_pause");
@@ -856,13 +824,13 @@ class SOS {
 				this.#pauseState = PauseState.Pause;
 				// カーソル表示
 				ctx.setDisplayCursor(true);
-				return 0;
+				return;
 			} else {
 				// 戻るアドレスを書き換える
 				this.#memWriteU16(this.#getSP(), retAddress + 2);
 				// CPU停止していたのを終わらせる
 				this.setPC(this.#getPC() + 3);
-				return 0;
+				return;
 			}
 		} else if(this.#pauseState == PauseState.Pause) {
 			// ポーズ中
@@ -878,7 +846,7 @@ class SOS {
 				ctx.setDisplayCursor(false);
 				// CPU停止していたのを終わらせる
 				this.setPC(this.#getPC() + 3);
-				return 0;
+				return;
 			} else {
 				let key = Number(ctx.keyMan.inKey());
 				if(isNaN(key)) { key = 0; }
@@ -894,10 +862,10 @@ class SOS {
 					ctx.setDisplayCursor(false);
 					// CPU停止していたのを終わらせる
 					this.setPC(this.#getPC() + 3);
-					return 0;
+					return;
 				} else {
 					// ポーズ継続
-					return 0;
+					return;
 				}
 			}
 		}
@@ -908,19 +876,16 @@ class SOS {
 	 * ベル（ビープ音）を鳴らす。
 	 * @todo 実装すること
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_bell(ctx){
 		this.#Log("sos_bell");
 		ctx.BELL(0);
-		return 0;
 	}
 	/**
 	 * #PRTHX(1FC1H)
 	 * 
 	 * Ａﾚｼﾞｽﾀの内容を16進数２桁で表示する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_prthx(ctx){
 		this.#Log("sos_prthx");
@@ -932,14 +897,12 @@ class SOS {
 		ctx.PRINT(this.#asc((value      ) & 0x0F));
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
-		return 0;
 	}
 	/**
 	 * #PRTHL(1FBEH)
 	 * 
 	 * HLﾚｼﾞｽﾀの内容を16進数４桁で表示する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_prthl(ctx){
 		this.#Log("sos_prthl");
@@ -953,19 +916,16 @@ class SOS {
 		ctx.PRINT(this.#asc((value      ) & 0x0F));
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
-		return 0;
 	}
 	/**
 	 * #ASC(1FBBH)
 	 * 
 	 * Ａﾚｼﾞｽﾀの下位４ﾋﾞｯﾄの値を16進数を表すｱｽｷｰｺｰﾄﾞに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_asc(ctx){
 		this.#Log("sos_asc");
 		this.#setA(this.#asc(this.#getA()));
-		return 0;
 	}
 	/**
 	 * #HEX(1FB8H)
@@ -973,7 +933,6 @@ class SOS {
 	 * Ａﾚｼﾞｽﾀの内容を16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。  
 	 * Ａﾚｼﾞｽﾀの内容が16進数を表すｱｽｷｰｺｰﾄﾞでない場合は、ｷｬﾘﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_hex(ctx){
 		this.#Log("sos_hex");
@@ -982,10 +941,8 @@ class SOS {
 			this.#clearCY();
 		} else {
 			// エラー
-			//this.#setA(SOSErrorCode.BadData);
 			this.#setCY();
 		}
-		return 0;
 	}
 	/**
 	 * 2HEX(1FB5H)
@@ -993,7 +950,6 @@ class SOS {
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから２ﾊﾞｲﾄの内容を、２桁の16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。  
 	 * ｴﾗｰがあった場合はｷｬﾘﾌﾗｸﾞがｾｯﾄされる。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos__2hex (ctx){
 		this.#Log("sos_2hex");
@@ -1009,7 +965,6 @@ class SOS {
 			this.#setA(SOSErrorCode.BadData);
 			this.#setCY();
 		}
-		return 0;
 	}
 	/**
 	 * #HLHEX(1FB2H)
@@ -1017,7 +972,6 @@ class SOS {
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから４ﾊﾞｲﾄの内容を、４桁の16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、HLﾚｼﾞｽﾀにｾｯﾄする。  
 	 * ｴﾗｰがあった場合は、ｷｬﾘﾌﾗｸﾞがｾｯﾄされる。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_hlhex(ctx){
 		this.#Log("sos_hlhex");
@@ -1037,10 +991,8 @@ class SOS {
 			this.#clearCY();
 		} else {
 			// エラー
-			this.#setA(SOSErrorCode.BadData);
 			this.#setCY();
 		}
-		return 0;
 	}
 	/**
 	 * #WOPEN●(旧#WRI)(1FAFH)
@@ -1050,12 +1002,10 @@ class SOS {
 	 * ｴﾗｰ発生時にはｷｬﾘﾌﾗｸﾞが立つ
 	 * @todo テスト
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_wopen(ctx){
 		this.#Log("sos_wopen");
 		this.#dos_wopen(ctx);
-		return 0;
 	}
 	/**
 	 * #WRD●(1FACH)
@@ -1063,12 +1013,10 @@ class SOS {
 	 * (#DTADRS)、(#SIZE)、(#EXADR)に従って、ﾃﾞﾊﾞｲｽにﾃﾞｰﾀをｾｰﾌﾞする。  
 	 * ﾃﾞｨｽｸの場合#WOPEN後でないとFile not Openのｴﾗｰが出る。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_wrd(ctx){
 		this.#Log("sos_wrd");
 		this.#dos_wrd(ctx);
-		return 0;
 		/*
 		const saveAddress = this.#memReadU16(SOSWorkAddr.DTADR);
 		const dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
@@ -1118,7 +1066,6 @@ class SOS {
 	 * ﾌﾞﾚｲｸｷｰが押されると(#DIRNO)をクリアする。  
 	 * ﾘﾀｰﾝｷｰが押されるとｷｬﾘﾌﾗｸﾞを立ててﾘﾀｰﾝする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_fcb(ctx){
 		this.#Log("sos_fcb");
@@ -1132,7 +1079,7 @@ class SOS {
 				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
-				return 0;
+				return;
 			}
 			const dirRecord = ((dirNo * SOSInfomationBlock.InfomationBlockSize) >>> 8) + this.#memReadU16(SOSWorkAddr.DIRPS); // ibのあるディレクトリレコード
 			const ibOffset  = ((dirNo * SOSInfomationBlock.InfomationBlockSize) & 0xFF); // レコード内でのib位置
@@ -1144,7 +1091,7 @@ class SOS {
 					// エラー
 					this.#setA(data.result);
 					this.#setCY();
-					return 0;
+					return;
 				}
 			}
 			const attribute = data.value[ibOffset + SOSInfomationBlock.ib_attribute];
@@ -1153,7 +1100,7 @@ class SOS {
 				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
-				return 0;
+				return;
 			} else if(attribute == 0x00) {
 				// 空きなので、次を検索
 				dirNo++;
@@ -1174,13 +1121,13 @@ class SOS {
 				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
-				return 0;
+				return;
 			}
 			if(ctx.keyMan.isKeyDown(0x0D)) {
 				// リターンキー押下されている
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
-				return 0;
+				return;
 			}
 			// 次のへ
 			dirNo++;
@@ -1189,12 +1136,12 @@ class SOS {
 				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
-				return 0;
+				return;
 			}
 			this.#memWriteU8(SOSWorkAddr.DIRNO, dirNo);
 			// 正常終了
 			this.#clearCY();
-			return 0;
+			return;
 		}
 	}
 	/**
@@ -1203,12 +1150,10 @@ class SOS {
 	 * (#DTADRS)、(#SIZE)、(#EXADR)に従って、ﾃﾞﾊﾞｲｽ上のﾌｧｲﾙを読み込む。  
 	 * #ROPEN後でないとFile not Openのｴﾗｰが出る。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_rdd(ctx){
 		this.#Log("sos_rdd");
 		this.#dos_rdd(ctx);
-		return 0;
 		/*
 		// @todo オープンチェック
 		const loadAddress = this.#memReadU16(SOSWorkAddr.DTADR);	// 読み込みアドレス
@@ -1241,7 +1186,6 @@ class SOS {
 	 * ﾌｧｲﾙを操作する前には、必ずこのｻﾌﾞﾙｰﾁﾝにより、ﾌｧｲﾙ名とｱﾄﾘﾋﾞｭｰﾄをｾｯﾄしなければならない。  
 	 * ｺｰﾙ後DEﾚｼﾞｽﾀは行の終わり(00Ｈ)か：(コロン)の位置を示している。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_file(ctx){
 		this.#Log("sos_file");
@@ -1296,7 +1240,6 @@ class SOS {
 		this.#setDE(result.filenamePtr);
 		// 一応キャリーフラグをリセットしておく
 		this.#clearCY();
-		return 0;
 	}
 	/*
 		FNAME
@@ -1386,7 +1329,6 @@ class SOS {
 	 * http://000.la.coocan.jp/p6/sword/index.html  
 	 * Accに入れたファイル属性とDEから始まるファイル名を、#FILEでセットしたものと比較する。一致すればZフラグセット。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_fsame(ctx){
 		this.#Log("sos_fsame");
@@ -1396,7 +1338,7 @@ class SOS {
 			this.#setCY();
 			this.#setA(SOSErrorCode.BadFileMode);
 			this.#clearZ();
-			return 0;
+			return;
 		}
 		// ファイル名を分割
 		const result = this.#splitPath(this.#getDE());
@@ -1405,7 +1347,7 @@ class SOS {
 			this.#setCY();
 			this.#setA(SOSErrorCode.BadFileDescripter);
 			this.#clearZ();
-			return 0;
+			return;
 		}
 		// ファイル名
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
@@ -1413,7 +1355,7 @@ class SOS {
 				this.#setCY();
 				this.#setA(SOSErrorCode.DeviceIOError);
 				this.#clearZ();
-				return 0;
+				return;
 			}
 		}
 		// 拡張子
@@ -1422,13 +1364,13 @@ class SOS {
 				this.#setCY();
 				this.#setA(SOSErrorCode.DeviceIOError);
 				this.#clearZ();
-				return 0;
+				return;
 			}
 		}
 		// 一致している
 		this.#clearCY();
 		this.#setZ();
-		return 0;
+		return;
 	}
 	/**
 	 * #FRRNT●(1F9DH)
@@ -1436,7 +1378,6 @@ class SOS {
 	 * ﾃｰﾌﾟから読み込んだﾌｧｲﾙﾈｰﾑを表示する。  
 	 * ｽﾍﾟｰｽｷｰを押すと表示後一時停止する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_fprnt(ctx){
 		this.#Log("sos_fprnt");
@@ -1455,22 +1396,16 @@ class SOS {
 		}
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
-		return 0;
 	}
 	/**
 	 * #POKE(1F9AH)
 	 * 
 	 * HLﾚｼﾞｽﾀの内容をｵﾌｾｯﾄｱﾄﾞﾚｽとして、CIOS用特殊ﾜｰｸｴﾘｱにＡﾚｼﾞｽﾀの内容を書き込む。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_poke(ctx){
 		this.#Log("sos_poke");
-		const offset = this.#getHL();
-		const value = this.#getA();
-		//this.#Log("hl(offset address):" + (offset).toString(16) + " a(value):" + (value).toString(16));
-		this.#specialRAM[offset] = value;
-		return 0;
+		this.#specialRAM[this.#getHL()] = this.#getA();
 	}
 	/**
 	 * #POKE@(1F97H)
@@ -1478,7 +1413,6 @@ class SOS {
 	 * ﾒｲﾝﾒﾓﾘからS-OS用特殊ﾜｰｸｴﾘｱにﾃﾞｰﾀを転送する。  
 	 * HLﾚｼﾞｽﾀにﾒﾓﾘ先頭ｱﾄﾞﾚｽ、DEﾚｼﾞｽﾀにﾜｰｸｴﾘｱｵﾌｾｯﾄｱﾄﾞﾚｽ、ｴﾘｱｵﾌｾｯﾄｱﾄﾞﾚｽ、BCﾚｼﾞｽﾀにﾊﾞｲﾄ数を入れてｺｰﾙする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_poke_(ctx){
 		this.#Log("sos_poke@");
@@ -1488,7 +1422,6 @@ class SOS {
 		for(let i = 0; i < size; ++i) {
 			this.#specialRAM[dst++ & this.#specialRamMask] = this.#memReadU8(src++);
 		}
-		return 0;
 	}
 	/**
 	 * #PEEK(1F94H)
@@ -1496,13 +1429,11 @@ class SOS {
 	 * HLﾚｼﾞｽﾀの肉容をｵﾌｾｯﾄｱﾄﾞﾚｽとして、S-OS用特殊ﾜｰｸｴﾘｱからＡﾚｼﾞｽﾀにﾃﾞｰﾀを読み出す。  
 	 * #POKEと逆の動作。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_peek(ctx){
 		this.#Log("sos_peek");
 		const offset = this.#getHL();
 		this.#setA(this.#specialRAM[offset]);
-		//this.#Log("hl(offset address):" + (offset).toString(16) + " a(value):" + (this.#getA()).toString(16));
 		return 0;
 	}
 	/**
@@ -1511,7 +1442,6 @@ class SOS {
 	 * S-OS用特殊ﾜｰｸｴﾘｱからﾒｲﾝﾒﾓﾘにﾃﾞｰﾀを転送する。  
 	 * HL，DE，BCﾚｼﾞｽﾀにｾｯﾄするﾊﾟﾗﾒｰﾀは#POKE@と同じ。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_peek_(ctx){
 		this.#Log("sos_peek@");
@@ -1519,9 +1449,8 @@ class SOS {
 		let dst  = this.#getDE();
 		let size = this.#getBC();
 		for(let i = 0; i < size; ++i) {
-			this.#memWriteU8(src++, this.#specialRAM[dst++ & this.#specialRamMask] & 0xFF);
+			this.#memWriteU8(src++, this.#specialRAM[dst++ & this.#specialRamMask]);
 		}
-		return 0;
 	}
 	/**
 	 * #MON(1F8EH)
@@ -1529,11 +1458,9 @@ class SOS {
 	 * 各機種のﾓﾆﾀにｼﾞｬﾝﾌﾟする。
 	 * @todo 実装すること
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_mon(ctx){
 		this.#Log("sos_mon");
-		return 0;
 	}
 	/*
 	 * [HL](1F81H)
@@ -1562,18 +1489,16 @@ class SOS {
 	 *    CALL   #SCTRD  
 	 * とすれば、FATﾊﾞｯﾌｧにFATを読み出すことができる。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_drdsb(ctx){
 		this.#Log("sos_drdsb");
 		let record = this.#getDE();
 		let buffer = this.#getHL();
 		let recordSize = this.#getA();
-		this.#Log("A(RecordSize):" + recordSize);
-		this.#Log("HL(Buffer):0x" + (buffer).toString(16));
-		this.#Log("DE(RecordNo):" + record);
+		//this.#Log("A(RecordSize):" + recordSize);
+		//this.#Log("HL(Buffer):0x" + (buffer).toString(16));
+		//this.#Log("DE(RecordNo):" + record);
 		this.#dos_dskred(ctx, buffer, record, recordSize);
-		return 0;
 		/*
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		let record = this.#getDE();
@@ -1610,18 +1535,16 @@ class SOS {
 	 * DEを先頭ﾚｺｰﾄﾞとして記録する。連続ｾｸﾀﾗｲﾄ。  
 	 * (#DSK)にﾃﾞﾊﾞｲｽ（Ａ～Ｄ）をｾｯﾄしてｺｰﾙ。
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_dwtsb(ctx){
 		this.#Log("sos_dwtsb");
 		let record = this.#getDE();
 		let buffer = this.#getHL();
 		let recordSize = this.#getA();
-		this.#Log("A(RecordSize):" + recordSize);
-		this.#Log("DE(RecordNo):" + record);
-		this.#Log("HL(Buffer):0x" + (buffer).toString(16));
+		//this.#Log("A(RecordSize):" + recordSize);
+		//this.#Log("DE(RecordNo):" + record);
+		//this.#Log("HL(Buffer):0x" + (buffer).toString(16));
 		this.#dos_dskwrt(ctx, buffer, record, recordSize);
-		return 0;
 		/*
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
 		let record = this.#getDE();
@@ -1652,12 +1575,10 @@ class SOS {
 	 * (#DSK)で指定されたﾃﾞﾊﾞｲｽ上の全ﾃﾞｨﾚｸﾄﾘを表示する。
 	 * @todo テスト
 	 * @param {TaskContext} ctx 
-	 * @returns {number} 
 	 */
 	sos_dir(ctx){
 		this.#Log("sos_dir");
 		this.#dos_dir(ctx);
-		return 0;
 		/*
 		// デバイス名
 		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
@@ -1694,13 +1615,10 @@ class SOS {
 	 * http://000.la.coocan.jp/p6/sword/index.html  
 	 * テープの場合は、#FILEでセットしたファイル名と読み込んだヘッダを比較し、同一ならZフラグセットでリターン。ディスクの場合は、ファイルが存在するかチェックする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_ropen(ctx){
 		this.#Log("sos_ropen");
 		this.#dos_ropen(ctx);
-		return 0;
-
 		/*
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
@@ -1753,7 +1671,6 @@ class SOS {
 	 * 
 	 * #IBDADで示されるＩＢﾊﾞｯﾌｧの内容と一致するﾃﾞｨｽｸ上のﾌｧｲﾙをﾗｲﾄﾌﾟﾛﾃｸﾄする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_set(ctx){
 		this.#Log("sos_set");
@@ -1768,18 +1685,17 @@ class SOS {
 			// エラー
 			this.#setA(result.result);
 			this.#setCY();
-			return 0;
+			return;
 		}
 		// 正常終了
 		this.#clearCY();
-		return 0;
+		return;
 	}
 	/**
 	 * #RESET※(200FH)
 	 * 
 	 * #IBDADで示されるＩＢﾊﾞｯﾌｧの内容と一致するﾌｧｲﾙのﾌﾟﾛﾃｸﾄをはずす。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_reset(ctx){
 		this.#Log("sos_reset");
@@ -1794,11 +1710,11 @@ class SOS {
 			// エラー
 			this.#setA(result.result);
 			this.#setCY();
-			return 0;
+			return;
 		}
 		// 正常終了
 		this.#clearCY();
-		return 0;
+		return;
 	}
 	/**
 	 * #NAME※(2012H)
@@ -1807,7 +1723,6 @@ class SOS {
 	 * ﾒﾓﾘ上のﾃﾞｰﾀ中にﾃﾞﾊﾞｲｽﾃﾞｨｽｸﾘﾌﾟﾀが入っていても無視する。  
 	 * またDE＋16以内にｴﾝｺｰﾄﾞ（00H,'：'）がないときにはｴﾗｰが発生する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_name(ctx){
 		this.#Log("sos_name");
@@ -1824,18 +1739,17 @@ class SOS {
 			// エラー
 			this.#setA(result.result);
 			this.#setCY();
-			return 0;
+			return;
 		}
 		// 正常終了
 		this.#clearCY();
-		return 0;
+		return;
 	}
 	/**
 	 * #KILL※(2015H)
 	 * 
 	 * #IBFADで示されるＩＢﾊﾞｯﾌｧの内容と一致するﾃﾞｨｽｸ上のﾌｧｲﾙをキルする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_kill(ctx){
 		this.#Log("sos_kill");
@@ -1850,11 +1764,11 @@ class SOS {
 			// エラー
 			this.#setA(result.result);
 			this.#setCY();
-			return 0;
+			return;
 		}
 		// 正常終了
 		this.#clearCY();
-		return 0;
+		return;
 	}
 	/**
 	 * #CSR※(2018H)
@@ -1862,53 +1776,68 @@ class SOS {
 	 * 現在のｶｰｿﾙ位置を、ＨにＹ座標、ＬにＸ座標の順で読み出す。  
 	 * 以後、ｶｰｿﾙ位置の読み出しは必ずこの方法によること。(#XYADR)は使わない
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_csr(ctx){
 		this.#Log("sos_csr");
 		const pos = ctx.getScreenLocate();
 		this.#setHL((pos.x & 0xFF) | ((pos.y & 0xFF) << 8));
-		return 0;
 	}
 	/**
 	 * #SCRN※(201BH)
 	 * 
-	 * ＨにＹ座標、ＬにＸ座標をｾｯﾄしｺｰﾙすると、画面上の同位置にあるｷｬﾗｸﾀをＡに読み出す。
+	 * ＨにＹ座標、ＬにＸ座標をｾｯﾄしｺｰﾙすると、画面上の同位置にあるｷｬﾗｸﾀをＡに読み出す。  
+	 * メモ）  
+	 * ・ソースを見ると、画面範囲外の場合Aレジスタに14(BadData)を設定している。  
+	 * ・取得した値が0x20未満だったら、0x20にしている
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_scrn(ctx){
 		this.#Log("sos_scrn");
 		const hl = this.#getHL();
+		// 範囲チェック
 		const x = hl & 0xFF;
 		const y = (hl >> 8) & 0xFF;
 		if(x >= this.#memReadU8(SOSWorkAddr.WIDTH) || y >= this.#memReadU8(SOSWorkAddr.MAXLIN)) {
-			// 画面範囲外
+			// エラー画面範囲外
 			this.#setCY();
-			this.#setA(0);	
-			return 0;
+			this.#setA(SOSErrorCode.BadData);
+			return;
 		}
+		// 取得
+		let ch = ctx.getCodePoint(x, y);
+		// 0x20未満なら0x20（空白）にする
+		if(ch < 0x20) { ch = 0x20; }
+		this.#setA(ch);
+		// 正常終了
 		this.#clearCY();
-		this.#setA(ctx.getCodePoint(x, y));
-		return 0;
 	}
 	/**
 	 * #LOC※(201EH)
 	 * 
 	 * ＨにＹ座標、ＬにＸ座標を入れてｺｰﾙすると、ｶｰｿﾙ位置がそこにｾｯﾄされる。  
-	 * 以後、ｶｰｿﾙ位置の設定は必ずこの方法にとること。
+	 * 以後、ｶｰｿﾙ位置の設定は必ずこの方法にとること。  
+	 * メモ）  
+	 * ・ソースを見ると、画面範囲外の場合Aレジスタに14(BadData)を設定している。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_loc(ctx){
 		this.#Log("sos_loc");
 		const hl = this.#getHL();
-		ctx.setScreenLocate({x: (hl & 0xFF), y: ((hl >> 8) & 0xFF)});
+		// 範囲チェック
+		const x = hl & 0xFF;
+		const y = (hl >> 8) & 0xFF;
+		if(x >= this.#memReadU8(SOSWorkAddr.WIDTH) || y >= this.#memReadU8(SOSWorkAddr.MAXLIN)) {
+			// エラー画面範囲外
+			this.#setCY();
+			this.#setA(SOSErrorCode.BadData);
+			return;
+		}
+		// 設定
+		ctx.setScreenLocate({x: x, y: y});
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
 		// 正常終了
 		this.#clearCY();
-		return 0;
 	}
 	/**
 	 * #FLGET※(2021H)
@@ -1916,7 +1845,6 @@ class SOS {
 	 * ｵｰﾄﾘﾋﾟｰﾄもかかる（MZ-80K／C/1200は不可）。
 	 * 画面へのｴｺｰﾊﾞｯｸは行わない。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_flget(ctx){
 		if(!this.#isCpuOccupation) {
@@ -1929,7 +1857,7 @@ class SOS {
 			ctx.setScreenLocate({x: pos & 0xFF, y:pos >> 8});
 			// カーソル表示
 			ctx.setDisplayCursor(true);
-			return 0;
+			return;
 		} else {
 			let key = Number(ctx.keyMan.inKey());
 			if(isNaN(key)) { key = 0; }
@@ -1943,10 +1871,10 @@ class SOS {
 				this.#clearCY();
 				// CPU停止していたのを終わらせる
 				this.setPC(this.#getPC() + 3);
-				return 0;
+				return;
 			} else {
 				//this.#Log("sos_flget - working");
-				return 0;
+				return;
 			}
 		}
 	}
@@ -1956,12 +1884,10 @@ class SOS {
 	 * ﾃﾞﾌｫﾙﾄﾃﾞﾊﾞｲｽをＡに読み出す。  
 	 * ﾃﾞﾌｫﾙﾄを知りたいときには必ずこの方法によるものとする。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_rdvsw(ctx){
 		this.#Log("sos_rdvsw");
 		this.#setA(this.#memReadU8(SOSWorkAddr.DVSW));
-		return 0;
 	}
 	/**
 	 * #SDVSW※(2027H)
@@ -1970,12 +1896,10 @@ class SOS {
 	 * 今後必ずこの方法によること。  
 	 * (#DVSW）を直接触ることも禁止する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_sdvsw(ctx){
 		this.#Log("sos_sdvsw");
 		this.#memWriteU8(SOSWorkAddr.DVSW, this.#getA());
-		return 0;
 	}
 	/**
 	 * #INP※(202AH)
@@ -1983,24 +1907,20 @@ class SOS {
 	 * 共通I/Oﾎﾟｰﾄから１ﾊﾞｲﾄをＡに読み込む。  
 	 * ﾎﾟｰﾄはＣで指定する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_inp(ctx){
 		this.#Log("sos_inp");
 		// @todo 機能がわからない……
-		return 0;
 	}
 	/**
 	 * #OUT※(202DH) 
 	 * 
 	 * 共通I/OﾎﾟｰﾄへＡを出力する。ﾎﾟｰﾄはＣで指定する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_out(ctx){
 		this.#Log("sos_out");
 		// @todo 機能がわからない……
-		return 0;
 	}
 	/**
 	 * #WIDCH※(2030H)
@@ -2010,7 +1930,6 @@ class SOS {
 	 * 現在のモードは(#WIDTH)に入っている。  
 	 * この機能は80K／C／1200／700／1500にはない。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_widch(ctx){
 		this.#Log("sos_widch");
@@ -2026,14 +1945,12 @@ class SOS {
 		this.#endCursor(ctx);
 		// 正常終了
 		this.#clearCY();
-		return 0;
 	}
 	/**
 	 * #ERROR※(2033H)
 	 * 
 	 * Ａにｴﾗｰ番号をｾｯﾄしてｺｰﾙすることによりｴﾗｰﾒｯｾｰｼﾞを表示する。
 	 * @param {TaskContext} ctx 
-	 * @returns {number}
 	 */
 	sos_error(ctx){
 		this.#Log("sos_error");
@@ -2043,7 +1960,6 @@ class SOS {
 		ctx.ERROR(this.#getA());
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
-		return 0;
 	}
 
 	// --------------------------------------------------------------------------------------------------------------------

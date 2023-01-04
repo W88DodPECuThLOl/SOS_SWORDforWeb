@@ -208,7 +208,7 @@ static constexpr u16 ADDRESS_MEMAX     = 0xFFFF;
 #else
 #define SOS_ARGS
 #endif
-#define SOS_FUNC(NAME) WASM_IMPORT("sos", #NAME) extern "C" int sos_##NAME(SOS_ARGS);
+#define SOS_FUNC(NAME) WASM_IMPORT("sos", #NAME) extern "C" void sos_##NAME(SOS_ARGS);
 	SOS_FUNC(cold )
 	SOS_FUNC(hot  )
 	SOS_FUNC(ver  )
