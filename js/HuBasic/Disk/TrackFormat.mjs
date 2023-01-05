@@ -47,6 +47,10 @@ export default class {
 	TrackPerSector2DD = 16;
 	/**
 	 * 2HDのトラックあたりのセクタ数
+	 * 
+	 * X1のフォーマット
+	 * - 77*2 = 154
+	 * - 1トラックあたり26セクタ
 	 * @type {number}
 	 */
 	TrackPerSector2HD = 26;
@@ -73,6 +77,10 @@ export default class {
 	TrackMax2DD = 160;
 	/**
 	 * 2HDの最大トラック数
+	 * 
+	 * X1のフォーマット
+	 * - 77*2 = 154
+	 * - 1トラックあたり26セクタ
 	 * @type {number}
 	 */
 	TrackMax2HD = 154;

@@ -36,7 +36,7 @@ export default class {
 		this.#ShowWarning = true;
 		this.#ShowInfo = true;
 
-this.#ShowDebug = true;
+		//this.#ShowDebug = true;
 	}
 
 	SetQuite() {

@@ -434,7 +434,7 @@ export default class {
 						this.Log.Error("セクタの読み込みに失敗しました。Track:" + track + " Sector:" + i + "番目のセクタ");
 					}
 					// デバッグ 読み込んだセクタのヘッダ部分をログに出力
-					Sector.Description();
+					//Sector.Description();
 					if(sectorsInTrack != Sector.SectorsInTrack) {
 						// セクタヘッダの不一致 トラック中のセクタ数が違う
 						this.Log.Error("セクタの読み込みに失敗しました。Track:" + track + " Sector:" + i + "番目のセクタ セクタヘッダの不一致、トラック中のセクタ数が違う。 sectorsInTrack:" + sectorsInTrack + " " + Sector.SectorsInTrack);

@@ -4,6 +4,7 @@ import Stream from '../Utils/Stream.mjs';
 import DiskImage from '../Disk/DiskImage.mjs';
 import HuFileEntry from './HuFileEntry.mjs';
 import { OpenEntryResult } from './OpenEntryResult.mjs';
+import { DiskTypeEnum } from "../Disk/DiskTypeEnum.mjs";
 
 // メモ）X1のディレクトリの区切りは スラッシュ
 const directoryDelimiter = 0x2f; // slash
@@ -748,7 +749,7 @@ export default class {
 			// 0x00 = 既に解放済み
 			if (next == 0x00) break;
 			this.#SetClusterValue(c, 0x00);
-			const FillLength = end ? (next & 0x0f) + 1 : this.ClusterPerSector();
+			const FillLength = end ? ((next & 0x0f) + 1) : this.ClusterPerSector();
 
 			for (let i = 0; i < FillLength; i++) {
 				this.DiskImage.GetDataControllerForWrite((c * this.ClusterPerSector()) + i).Fill(0);
@@ -765,12 +766,18 @@ export default class {
 	 * @param {boolean} end
 	 */
 	#SetClusterValue(pos, value, end = false) {
-		let low = (value & 0x7f);
-		low |= end ? 0x80 : 0x00;
 		const offset = pos / 0x80 | 0;
 		pos &= 0x7f;
+		let low = (value & 0x7f);
+		low |= end ? 0x80 : 0x00;
 		this.#AllocationController[offset].SetByte(pos, low);
-		this.#AllocationController[offset].SetByte(pos + 0x80, (value) >> 7);
+		if(this.#is2BytesFAT()) {
+			if(!end) {
+				this.#AllocationController[offset].SetByte(pos + 0x80, (value >> 7) & 0x7F);
+			} else {
+				this.#AllocationController[offset].SetByte(pos + 0x80, 0);
+			}
+		}
 	}
 
 	/**
@@ -782,13 +789,18 @@ export default class {
 	 * 
 	 * FAT
 	 * 0x00～0x7F セクタの下位7ビット分  MSBは終了フラグ
-	 * 0x80～0xFF セクタの上位8ビット分　系15ビット
+	 * 0x80～0xFF セクタの上位8ビット分　合計15ビット？
 	 */
 	#GetClusterValue(pos) {
 		const offset = pos / 0x80 | 0;
 		pos &= 0x7f;
 		let Result = this.#AllocationController[offset].GetByte(pos);
-		Result |= (this.#AllocationController[offset].GetByte(pos + 0x80) << 7);
+		if(this.#is2BytesFAT()) {
+			// 128バイト目からの上位ビットも考慮する
+			if((Result & 0x80) == 0) {
+				Result |= (this.#AllocationController[offset].GetByte(pos + 0x80) << 7);
+			}
+		}
 		return Result;
 	}
 
@@ -918,5 +930,20 @@ export default class {
 			fe = this.#GetNewFileEntry(DirRecord);
 		}
 		return fe;
+	}
+
+	#is2BytesFAT()
+	{
+		switch(this.DiskImage.DiskType.GetImageType()) {
+			case DiskTypeEnum.Disk2D:
+				return false;
+			case DiskTypeEnum.Disk2DD:
+				return true;
+			case DiskTypeEnum.Disk2HD:
+				return true;
+			case DiskTypeEnum.Disk1DD:
+				return false;
+		}
+		return false;
 	}
 };

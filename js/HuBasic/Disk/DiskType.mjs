@@ -208,7 +208,6 @@ export default class {
 			default:
 				this.SetImageType(DiskTypeEnum.Disk2D);
 				break;
-			
 		}
 	}
 }
