@@ -165,6 +165,7 @@ class TaskMonitor {
 	 * 		deviceName: number,		// デバイス名
 	 * 		filename: Uint8Array,	// ファイル名
 	 * 		extension: Uint8Array	// 拡張子
+	 *      text: Array				// ファイル名の後のテキスト位置。「:」または終端文字(0x00)の位置
 	 * }}
 	 */
 	#parseFilename(ctx, text)
@@ -222,11 +223,19 @@ class TaskMonitor {
 			}
 		}
 		// スキップ
-		while(text[0] != 0x3A && text[0] != 0) {
+		while(text[0] != 0x3A && text[0] != 0) { // ":"
 			text.shift();
 		}
-		return {result: 0, deviceName: deviceName, filename: filename, extension: extension};
+		return {result: 0, deviceName: deviceName, filename: filename, extension: extension, text:text};
 	}
+
+	/**
+	 * 小さい方を返す
+	 * @param {number} a 値
+	 * @param {number} b 値
+	 * @returns {number} 小さい方
+	 */
+	#min(a,b) { return (a < b) ? a : b; }
 
 	/**
 	 * コンストラクタ
@@ -562,7 +571,8 @@ class TaskMonitor {
 						return;
 					}
 
-					//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
+					//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。
+					//  テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
 				case 0x20:
 					{
 						// 空白スキップ
@@ -585,9 +595,23 @@ class TaskMonitor {
 							}
 							// 飛び先設定
 							ctx.monitorCommandJump(result.execAddress);
+							// DEレジスタに、ファイル名の後の「:」の次のアドレスを設定する
+							const commandAddress = SOSWorkAddr.KBFAD;
+							ctx.z80Emu.memWriteU8(commandAddress, 0);
+							if(filename.text.length > 0) {
+								if(filename.text[0] == 0x3A) { // ':'
+									filename.text.shift();
+								}
+								let i = 0;
+								for(; i < this.#min(filename.text.length, 255); ++i) {
+									ctx.z80Emu.memWriteU8(commandAddress + i, filename.text[i]);
+								}
+								ctx.z80Emu.memWriteU8(commandAddress + i, 0);
+							}
+							ctx.z80Emu.setDE(commandAddress);
 							// モニタ終了
 							this.changeState(this.#state_end);
-						} else {
+						} else if(SOSInfomationBlock.isAsciiFile(result.attribute)) {
 							// アスキーファイル
 							if(!this.#runningBatch) {
 								// 読み込んだデータをバッチバッファへ

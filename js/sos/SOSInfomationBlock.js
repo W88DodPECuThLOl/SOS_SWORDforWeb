@@ -71,4 +71,14 @@ class SOSInfomationBlock {
 	static isBinaryFile(attribute) {
 		return (attribute & SOSInfomationBlock.attribute_mask) == 0x01;
 	}
+
+	/**
+	 * 属性がアスキーファイルかどうか
+	 * @param {*} attribute 調べる属性
+	 * @returns {boolean} 属性がアスキーファイルなら true を返す
+	 */
+	static isAsciiFile(attribute) {
+		return (attribute & SOSInfomationBlock.attribute_mask) == 0x04;
+	}
+	
 };
