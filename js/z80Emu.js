@@ -136,7 +136,10 @@ class Z80Emu {
 			},
 			// IO
 			io: {
-				writePSG:(executedClock, reg, value)=>{ this.#audio.writePSG(executedClock, reg, value); }
+				writePSG:(executedClock, reg, value)=>{
+					console.log("reg:" + reg + " data:" + (value).toString(16));
+					this.#audio.writeReg(executedClock, reg, value);
+				}
 			}
 		};
 		return WebAssembly.instantiateStreaming(fetch("sos.wasm"), importObject).then(

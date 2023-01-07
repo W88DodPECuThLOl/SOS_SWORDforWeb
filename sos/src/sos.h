@@ -123,6 +123,8 @@ extern "C" void writePSG(s32 clock, u8 reg, u8 value);
  */
 s32 getExecutedClock();
 
+void generateIRQ(const u8 vector);
+
 /**
  * @brief S-OSワークアドレス
  */

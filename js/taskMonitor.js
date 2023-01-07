@@ -596,7 +596,7 @@ class TaskMonitor {
 							// 飛び先設定
 							ctx.monitorCommandJump(result.execAddress);
 							// DEレジスタに、ファイル名の後の「:」の次のアドレスを設定する
-							const commandAddress = SOSWorkAddr.KBFAD;
+							const commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
 							ctx.z80Emu.memWriteU8(commandAddress, 0);
 							if(filename.text.length > 0) {
 								if(filename.text[0] == 0x3A) { // ':'

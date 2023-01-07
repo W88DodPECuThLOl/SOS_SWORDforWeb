@@ -10,10 +10,11 @@ void setupHeap(void* heapBase, size_t heapSize);
 class SOS_Context {
 	static unsigned char readByte(void* arg, unsigned short addr) { return ((SOS_Context*)arg)->RAM[addr]; }
 	static void writeByte(void* arg, unsigned short addr, unsigned char value) { ((SOS_Context*)arg)->RAM[addr] = value; }
-	static unsigned char inPort(void* arg, unsigned short port) { return ((SOS_Context*)arg)->IO[port]; }
+	static unsigned char inPort(void* arg, unsigned short port) {
+		return platformInPort(((SOS_Context*)arg)->IO, port);
+	}
 	static void outPort(void* arg, unsigned short port, unsigned char value) {
-		port = platformOutPort(port, value);
-		((SOS_Context*)arg)->IO[port] = value;
+		platformOutPort(((SOS_Context*)arg)->IO, port, value);
 	}
 
 	inline void WRITE_JP(u8*& dst, const u16 address) { *dst++ = 0xC3; *dst++ = address & 0xFF; *dst++ = (address >> 8) & 0xFF; }
@@ -368,6 +369,7 @@ public:
 		// 割り込み有効に
 		z80.reg.IFF |= 0b00000101;
 		z80.reg.execEI = 1;
+		z80.reg.I = 0;
 	}
 
 	/**
@@ -383,6 +385,7 @@ public:
 		// 割り込み有効に
 		z80.reg.IFF |= 0b00000101;
 		z80.reg.execEI = 1;
+		z80.reg.I = 0;
 	}
 
 	/**
@@ -426,6 +429,25 @@ initialize(void* heapBase, size_t heapSize)
 	delete ctx;
 	ctx = new SOS_Context();
 	initPlatform();
+/*
+	u8* mem = ctx->getRAM() + 0x0000;
+//00005B 305B 01A01F          10   LD BC,01FA0H
+//0000DE 30DE 11FA07          10   LD DE,007FAH
+//0000E1 30E1 ED51            12   OUT    (C),D
+//0000E3 30E3 ED59            12   OUT    (C),E
+//0000E5 30E5 ED78            12   IN A,(C)
+	*mem++ = 0x01; *mem++ = 0xA0; *mem++ = 0x1F;
+	*mem++ = 0x11; *mem++ = 0xFA; *mem++ = 0x07;
+	*mem++ = 0xED; *mem++ = 0x51;
+	*mem++ = 0xED; *mem++ = 0x59;
+	*mem++ = 0xED; *mem++ = 0x78;
+//0000E9 30E9 ED51            12   OUT    (C),D
+//0000EB 30EB ED51            12   OUT    (C),D
+//0000ED 30ED ED78            12   IN A,(C)
+	*mem++ = 0xED; *mem++ = 0x51;
+	*mem++ = 0xED; *mem++ = 0x51;
+	*mem++ = 0xED; *mem++ = 0x78;
+*/
 }
 
 /**
@@ -446,41 +468,21 @@ z80Reset()
 int
 exeute(int clock)
 {
-	int remain = clock;
-	int real = 0;
-	int deadLock = 0;
-	while(remain > 0) {
-
-		// プラットフォーム側を実行
-		s32 temp = remain;
-
+	s32 tick = 0;
+	// 周辺機器のチックをリセット
+	resetPlatformTick();
+	while(tick < clock) {
+		s32 remain = clock - tick;
 		// 実行するクロックを調整する
-		adjustPlatformClock(temp);
-
-		// 実行
-		s32 executed = 0;
-		if(temp > 0) {
-			executed = ctx->execute(temp);
-		}
-
-		// 実際に実行されたクロックだけ進める
-		if(s32 irq = execPlatform(executed); irq >= 0) {
-			// 必要ならIRQの割り込みを発生させる
-			ctx->generateIRQ(irq);
-		}
-
-		if(executed == 0) {
-			if(deadLock++ > 64) {
-				break;
-			}
-		} else {
-			deadLock = 0;
-		}
-
-		real += executed;
-		remain -= executed;
+		// メモ）タイマ割り込み等で進むクロックを制限したい時など
+		adjustPlatformClock(remain);
+		// CPUを実行
+		s32 executed = ctx->execute(remain);
+		tick += executed;
+		// CPUが実行した所まで周辺機器のチックを進める
+		progressPlatformTick(tick);
 	}
-	return real;
+	return tick;
 }
 
 int

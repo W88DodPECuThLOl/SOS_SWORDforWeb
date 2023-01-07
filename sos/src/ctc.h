@@ -79,6 +79,7 @@ public:
 
 		void writeTimeConstant(const u8 value);
 		void writeNormal(const u8 value);
+		u8 read8();
 		void write8(u8 value);
 		void hardReset();
 		void adjustClock(s32& clock);
@@ -90,6 +91,7 @@ public:
 
 	CatCTC();
 	~CatCTC();
+	u8 read8(u8 no);
 	void write8(u8 no, u8 value);
 	void adjustClock(s32& clock);
 	s32 execute(s32 clock);

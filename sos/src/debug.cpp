@@ -344,6 +344,7 @@ int main()
 {
 	initialize(0, 0);
 
+
 	while(1) {
 		exeute(0x400000);
 	}

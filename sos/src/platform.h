@@ -15,19 +15,30 @@ void* getPlatformVRAMImage();
 
 /**
  * @brief 機種毎のOUT処理
+ * @param[in]	io		ioのメモリアドレス
  * @param[in]	port	IOポート
  * @param[in]	value	書き込む値
- * @return IOポート
  */
-u16 platformOutPort(u16 port, u8 value);
-
-// 実行するクロックを調整する
-void adjustPlatformClock(s32& clock);
+void platformOutPort(u8* io, u16 port, u8 value);
+/**
+ * @brief 機種毎のIN処理
+ * @param[in]	io		ioのメモリアドレス
+ * @param[in]	port	IOポート
+ * @return ポートの値
+ */
+u8 platformInPort(u8* io, u16 port);
 
 /**
- * @brief プラットフォーム側を実行
- * @param[in,out]	実行するクロック数
- * @return 割り込みベクタ
- * @retval 0以上ならIRQ割り込み要求
+ * @brief プラットフォーム側のチックをリセットする
  */
-s32 execPlatform(s32 clock);
+void resetPlatformTick();
+/**
+ * @brief プラットフォーム側を実行する
+ * @param[in]	targetTick	ターゲットチック
+ */
+void progressPlatformTick(s32 targetTick);
+/**
+ * @brief CPU側の実行するクロックを調整する
+ * @param[in,out]	clock	クロック
+ */
+void adjustPlatformClock(s32& clock);

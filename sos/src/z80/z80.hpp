@@ -5084,6 +5084,7 @@ class Z80
     // Load Output port (C) with location (HL), increment/decrement HL and decrement B
     inline void repeatOUT(bool isIncHL, bool isRepeat)
     {
+        decrementB_forRepeatIO(); // メモ 初めに引く
         unsigned char o = readByte(getHL());
         if (isDebug()) {
             if (isIncHL) {
@@ -5093,7 +5094,7 @@ class Z80
             }
         }
         outPort(reg.pair.C, o);
-        decrementB_forRepeatIO();
+//      decrementB_forRepeatIO();
         reg.WZ = (unsigned short)(getBC() + (isIncHL ? 1 : -1));
         setHL((unsigned short)(getHL() + (isIncHL ? 1 : -1)));
         setFlagZ(reg.pair.B == 0);

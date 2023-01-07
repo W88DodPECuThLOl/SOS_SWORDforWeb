@@ -63,6 +63,17 @@ CatCTC::CTC::write8(u8 value)
 			return;
 	}
 }
+u8
+CatCTC::CTC::read8()
+{
+	if(isCounterMode()) {
+		return downCounter;
+	} else {
+		//return downCounter / ((channelCtrolWord & PRESCALER_VALUE) ? 256 : 16);
+		const auto mult = ((channelCtrolWord & PRESCALER_VALUE) ? 256 : 16);
+		return (downCounter + mult - 1) / mult; // 切り上げで取得してみる
+	}
+}
 
 void
 CatCTC::CTC::hardReset()
@@ -178,6 +189,12 @@ CatCTC::~CatCTC()
 	}
 }
 
+u8
+CatCTC::read8(u8 no)
+{
+	return ctc[no]->read8();
+}
+
 void
 CatCTC::write8(u8 no, u8 value)
 {
@@ -240,11 +257,53 @@ initPlatform()
 	ctc = new CatCTC();
 
 /*
+	ctc->write8(1, 0x47);
+	ctc->write8(2, 0x47);
+	ctc->write8(3, 0x47);
+00005B 305B 01A01F          10   LD BC,01FA0H
+00005E 305E CDD130          17   CALL   CHKCTC
+
+       30D1                     CHKCTC:
+0000D1 30D1 C5              11   PUSH   BC
+0000D2 30D2 110347          10   LD DE,04703H
+       30D5                     INICTC1:
+0000D5 30D5 0C               4   INC    C
+0000D6 30D6 ED51            12   OUT    (C),D
+0000D8 30D8 ED71                 DB 0EDH,071H   ;OUT (C),0  Z80未定義命令
+0000DA 30DA 1D               4   DEC    E
+0000DB 30DB 20F8            12   JR NZ,INICTC1
+0000DD 30DD C1              10   POP    BC
+                                 
+0000DE 30DE 11FA07          10   LD DE,007FAH
+0000E1 30E1 ED51            12   OUT    (C),D
+0000E3 30E3 ED59            12   OUT    (C),E
+0000E5 30E5 ED78            12   IN A,(C)
+0000E7 30E7 BB               4   CP E
+0000E8 30E8 C0              11   RET    NZ
+0000E9 30E9 ED51            12   OUT    (C),D
+0000EB 30EB ED51            12   OUT    (C),D
+0000ED 30ED ED78            12   IN A,(C)
+0000EF 30EF BA               4   CP D
+0000F0 30F0 C0              11   RET    NZ
+0000F1 30F1 0C               4   INC    C
+0000F2 30F2 0C               4   INC    C
+0000F3 30F3 ED436936        20   LD (_CTC),BC
+0000F7 30F7 C9              10   RET
+*/
+
+
+
+/*
 	// CTC0
 	ctc->write8(0, 0x3);
 	ctc->write8(1, 0x3);
 	ctc->write8(2, 0x3);
 	ctc->write8(3, 0x3);
+
+	ctc->write8(2, 0x07);
+	ctc->write8(2, 0xFA);
+//	ctc->execute(12);
+	ctc->read8(2);
 
 	ctc->write8(0, 0x3);
 	ctc->write8(0, 0x27);
@@ -295,68 +354,123 @@ getPlatformVRAMImage()
 #endif
 }
 
-u16
-platformOutPort(u16 port, u8 value)
+u8
+platformInPort(u8* io, u16 port)
+{
+#if IS_TARGET_X1_SERIES(TARGET)
+	// VRAM
+	if(0x4000 <= port) [[likely]]{
+		return io[port];
+	} else if((port & 0xFF00) == 0x1000) {
+		// PALETTE B
+		return io[0x1000];
+	} else if((port & 0xFF00) == 0x1100) {
+		// PALETTE R
+		return io[0x1100];
+	} else if((port & 0xFF00) == 0x1200) {
+		// PALETTE G
+		return io[0x1200];
+	} else if(port == 0x1FA0) {
+		// CTC0
+		progressPlatformTick(getExecutedClock());
+		return ctc->read8(0);
+	} else if(port == 0x1FA1) {
+		// CTC1
+		progressPlatformTick(getExecutedClock());
+		return ctc->read8(1);
+	} else if(port == 0x1FA2) {
+		// CTC2
+		progressPlatformTick(getExecutedClock());
+		return ctc->read8(2);
+	} else if(port == 0x1FA3) {
+		// CTC3
+		progressPlatformTick(getExecutedClock());
+		return ctc->read8(3);
+	}
+
+	return 0xFF;
+#endif // IS_TARGET_X1_SERIES(TARGET)
+}
+
+void
+platformOutPort(u8* io, u16 port, u8 value)
 {
 #if IS_TARGET_X1_SERIES(TARGET)
 	// VRAM
 	if(0x4000 <= port) [[likely]]{
 		setVRAMDirty();
+		io[port] = value;
 	} else if((port & 0xFF00) == 0x1000) {
 		// PALETTE B
-		port = 0x1000;
-		if(((s8*)getIO())[port] != value) {
+		if(io[0x1000] != value) {
 			setVRAMDirty();
 			auto tmp = value;
 			for(s32 i = 0; i < 8; ++i) { paletteB[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
+			io[0x1000] = value;
 		}
 	} else if((port & 0xFF00) == 0x1100) {
 		// PALETTE R
-		port = 0x1100;
-		if(((s8*)getIO())[port] != value) {
+		if(io[0x1100] != value) {
 			setVRAMDirty();
 			auto tmp = value;
 			for(s32 i = 0; i < 8; ++i) { paletteR[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
+			io[0x1100] = value;
 		}
 	} else if((port & 0xFF00) == 0x1200) {
 		// PALETTE G
-		port = 0x1200;
-		if(((s8*)getIO())[port] != value) {
+		if(io[0x1200] != value) {
 			setVRAMDirty();
 			auto tmp = value;
 			for(s32 i = 0; i < 8; ++i) { paletteG[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
+			io[0x1200] = value;
 		}
 	} else if((port & 0xFF00) == 0x1B00) {
 		// PSG Data write
-		const u16 reg = ((s8*)getIO())[0x1C00];
+		io[0x1B00] = value;
+		const u16 reg = io[0x1C00];
 		writePSG(getExecutedClock(), reg, value);
-		port = 0x1B00;
 	} else if((port & 0xFF00) == 0x1C00) {
 		// PSG Register address set
-		port = 0x1C00;
+		io[0x1C00] = value;
 	} else if(port == 0x1FA0) {
 		// CTC0
+		progressPlatformTick(getExecutedClock());
 		ctc->write8(0, value);
 	} else if(port == 0x1FA1) {
 		// CTC1
+		progressPlatformTick(getExecutedClock());
 		ctc->write8(1, value);
 	} else if(port == 0x1FA2) {
 		// CTC2
+		progressPlatformTick(getExecutedClock());
 		ctc->write8(2, value);
 	} else if(port == 0x1FA3) {
 		// CTC3
+		progressPlatformTick(getExecutedClock());
 		ctc->write8(3, value);
-	} else if(port == 0x070C) {
-		// 改造FM音源ボードのCTC
-		// @todo
-		port = 0xFFFF;
-	} else if(port == 0x0704) {
-		// ノーマルFM音源ボードのCTC
-		// @todo
-		port = 0xFFFF;
 	}
 #endif // IS_TARGET_X1_SERIES(TARGET)
-	return port;
+}
+
+s32 currentTick;
+
+void
+resetPlatformTick()
+{
+	currentTick = 0;
+}
+
+void
+progressPlatformTick(s32 targetTick)
+{
+	s32 diff = targetTick - currentTick;
+	if(diff > 0) {
+		currentTick += diff;
+		if(s32 irq = ctc->execute(diff); irq >= 0) {
+			// 必要ならIRQの割り込みを発生させる
+			generateIRQ(irq);
+		}
+	}
 }
 
 // 実行するクロックを調整する
@@ -366,18 +480,5 @@ adjustPlatformClock(s32& clock)
 #if IS_TARGET_X1_SERIES(TARGET)
 	// CTC
 	ctc->adjustClock(clock);
-#endif // IS_TARGET_X1_SERIES(TARGET)
-}
-
-// プラットフォーム側を実行
-s32
-execPlatform(s32 clock)
-{
-#if IS_TARGET_X1_SERIES(TARGET)
-	// CTC
-	auto intVector = ctc->execute(clock);
-	return intVector;
-#else
-	return -1;
 #endif // IS_TARGET_X1_SERIES(TARGET)
 }
