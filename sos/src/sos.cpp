@@ -430,7 +430,13 @@ initialize(void* heapBase, size_t heapSize)
 	ctx = new SOS_Context();
 	initPlatform();
 /*
+       31FE                     VSYNC_CHECK:
+0001FE 31FE 3E1A             7   LD A,1AH
+000200 3200 DB01            11   IN A,(01H)
 	u8* mem = ctx->getRAM() + 0x0000;
+	*mem++ = 0x3E; *mem++ = 0x1A;
+	*mem++ = 0xDB; *mem++ = 0x01;
+
 //00005B 305B 01A01F          10   LD BC,01FA0H
 //0000DE 30DE 11FA07          10   LD DE,007FAH
 //0000E1 30E1 ED51            12   OUT    (C),D

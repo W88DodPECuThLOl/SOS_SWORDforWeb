@@ -514,6 +514,12 @@ class Z80
         consumeClock(clock);
         return byte;
     }
+    inline unsigned char inPort16(unsigned short port, int clock = 4)
+    {
+        unsigned char byte = CB.in(CB.arg, CB.returnPortAs16Bits ? port : (port & 0xFF));
+        consumeClock(clock);
+        return byte;
+    }
 
     inline void outPort(unsigned char port, unsigned char value, int clock = 4)
     {
@@ -4975,8 +4981,8 @@ class Z80
     // Input a byte form device n to accu.
     static inline void IN_A_N(Z80* ctx)
     {
-        unsigned char n = ctx->fetch(3);
-        unsigned char i = ctx->inPort(n);
+        unsigned short n = ctx->fetch(3) | (ctx->reg.pair.A << 8);
+        unsigned char i = ctx->inPort16(n);
         if (ctx->isDebug()) ctx->log("[%04X] IN %s, ($%02X) = $%02X", ctx->reg.PC - 2, ctx->registerDump(0b111), n, i);
         ctx->reg.pair.A = i;
     }

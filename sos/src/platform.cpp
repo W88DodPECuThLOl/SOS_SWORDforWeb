@@ -255,65 +255,6 @@ initPlatform()
 	// CTC
 	delete ctc;
 	ctc = new CatCTC();
-
-/*
-	ctc->write8(1, 0x47);
-	ctc->write8(2, 0x47);
-	ctc->write8(3, 0x47);
-00005B 305B 01A01F          10   LD BC,01FA0H
-00005E 305E CDD130          17   CALL   CHKCTC
-
-       30D1                     CHKCTC:
-0000D1 30D1 C5              11   PUSH   BC
-0000D2 30D2 110347          10   LD DE,04703H
-       30D5                     INICTC1:
-0000D5 30D5 0C               4   INC    C
-0000D6 30D6 ED51            12   OUT    (C),D
-0000D8 30D8 ED71                 DB 0EDH,071H   ;OUT (C),0  Z80未定義命令
-0000DA 30DA 1D               4   DEC    E
-0000DB 30DB 20F8            12   JR NZ,INICTC1
-0000DD 30DD C1              10   POP    BC
-                                 
-0000DE 30DE 11FA07          10   LD DE,007FAH
-0000E1 30E1 ED51            12   OUT    (C),D
-0000E3 30E3 ED59            12   OUT    (C),E
-0000E5 30E5 ED78            12   IN A,(C)
-0000E7 30E7 BB               4   CP E
-0000E8 30E8 C0              11   RET    NZ
-0000E9 30E9 ED51            12   OUT    (C),D
-0000EB 30EB ED51            12   OUT    (C),D
-0000ED 30ED ED78            12   IN A,(C)
-0000EF 30EF BA               4   CP D
-0000F0 30F0 C0              11   RET    NZ
-0000F1 30F1 0C               4   INC    C
-0000F2 30F2 0C               4   INC    C
-0000F3 30F3 ED436936        20   LD (_CTC),BC
-0000F7 30F7 C9              10   RET
-*/
-
-
-
-/*
-	// CTC0
-	ctc->write8(0, 0x3);
-	ctc->write8(1, 0x3);
-	ctc->write8(2, 0x3);
-	ctc->write8(3, 0x3);
-
-	ctc->write8(2, 0x07);
-	ctc->write8(2, 0xFA);
-//	ctc->execute(12);
-	ctc->read8(2);
-
-	ctc->write8(0, 0x3);
-	ctc->write8(0, 0x27);
-	ctc->write8(0, 125);
-	ctc->write8(0, 0x58);
-
-	ctc->write8(3, 0xC7);
-	ctc->write8(3, 125);
-*/
-
 #endif // IS_TARGET_X1_SERIES(TARGET)
 }
 
@@ -358,8 +299,8 @@ u8
 platformInPort(u8* io, u16 port)
 {
 #if IS_TARGET_X1_SERIES(TARGET)
-	// VRAM
 	if(0x4000 <= port) [[likely]]{
+		// VRAM
 		return io[port];
 	} else if((port & 0xFF00) == 0x1000) {
 		// PALETTE B
@@ -386,6 +327,12 @@ platformInPort(u8* io, u16 port)
 		// CTC3
 		progressPlatformTick(getExecutedClock());
 		return ctc->read8(3);
+	} else if((port & 0xFF0F) == 0x1A01) {
+		const auto tick = getExecutedClock();
+		progressPlatformTick(tick);
+		constexpr auto v = (4000000 / 60) * 24 / (200+24); // @todo VSYNC期間のタイミング
+		bool vsync = tick > (4000000 / 60 - v);
+		return (vsync ? 0x00 : 0x80);
 	}
 
 	return 0xFF;
@@ -463,14 +410,17 @@ resetPlatformTick()
 void
 progressPlatformTick(s32 targetTick)
 {
+#if IS_TARGET_X1_SERIES(TARGET)
 	s32 diff = targetTick - currentTick;
 	if(diff > 0) {
 		currentTick += diff;
+		// CTC
 		if(s32 irq = ctc->execute(diff); irq >= 0) {
 			// 必要ならIRQの割り込みを発生させる
 			generateIRQ(irq);
 		}
 	}
+#endif // IS_TARGET_X1_SERIES(TARGET)
 }
 
 // 実行するクロックを調整する
