@@ -1,0 +1,54 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; IO $1Ax1 8255 PORT B TEST
+                                ;
+                                ; ・ポートB 7bit 垂直帰線期間信号のテスト
+                                ;
+                                
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+       1FC1                     PRTHX   EQU $1FC1
+       201E                     LOC     EQU $201E
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 0C494F2024314158        DB 12, "IO $1AX1 8255 PORT B TEST", 13, "COUNTER:$", 0
+            3120383235352050    
+            4F52542042205445    
+            53540D434F554E54    
+            45523A2400          
+       3028                     VSYNC_LOOP:
+000028 3028 210901          10      LD HL,$0109
+00002B 302B CD1E20          17      CALL LOC
+00002E 302E CD3330          17      CALL VSYNC_CHECK
+000031 3031 18F5            12      JR VSYNC_LOOP
+                                
+       3033                     VSYNC_CHECK:
+000033 3033 3E1A             7      LD A,1AH
+000035 3035 DB01            11      IN A,(01H)
+                                
+000037 3037 214830          10      LD HL,LASTVSYNCFLAG
+00003A 303A AE               7      XOR (HL)
+00003B 303B F0              11      RET P
+00003C 303C AE               7      XOR (HL)
+00003D 303D 77               7      LD (HL),A
+00003E 303E F8              11      RET M
+                                    ; LD HL,VSYNCCOUNTER
+00003F 303F 23               6      INC HL
+000040 3040 34              11      INC (HL)
+                                
+                                    ;
+                                    ; カウンタ表示してみる
+                                    ;
+000041 3041 3A4930          13      LD A,(VSYNCCOUNTER)
+000044 3044 CDC11F          17      CALL PRTHX
+                                
+000047 3047 C9              10      RET
+                                ;
+                                ; ワーク
+                                ;
+       3048                     LASTVSYNCFLAG:
+000048 3048 00                      DB $00
+       3049                     VSYNCCOUNTER:
+000049 3049 0000                    DW $00
+[EOF:test8255.z80:UTF_8]

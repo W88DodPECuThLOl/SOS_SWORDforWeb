@@ -8,6 +8,8 @@
 	org $8000
 
 MPRINT	EQU	$1FE2
+PRTHL   EQU $1FBE
+LTNL    EQU $1FEE
 
 CTC_ADDR EQU	$1FA0 ; CTCのIOアドレス
 
@@ -17,13 +19,31 @@ CTC_ADDR EQU	$1FA0 ; CTCのIOアドレス
 
 	DI ; 割り込み無効
 
+	; CTCを探す
+	CALL SEARCHCTC
+	LD HL,(CTC)
+	LD A,L
+	OR H
+	JR NZ, CTC_FND
+	; 見つからなかった
+	CALL MPRINT
+	DB "CTC NOT FOUND", 13, 0
+	RET
+CTC_FND:
+	; 見つかった
+	; CTCのポートアドレスを表示
+	CALL MPRINT
+	DB "CTC FOUND! PORT $", 0
+	LD HL,(CTC)
+	CALL PRTHL
+	CALL LTNL
+
 	; CTCリセット
 	CALL CTC_RESET
 
 	; 呼び出すたびに、実行、停止させる
 	LD A,(CNT)
-	INC A
-	AND 1
+	XOR 1
 	LD (CNT),A
 	JR Z,EXIT
 
@@ -32,7 +52,7 @@ CTC_ADDR EQU	$1FA0 ; CTCのIOアドレス
 	LD ($005E),HL
 
 	; CTC Ch.0設定
-	LD BC,CTC_ADDR
+	LD BC,(CTC)
 	LD A,$07   ; 割り込み無効、タイマモード、16分周
 	OUT (C),A
 	LD A,125   ; 125*16/4MHzで、ZC/TR出力（CTC Ch.3のカウンタが１つ加算される）
@@ -40,7 +60,9 @@ CTC_ADDR EQU	$1FA0 ; CTCのIOアドレス
 	LD A,$58   ; 割り込みベクタ
 	OUT (C),A
 	; CTC Ch.3設定
-	LD BC,CTC_ADDR + 3
+	INC C
+	INC C
+	INC C
 	LD A,$C7   ; 割り込み有効、カウンタモード
 	OUT (C),A
 	LD A,64    ; 割り込みの間隔 64回で割り込み発生
@@ -48,11 +70,12 @@ CTC_ADDR EQU	$1FA0 ; CTCのIOアドレス
 EXIT:
 	EI ; 割り込み有効
 	RET
+
 ;
 ; CTC リセット
 ;
 CTC_RESET:
-	LD BC,CTC_ADDR
+	LD BC,(CTC)
 	LD A,3
 	OUT (C),A
 	INC C
@@ -62,6 +85,47 @@ CTC_RESET:
 	INC C
 	OUT (C),A
 	RET
+
+;
+; CTCを見つける
+;
+SEARCHCTC:
+	LD BC,0
+	LD (CTC),BC
+	LD BC,00A04H
+	CALL   CHKCTC
+	LD BC,00704H
+	CALL   CHKCTC
+	LD BC,01FA8H
+	CALL   CHKCTC
+	LD BC,01FA0H
+	;CALL   CHKCTC
+	;RET
+CHKCTC:
+	PUSH   BC
+	LD DE,04703H
+INICTC1:
+	INC    C
+	OUT    (C),D
+	DB 0EDH,071H   ;OUT (C),0  Z80未定義命令
+	DEC    E
+	JR NZ,INICTC1
+	POP    BC
+ 
+	LD DE,007FAH
+	OUT    (C),D
+	OUT    (C),E
+	IN A,(C)
+	CP E
+	RET    NZ
+	OUT    (C),D
+	OUT    (C),D
+	IN A,(C)
+	CP D
+	RET    NZ
+	LD (CTC),BC
+	RET
+
 ;
 ; CTCの割り込みで呼び出される
 ;
@@ -88,6 +152,8 @@ OKOUT:
 ;
 ; ワーク
 ;
+CTC:
+	DW $0000
 CNT:
 	DB $00
 GADD:

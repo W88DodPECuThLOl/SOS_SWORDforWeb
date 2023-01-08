@@ -5,13 +5,12 @@
                                 ; ・CTCの割り込みを使い、グラフィック画面を描画する
                                 ; ・もう一度実行すると、CTCをリセットし動作を停止する
                                 ;
-                                ; Z80 CTCのデータシート
-                                ; https://arcarc.xmission.com/Tech/Datasheets/Z80%20CTC.pdf
-                                ;
                                 
 000000 8000                         org $8000
                                 
        1FE2                     MPRINT  EQU $1FE2
+       1FBE                     PRTHL   EQU $1FBE
+       1FEE                     LTNL    EQU $1FEE
                                 
        1FA0                     CTC_ADDR EQU    $1FA0 ; CTCのIOアドレス
                                 
@@ -22,81 +21,148 @@
                                 
 000011 8011 F3               4      DI ; 割り込み無効
                                 
+                                    ; CTCを探す
+000012 8012 CD8F80          17      CALL SEARCHCTC
+000015 8015 2AF580          16      LD HL,(CTC)
+000018 8018 7D               4      LD A,L
+000019 8019 B4               4      OR H
+00001A 801A 2013            12      JR NZ, CTC_FND
+                                    ; 見つからなかった
+00001C 801C CDE21F          17      CALL MPRINT
+00001F 801F 435443204E4F5420        DB "CTC NOT FOUND", 13, 0
+            464F554E440D00      
+00002E 802E C9              10      RET
+       802F                     CTC_FND:
+                                    ; 見つかった
+                                    ; CTCのポートアドレスを表示
+00002F 802F CDE21F          17      CALL MPRINT
+000032 8032 43544320464F554E        DB "CTC FOUND! PORT $", 0
+            442120504F525420    
+            2400                
+000044 8044 2AF580          16      LD HL,(CTC)
+000047 8047 CDBE1F          17      CALL PRTHL
+00004A 804A CDEE1F          17      CALL LTNL
+                                
                                     ; CTCリセット
-000012 8012 CD4280          17      CALL CTC_RESET
+00004D 804D CD7D80          17      CALL CTC_RESET
                                 
                                     ; 呼び出すたびに、実行、停止させる
-000015 8015 3A7880          13      LD A,(CNT)
-000018 8018 3C               4      INC A
-000019 8019 E601             7      AND 1
-00001B 801B 327880          13      LD (CNT),A
-00001E 801E 2820            12      JR Z,EXIT
+000050 8050 3AF780          13      LD A,(CNT)
+000053 8053 EE01             7      XOR 1
+000055 8055 32F780          13      LD (CNT),A
+000058 8058 2821            12      JR Z,EXIT
                                 
                                     ; 呼び出される割り込み処理
-000020 8020 215380          10      LD HL,INT
-000023 8023 225E00          16      LD ($005E),HL
+00005A 805A 21D080          10      LD HL,INT
+00005D 805D 225E00          16      LD ($005E),HL
                                 
                                     ; CTC Ch.0設定
-000026 8026 01A01F          10      LD BC,CTC_ADDR
-000029 8029 3E07             7      LD A,$07   ; 割り込み無効、タイマモード、16分周
-00002B 802B ED79            12      OUT (C),A
-00002D 802D 3E7D             7      LD A,125   ; 125*16/4MHzで、ZC/TR出力（CTC Ch.3のカウンタが１つ加算される）
-00002F 802F ED79            12      OUT (C),A
-000031 8031 3E58             7      LD A,$58   ; 割り込みベクタ
-000033 8033 ED79            12      OUT (C),A
+000060 8060 ED4BF580        20      LD BC,(CTC)
+000064 8064 3E07             7      LD A,$07   ; 割り込み無効、タイマモード、16分周
+000066 8066 ED79            12      OUT (C),A
+000068 8068 3E7D             7      LD A,125   ; 125*16/4MHzで、ZC/TR出力（CTC Ch.3のカウンタが１つ加算される）
+00006A 806A ED79            12      OUT (C),A
+00006C 806C 3E58             7      LD A,$58   ; 割り込みベクタ
+00006E 806E ED79            12      OUT (C),A
                                     ; CTC Ch.3設定
-000035 8035 01A31F          10      LD BC,CTC_ADDR + 3
-000038 8038 3EC7             7      LD A,$C7   ; 割り込み有効、カウンタモード
-00003A 803A ED79            12      OUT (C),A
-00003C 803C 3E40             7      LD A,64    ; 割り込みの間隔 64回で割り込み発生
-00003E 803E ED79            12      OUT (C),A
-       8040                     EXIT:
-000040 8040 FB               4      EI ; 割り込み有効
-000041 8041 C9              10      RET
+000070 8070 0C               4      INC C
+000071 8071 0C               4      INC C
+000072 8072 0C               4      INC C
+000073 8073 3EC7             7      LD A,$C7   ; 割り込み有効、カウンタモード
+000075 8075 ED79            12      OUT (C),A
+000077 8077 3E40             7      LD A,64    ; 割り込みの間隔 64回で割り込み発生
+000079 8079 ED79            12      OUT (C),A
+       807B                     EXIT:
+00007B 807B FB               4      EI ; 割り込み有効
+00007C 807C C9              10      RET
+                                
                                 ;
                                 ; CTC リセット
                                 ;
-       8042                     CTC_RESET:
-000042 8042 01A01F          10      LD BC,CTC_ADDR
-000045 8045 3E03             7      LD A,3
-000047 8047 ED79            12      OUT (C),A
-000049 8049 0C               4      INC C
-00004A 804A ED79            12      OUT (C),A
-00004C 804C 0C               4      INC C
-00004D 804D ED79            12      OUT (C),A
-00004F 804F 0C               4      INC C
-000050 8050 ED79            12      OUT (C),A
-000052 8052 C9              10      RET
+       807D                     CTC_RESET:
+00007D 807D ED4BF580        20      LD BC,(CTC)
+000081 8081 3E03             7      LD A,3
+000083 8083 ED79            12      OUT (C),A
+000085 8085 0C               4      INC C
+000086 8086 ED79            12      OUT (C),A
+000088 8088 0C               4      INC C
+000089 8089 ED79            12      OUT (C),A
+00008B 808B 0C               4      INC C
+00008C 808C ED79            12      OUT (C),A
+00008E 808E C9              10      RET
+                                
+                                ;
+                                ; CTCを見つける
+                                ;
+       808F                     SEARCHCTC:
+00008F 808F 010000          10      LD BC,0
+000092 8092 ED43F580        20      LD (CTC),BC
+000096 8096 01040A          10      LD BC,00A04H
+000099 8099 CDAB80          17      CALL   CHKCTC
+00009C 809C 010407          10      LD BC,00704H
+00009F 809F CDAB80          17      CALL   CHKCTC
+0000A2 80A2 01A81F          10      LD BC,01FA8H
+0000A5 80A5 CDAB80          17      CALL   CHKCTC
+0000A8 80A8 01A01F          10      LD BC,01FA0H
+                                    ;CALL   CHKCTC
+                                    ;RET
+       80AB                     CHKCTC:
+0000AB 80AB C5              11      PUSH   BC
+0000AC 80AC 110347          10      LD DE,04703H
+       80AF                     INICTC1:
+0000AF 80AF 0C               4      INC    C
+0000B0 80B0 ED51            12      OUT    (C),D
+0000B2 80B2 ED71                    DB 0EDH,071H   ;OUT (C),0  Z80未定義命令
+0000B4 80B4 1D               4      DEC    E
+0000B5 80B5 20F8            12      JR NZ,INICTC1
+0000B7 80B7 C1              10      POP    BC
+                                 
+0000B8 80B8 11FA07          10      LD DE,007FAH
+0000BB 80BB ED51            12      OUT    (C),D
+0000BD 80BD ED59            12      OUT    (C),E
+0000BF 80BF ED78            12      IN A,(C)
+0000C1 80C1 BB               4      CP E
+0000C2 80C2 C0              11      RET    NZ
+0000C3 80C3 ED51            12      OUT    (C),D
+0000C5 80C5 ED51            12      OUT    (C),D
+0000C7 80C7 ED78            12      IN A,(C)
+0000C9 80C9 BA               4      CP D
+0000CA 80CA C0              11      RET    NZ
+0000CB 80CB ED43F580        20      LD (CTC),BC
+0000CF 80CF C9              10      RET
+                                
                                 ;
                                 ; CTCの割り込みで呼び出される
                                 ;
-       8053                     INT:
-000053 8053 F5              11      PUSH AF
-000054 8054 C5              11      PUSH BC
-000055 8055 ED4B7980        20      LD BC,(GADD)
-000059 8059 78               4      LD A,B
-00005A 805A FE40             7      CP $40
-00005C 805C 300B            12      JR NC,OKOUT
-00005E 805E 010040          10      LD BC,$4000
-000061 8061 3A7B80          13      LD A,(GPAT)
-000064 8064 EECC             7      XOR $CC
-000066 8066 327B80          13      LD (GPAT),A
-       8069                     OKOUT:
-000069 8069 3A7B80          13      LD A,(GPAT)
-00006C 806C ED79            12      OUT (C),A
-00006E 806E 03               6      INC BC
-00006F 806F ED437980        20      LD (GADD),BC
-000073 8073 C1              10      POP BC
-000074 8074 F1              10      POP AF
-000075 8075 FB               4      EI
-000076 8076 ED4D            15      RETI
+       80D0                     INT:
+0000D0 80D0 F5              11      PUSH AF
+0000D1 80D1 C5              11      PUSH BC
+0000D2 80D2 ED4BF880        20      LD BC,(GADD)
+0000D6 80D6 78               4      LD A,B
+0000D7 80D7 FE40             7      CP $40
+0000D9 80D9 300B            12      JR NC,OKOUT
+0000DB 80DB 010040          10      LD BC,$4000
+0000DE 80DE 3AFA80          13      LD A,(GPAT)
+0000E1 80E1 EECC             7      XOR $CC
+0000E3 80E3 32FA80          13      LD (GPAT),A
+       80E6                     OKOUT:
+0000E6 80E6 3AFA80          13      LD A,(GPAT)
+0000E9 80E9 ED79            12      OUT (C),A
+0000EB 80EB 03               6      INC BC
+0000EC 80EC ED43F880        20      LD (GADD),BC
+0000F0 80F0 C1              10      POP BC
+0000F1 80F1 F1              10      POP AF
+0000F2 80F2 FB               4      EI
+0000F3 80F3 ED4D            15      RETI
                                 ;
                                 ; ワーク
                                 ;
-       8078                     CNT:
-000078 8078 00                      DB $00
-       8079                     GADD:
-000079 8079 0040                    DW $4000
-       807B                     GPAT:
-00007B 807B CC                      DB $CC
+       80F5                     CTC:
+0000F5 80F5 0000                    DW $0000
+       80F7                     CNT:
+0000F7 80F7 00                      DB $00
+       80F8                     GADD:
+0000F8 80F8 0040                    DW $4000
+       80FA                     GPAT:
+0000FA 80FA CC                      DB $CC
 [EOF:testCTC.z80:UTF_8]
