@@ -25,7 +25,7 @@
                                 
        3033                     VSYNC_CHECK:
 000033 3033 3E1A             7      LD A,1AH
-000035 3035 DB01            11      IN A,(01H)
+000035 3035 DB01            11      IN A,(01H) ; $1A01
                                 
 000037 3037 214830          10      LD HL,LASTVSYNCFLAG
 00003A 303A AE               7      XOR (HL)
