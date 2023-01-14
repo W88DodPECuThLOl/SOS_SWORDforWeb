@@ -674,4 +674,58 @@ class TaskContext {
 	{
 		this.sndMan.bell();
 	}
+
+	/**
+	 * データをメモリにコピーする
+	 * @param {Uint8Array} data データ
+	 * @param {number} address コピー先のアドレス
+	 */
+	memoryWrite(data, address)
+	{
+		for(let i = 0; i < data.length; ++i) {
+			this.z80Emu.memWriteU8(address + i, data[i]);
+		}
+	}
+
+	/**
+	 * 強制的に実行するアドレスを設定する
+	 * @param {number} execAddress 実行するアドレス
+	 */
+	execCommand(execAddress)
+	{
+		if(this.taskMonitor.isActive()) {
+			// S-OS標準モニタ実行中
+			this.taskMonitor.forceJump(this, execAddress);
+			return;
+		} else {
+			// モニタ起動中出なければ、無理やりアドレスを変更してみる……
+			// 飛び先設定
+			this.monitorCommandJump(execAddress);
+			// CALL execAddressしてるところにPCを無理やり設定
+			this.z80Emu.setPC(0x0006);
+			// スタックも初期化
+			this.z80Emu.setSP(this.z80Emu.memReadU16(SOSWorkAddr.STKAD));
+			// カーソル非表示にしてジャンプする
+			this.setDisplayCursor(false);
+		}
+	}
+
+	/**
+	 * 文字を16進数として扱い変換する
+	 * @param {number} value 文字
+	 * @returns {number}	変換された値(0～0xF)  
+	 * 						-1の時は失敗
+	 */
+	hex(value){
+		if(0x30 <= value && value <= 0x39) { // 0～9
+			return value - 0x30;
+		} else if(0x41 <= value && value <= 0x46) { // A～F
+			return value - 0x41 + 10;
+		} else if(0x61 <= value && value <= 0x66) { // a～f
+			return value - 0x61 + 10;
+		} else {
+			return -1; // エラー
+		}
+	}
+
 }

@@ -696,6 +696,27 @@ class TaskMonitor {
 	}
 
 	/**
+	 * 強制的に指定されたアドレスへジャンプする
+	 * @param {number} execAddress ジャンプするアドレス
+	 */
+	forceJump(ctx, execAddress)
+	{
+		// バッチを初期化
+		this.#runningBatch = false;
+		this.#batchBuffer.length = 0;
+		// 飛び先設定
+		ctx.monitorCommandJump(execAddress);
+		// DEレジスタに空の文字列へのポインタを設定する
+		const commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
+		ctx.z80Emu.memWriteU8(commandAddress, 0);
+		ctx.z80Emu.setDE(commandAddress);
+		// カーソル非表示にしてジャンプする
+		ctx.setDisplayCursor(false);
+		// モニタ終了
+		this.changeState(this.#state_end);
+	}
+
+	/**
 	 * 更新処理
 	 * @param {TaskContext} ctx 
 	 */

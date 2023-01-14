@@ -164,8 +164,7 @@ class TaskPlatformMonitor {
 					this.changeState(this.#state_start);
 					return;
 				case 0x3F: // '?'
-					ctx.printNativeMsg(`
- ?          help
+					ctx.printNativeMsg(` ?          help
  Q          quit
  D [xxxx]   Dump memory from $xxxx
  W          Width change
