@@ -121,7 +121,7 @@ class TaskMonitor {
 	 * 16進4桁を整数値に変換する
 	 * @param {Array} text 変換する値
 	 * @returns {{
-	 * 		result: number	// エラーコード
+	 * 		result: number,	// エラーコード
 	 * 		value: number	// 変換された値
 	 * }}
 	 */
@@ -164,7 +164,7 @@ class TaskMonitor {
 	 * 		result: number,			// エラーコード
 	 * 		deviceName: number,		// デバイス名
 	 * 		filename: Uint8Array,	// ファイル名
-	 * 		extension: Uint8Array	// 拡張子
+	 * 		extension: Uint8Array,	// 拡張子
 	 *      text: Array				// ファイル名の後のテキスト位置。「:」または終端文字(0x00)の位置
 	 * }}
 	 */

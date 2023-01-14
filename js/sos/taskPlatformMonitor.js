@@ -213,6 +213,18 @@ class TaskPlatformMonitor {
 					ctx.taskMonitor.W_Command(ctx);
 					this.changeState(this.#state_start);
 					return;
+				case 0x46: // FNT フォント切り替え
+				case 0x66:
+					if(this.#commandBuffer.length >= 2
+						&& (this.#commandBuffer[0] == 0x4E || this.#commandBuffer[0] == 0x6E)
+						&& (this.#commandBuffer[1] == 0x54 || this.#commandBuffer[1] == 0x64)) {
+						this.#commandBuffer.shift();
+						this.#commandBuffer.shift();
+						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
+						ctx.changeFont(this.#commandBuffer);
+					}
+					this.changeState(this.#state_start);
+					return;
 			}
 			ctx.ERROR(SOSErrorCode.SyntaxError);
 			ctx.PRINT(this.#keyCodeCR);

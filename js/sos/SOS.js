@@ -110,6 +110,13 @@ class SOS {
 		//console.log(text);
 	}
 
+	#SOSWorkBaseAddress = 0;
+	wrkReadUSR() { return this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.USR); }
+	wrkReadDVSW() { return this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DVSW); }
+	wrkReadXYADR() { return this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.XYADR); }
+	wrkReadDSK() { return this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK); }
+	wrkWriteDSK(value) { this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK, value); }
+
 	/**
 	 * S-OSのワークからカーソル位置を設定する
 	 * @param {TaskContext} ctx 
@@ -117,8 +124,7 @@ class SOS {
 	#beginCursor(ctx)
 	{
 		// 出力位置
-		const address  = this.#memReadU16(SOSWorkAddr.XYADR);
-		const position = this.#memReadU16(address);
+		const position = this.#memReadU16(this.wrkReadXYADR());
 		ctx.setScreenLocate({x: position & 0xFF, y:position >> 8});
 	}
 
@@ -129,8 +135,7 @@ class SOS {
 	#endCursor(ctx)
 	{
 		const position = ctx.getScreenLocate();
-		const address = this.#memReadU16(SOSWorkAddr.XYADR);
-		this.#memWriteU16(address, (position.x & 0xFF) | ((position.y & 0xFF) << 8));
+		this.#memWriteU16(this.wrkReadXYADR(), (position.x & 0xFF) | ((position.y & 0xFF) << 8));
 	}
 
 	/**
@@ -231,9 +236,9 @@ class SOS {
 	#getFilenameFromIB()
 	{
 		// デバイス名
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
+		const deviceName = this.wrkReadDSK();
 		// ファイル名
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		let filename = new Uint8Array(SOSInfomationBlock.filename_size);
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			filename[i] = this.#memReadU8(ib_base + SOSInfomationBlock.ib_filename + i);
@@ -263,7 +268,7 @@ class SOS {
 	 */
 	#splitPath(filenamePtr) {
 		// デバイス名
-		let deviceName = this.#memReadU8(SOSWorkAddr.DSK);
+		let deviceName = this.wrkReadDSK();
 
 		const filename = new Uint8Array(SOSInfomationBlock.filename_size);
 		filename.fill(0x20);
@@ -410,29 +415,29 @@ class SOS {
 	 */
 	sos_cold(ctx) {
 		this.#Log("sos_cold");
-		// this.#memWriteU16( SOSWorkAddr.USR,    0x1FFA );
-		this.#memWriteU8(  SOSWorkAddr.DVSW,   0 );
-		this.#memWriteU8(  SOSWorkAddr.LPSW,   0 );
-		this.#memWriteU16( SOSWorkAddr.PRCNT,  0 );
-		//this.#memWriteU16( SOSWorkAddr.XYADR,  0x01A0 );
-		//this.#memWriteU16( SOSWorkAddr.KBFAD,  ADDRESS_KBFAD );
-		//this.#memWriteU16( SOSWorkAddr.IBFAD,  ADDRESS_IBFAD );
-		this.#memWriteU16( SOSWorkAddr.SIZE,   0 );
-		this.#memWriteU16( SOSWorkAddr.DTADR,  0 );
-		this.#memWriteU16( SOSWorkAddr.EXADR,  0 );
-		//this.#memWriteU16( SOSWorkAddr.STKAD,  ADDRESS_STKAD );
-		//this.#memWriteU16( SOSWorkAddr.MEMAX,  ADDRESS_MEMAX );
-		this.#memWriteU16( SOSWorkAddr.WKSIZ,  0xFFFF );
-		this.#memWriteU8(  SOSWorkAddr.DIRNO,  0 );
-		this.#memWriteU8(  SOSWorkAddr.MXTRK,  0x50 );
-		//this.#memWriteU16( SOSWorkAddr.DTBUF,  ADDRESS_DTBUF );
-		//this.#memWriteU16( SOSWorkAddr.FATBF,  ADDRESS_FATBF );
-		this.#memWriteU16( SOSWorkAddr.DIRPS,  0x0010 );
-		this.#memWriteU16( SOSWorkAddr.FATPOS, 0x000E );
-		this.#memWriteU8(  SOSWorkAddr.DSK,    0x41 );
+		// this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.USR,    0x1FFA );
+		this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.DVSW,   0 );
+		this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.LPSW,   0 );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.PRCNT,  0 );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.XYADR,  0x01A0 );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.KBFAD,  ADDRESS_KBFAD );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD,  ADDRESS_IBFAD );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE,   0 );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR,  0 );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR,  0 );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.STKAD,  ADDRESS_STKAD );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.MEMAX,  ADDRESS_MEMAX );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.WKSIZ,  0xFFFF );
+		this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO,  0 );
+		this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.MXTRK,  0x50 );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF,  ADDRESS_DTBUF );
+		//this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF,  ADDRESS_FATBF );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS,  0x0010 );
+		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.FATPOS, 0x000E );
+		this.wrkWriteDSK( 0x41 );
 
-		//this.#memWriteU8(  SOSWorkAddr.WIDTH,  80 );
-		//this.#memWriteU8(  SOSWorkAddr.MAXLIN, 25 );
+		//this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH,  80 );
+		//this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.MAXLIN, 25 );
 
 		// DOSモジュール ワーク
 		this.#memWriteU8( 0x291e, 0 ); // OPNFG
@@ -442,16 +447,16 @@ class SOS {
 		this.#memWriteU8( 0x2B06, 0 ); // UNITNO
 
 		// 画面サイズを変更
-		ctx.changeScreenSize(this.#memReadU8(SOSWorkAddr.WIDTH), this.#memReadU8(SOSWorkAddr.MAXLIN));
+		ctx.changeScreenSize(this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH), this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.MAXLIN));
 		// 初期化メッセージ表示
 		ctx.initialMsg();
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
 
 		// USRのアドレスへコール
-		this.setSP(this.#memReadU16(SOSWorkAddr.STKAD));
+		this.setSP(this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.STKAD));
 		this.setPC(0x0003);
-		this.#memWriteU16(0x0004, this.#memReadU16(SOSWorkAddr.USR));
+		this.#memWriteU16(0x0004, this.wrkReadUSR());
 
 		// ジャンプテーブルに出来なかったので、直接書く
 		// S-OS #GETPC
@@ -491,7 +496,7 @@ class SOS {
 				this.#endCursor(ctx);
 
 				// スタックポインタを初期化
-				this.setSP(this.#memReadU16(SOSWorkAddr.STKAD));
+				this.setSP(this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.STKAD));
 				// ジャンプ先をコールする命令から再開させる
 				this.setPC(0x0006);
 				// 各種ローカルの設定を初期化
@@ -547,8 +552,8 @@ class SOS {
 	 */
 	sos_ver(ctx){
 		this.#Log("sos_ver");
-		this.#setHL(0x7820); // @todo
-		//this.#setHL(0x2020); // @todo
+		//this.#setHL(0x7820); // @todo
+		this.#setHL(0x2820); // @todo
 	}
 
 	/**
@@ -676,7 +681,7 @@ class SOS {
 	sos_lprnt(ctx){
 		this.#Log("sos_lprnt");
 		// エラー
-		this.#memWriteU8(SOSWorkAddr.LPSW, 0); // OFFにする
+		this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.LPSW, 0); // OFFにする
 		this.#setCY(); // キャリフラグをセット
 	}
 	/**
@@ -688,7 +693,7 @@ class SOS {
 	 */
 	sos_lpton(ctx){
 		this.#Log("sos_lpton");
-		this.#memWriteU8(SOSWorkAddr.LPSW, 1);
+		this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.LPSW, 1);
 	}
 	/**
 	 * #LPTOF(1FD6H)
@@ -699,7 +704,7 @@ class SOS {
 	 */
 	sos_lptof(ctx){
 		this.#Log("sos_lptof");
-		this.#memWriteU8(SOSWorkAddr.LPSW, 0);
+		this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.LPSW, 0);
 	}
 	/**
 	 * #GETL(1FD3H)
@@ -1019,9 +1024,9 @@ class SOS {
 		this.#Log("sos_wrd");
 		this.#dos_wrd(ctx);
 		/*
-		const saveAddress = this.#memReadU16(SOSWorkAddr.DTADR);
-		const dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
-		const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);
+		const saveAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR);
+		const dataSize    = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE);
+		const execAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR);
 		// 値をチェック
 		if((dataSize == 0)
 			|| (saveAddress > execAddress)
@@ -1037,7 +1042,7 @@ class SOS {
 			data[i] = this.#memReadU8(saveAddress + i);
 		}
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// ファイル名
 		const filename = this.#getFilenameFromIB();
 		// 書き込む
@@ -1070,19 +1075,19 @@ class SOS {
 	 */
 	sos_fcb(ctx){
 		this.#Log("sos_fcb");
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
-		const maxDirNo = this.#memReadU8(SOSWorkAddr.MXTRK);
-		let dirNo = this.#memReadU8(SOSWorkAddr.DIRNO);
+		const deviceName = this.wrkReadDSK();
+		const maxDirNo = this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.MXTRK);
+		let dirNo = this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO);
 		let cacheRecord = -1;
 		while(true) {
 			if(dirNo >= maxDirNo) {
 				// オーバーしているので駄目
-				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
 				return;
 			}
-			const dirRecord = ((dirNo * SOSInfomationBlock.InfomationBlockSize) >>> 8) + this.#memReadU16(SOSWorkAddr.DIRPS); // ibのあるディレクトリレコード
+			const dirRecord = ((dirNo * SOSInfomationBlock.InfomationBlockSize) >>> 8) + this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS); // ibのあるディレクトリレコード
 			const ibOffset  = ((dirNo * SOSInfomationBlock.InfomationBlockSize) & 0xFF); // レコード内でのib位置
 			// IBのあるレコードを読み込む
 			if(cacheRecord != dirRecord) {
@@ -1098,7 +1103,7 @@ class SOS {
 			const attribute = data.value[ibOffset + SOSInfomationBlock.ib_attribute];
 			if(attribute == 0xFF) {
 				// 終わり
-				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
 				return;
@@ -1108,18 +1113,18 @@ class SOS {
 				continue;
 			}
 			// ibへコピー
-			const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+			const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 			for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
 				this.#memWriteU8(ib_base + i, data.value[ibOffset + i]);
 			}
 			// ibをワークに反映
-			this.#memWriteU16(SOSWorkAddr.DTADR, this.#memReadU16(ib_base + SOSInfomationBlock.ib_startAddress));	// 読み込みアドレス
-			this.#memWriteU16(SOSWorkAddr.SIZE,  this.#memReadU16(ib_base + SOSInfomationBlock.ib_size));			// ファイルサイズ
-			this.#memWriteU16(SOSWorkAddr.EXADR, this.#memReadU16(ib_base + SOSInfomationBlock.ib_executeAddress)); // 実行アドレス
+			this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR, this.#memReadU16(ib_base + SOSInfomationBlock.ib_startAddress));	// 読み込みアドレス
+			this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE,  this.#memReadU16(ib_base + SOSInfomationBlock.ib_size));			// ファイルサイズ
+			this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR, this.#memReadU16(ib_base + SOSInfomationBlock.ib_executeAddress)); // 実行アドレス
 			// キー処理
 			if(ctx.keyMan.isKeyDown(0x1B)) {
 				// ブレイクキー押下されてる
-				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
 				return;
@@ -1134,12 +1139,12 @@ class SOS {
 			dirNo++;
 			if(dirNo >= maxDirNo) {
 				// オーバーしているので駄目
-				this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
 				return;
 			}
-			this.#memWriteU8(SOSWorkAddr.DIRNO, dirNo);
+			this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, dirNo);
 			// 正常終了
 			this.#clearCY();
 			return;
@@ -1157,12 +1162,12 @@ class SOS {
 		this.#dos_rdd(ctx);
 		/*
 		// @todo オープンチェック
-		const loadAddress = this.#memReadU16(SOSWorkAddr.DTADR);	// 読み込みアドレス
-		const fileSize = this.#memReadU16(SOSWorkAddr.SIZE);		// ファイルサイズ
-		//const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);	// 実行アドレス
+		const loadAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR);	// 読み込みアドレス
+		const fileSize = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE);		// ファイルサイズ
+		//const execAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR);	// 実行アドレス
 		const filename = this.#getFilenameFromIB();				// ファイル名
 		// 読み込む
-		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		let data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		if(data.result != 0) {
 			this.#setA(data.result);
@@ -1223,7 +1228,7 @@ class SOS {
 			inc	de
 		;
 		*/
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		// 属性
 		this.#memWriteU8(ib_base + SOSInfomationBlock.ib_attribute, this.#getA());
 		this.#memWriteU8(DOSWorkAddr.FTYPE, this.#getA()); // for DOSモジュール
@@ -1232,7 +1237,7 @@ class SOS {
 		// ファイル名を分割して
 		const result = this.#splitPath(this.#getDE());
 		// デバイス名に設定
-		this.#memWriteU8(SOSWorkAddr.DSK, result.deviceName);
+		this.wrkWriteDSK(result.deviceName);
 		// ファイル名も設定
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) { this.#memWriteU8(ib_base + SOSInfomationBlock.ib_filename + i, result.filename[i]); }
 		// 拡張子にも設定
@@ -1333,7 +1338,7 @@ class SOS {
 	 */
 	sos_fsame(ctx){
 		this.#Log("sos_fsame");
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		// 属性
 		if(!SOSInfomationBlock.isEquelAttribute(this.#memReadU8(ib_base + SOSInfomationBlock.ib_attribute), this.#getA())) {
 			this.#setCY();
@@ -1344,7 +1349,7 @@ class SOS {
 		// ファイル名を分割
 		const result = this.#splitPath(this.#getDE());
 		// デバイス名
-		if(this.#memReadU8(SOSWorkAddr.DSK) != result.deviceName) {
+		if(this.wrkReadDSK() != result.deviceName) {
 			this.#setCY();
 			this.#setA(SOSErrorCode.BadFileDescripter);
 			this.#clearZ();
@@ -1385,7 +1390,7 @@ class SOS {
 		// S-OSのワークからカーソル位置を設定する
 		this.#beginCursor(ctx);
 		// ファイル名
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			ctx.PRINT(this.#memReadU8(ib_base + SOSInfomationBlock.ib_filename + i));
 		}
@@ -1518,7 +1523,7 @@ class SOS {
 		//this.#Log("DE(RecordNo):" + record);
 		this.#dos_dskred(ctx, buffer, record, recordSize);
 		/*
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
+		const deviceName = this.wrkReadDSK();
 		let record = this.#getDE();
 		let dstAddress = this.#getHL();
 		let readRecordSize = this.#getA();
@@ -1564,7 +1569,7 @@ class SOS {
 		//this.#Log("HL(Buffer):0x" + (buffer).toString(16));
 		this.#dos_dskwrt(ctx, buffer, record, recordSize);
 		/*
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
+		const deviceName = this.wrkReadDSK();
 		let record = this.#getDE();
 		let srcAddress = this.#getHL();
 		for(let i = 0; i < this.#getA(); ++i) {
@@ -1599,9 +1604,9 @@ class SOS {
 		this.#dos_dir(ctx);
 		/*
 		// デバイス名
-		const deviceName = this.#memReadU8(SOSWorkAddr.DSK);
+		const deviceName = this.wrkReadDSK();
 		// ディレクトリのレコード
-		const dirRecord  = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord  = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Files(deviceName, dirRecord);
 		if(result.result != 0) {
@@ -1641,7 +1646,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const entrySector = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const entrySector = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		this.#Log("device:" + filename.deviceName); // デバイス名
 		this.#Log("filename:" + filename.filename); // ファイル名
@@ -1657,7 +1662,7 @@ class SOS {
 			return 0;
 		}
 		// 属性チェック
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		const attribute = this.#memReadU8(ib_base + SOSInfomationBlock.ib_attribute);
 		// 属性
 		if(!SOSInfomationBlock.isEquelAttribute(result.fileMode, attribute)) {
@@ -1668,9 +1673,9 @@ class SOS {
 			return 0;
 		}
 		// ワークに情報書き込む
-		this.#memWriteU16(SOSWorkAddr.DTADR, result.loadAddress);
-		this.#memWriteU16(SOSWorkAddr.SIZE, result.fileSize);
-		this.#memWriteU16(SOSWorkAddr.EXADR, result.execAddress);
+		this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR, result.loadAddress);
+		this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE, result.fileSize);
+		this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR, result.execAddress);
 		this.#Log("SOSWorkAddr.DTADR:" + result.loadAddress);
 		this.#Log("SOSWorkAddr.SIZE:" + result.fileSize);
 		this.#Log("SOSWorkAddr.EXADR:" + result.execAddress);
@@ -1695,7 +1700,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
@@ -1720,7 +1725,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
@@ -1749,7 +1754,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Rename(filename.deviceName, dirRecord, filename.filename, filename.extension, newFilename.filename, newFilename.extension);
 		// 処理
@@ -1774,7 +1779,7 @@ class SOS {
 		// ファイル名取得
 		const filename = this.#getFilenameFromIB();
 		// ディレクトリのレコード
-		const dirRecord = this.#memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
 		// 問い合わせ
 		const result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		// 処理
@@ -1815,7 +1820,7 @@ class SOS {
 		// 範囲チェック
 		const x = hl & 0xFF;
 		const y = (hl >> 8) & 0xFF;
-		if(x >= this.#memReadU8(SOSWorkAddr.WIDTH) || y >= this.#memReadU8(SOSWorkAddr.MAXLIN)) {
+		if(x >= this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH) || y >= this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.MAXLIN)) {
 			// エラー画面範囲外
 			this.#setCY();
 			this.#setA(SOSErrorCode.BadData);
@@ -1844,7 +1849,7 @@ class SOS {
 		// 範囲チェック
 		const x = hl & 0xFF;
 		const y = (hl >> 8) & 0xFF;
-		if(x >= this.#memReadU8(SOSWorkAddr.WIDTH) || y >= this.#memReadU8(SOSWorkAddr.MAXLIN)) {
+		if(x >= this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH) || y >= this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.MAXLIN)) {
 			// エラー画面範囲外
 			this.#setCY();
 			this.#setA(SOSErrorCode.BadData);
@@ -1870,7 +1875,7 @@ class SOS {
 			ctx.keyMan.keyBufferClear(); // キーボードバッファをクリア
 			this.#isCpuOccupation = true;
 			// カーソル位置を設定
-			const address = this.#memReadU16(SOSWorkAddr.XYADR);
+			const address = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.XYADR);
 			const pos     = this.#memReadU16(address);
 			ctx.setScreenLocate({x: pos & 0xFF, y:pos >> 8});
 			// カーソル表示
@@ -1905,7 +1910,7 @@ class SOS {
 	 */
 	sos_rdvsw(ctx){
 		this.#Log("sos_rdvsw");
-		this.#setA(this.#memReadU8(SOSWorkAddr.DVSW));
+		this.#setA(this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK));
 	}
 	/**
 	 * #SDVSW※(2027H)
@@ -1917,7 +1922,7 @@ class SOS {
 	 */
 	sos_sdvsw(ctx){
 		this.#Log("sos_sdvsw");
-		this.#memWriteU8(SOSWorkAddr.DVSW, this.#getA());
+		this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK, this.#getA());
 	}
 	/**
 	 * #INP※(202AH)
@@ -1928,7 +1933,6 @@ class SOS {
 	 */
 	sos_inp(ctx){
 		this.#Log("sos_inp");
-		// @todo 機能がわからない……
 	}
 	/**
 	 * #OUT※(202DH) 
@@ -1938,7 +1942,6 @@ class SOS {
 	 */
 	sos_out(ctx){
 		this.#Log("sos_out");
-		// @todo 機能がわからない……
 	}
 	/**
 	 * #WIDCH※(2030H)
@@ -1951,13 +1954,13 @@ class SOS {
 	 */
 	sos_widch(ctx){
 		this.#Log("sos_widch");
-		const height = this.#memReadU8(SOSWorkAddr.MAXLIN);
+		const height = this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.MAXLIN);
 		if(this.#getA() <= 40) {
 			ctx.changeScreenSize(40, height);
-			this.#memWriteU8(SOSWorkAddr.WIDTH, 40);
+			this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH, 40);
 		} else {
 			ctx.changeScreenSize(80, height);
-			this.#memWriteU8(SOSWorkAddr.WIDTH, 80);
+			this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH, 80);
 		}
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
@@ -2046,7 +2049,7 @@ class SOS {
 			ret
 		*/
 		this.#dos_close();
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_devchk(dsk)) {
 			return false; // Bad File Descripter
 		}
@@ -2144,7 +2147,7 @@ class SOS {
 			ret
 		*/
 		this.#dos_close();
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_devchk(dsk)) {
 			return false; // Bad File Descripter
 		}
@@ -2163,7 +2166,7 @@ class SOS {
 			return false; // エラー
 		}
 		// 見つけたIBをS-OSのIBへコピー
-		const ib_ptr = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_ptr = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
 			this.#memWriteU8(ib_ptr + i, this.#memReadU8(res.ib_ptr + i));
 		}
@@ -2209,7 +2212,7 @@ class SOS {
 			call	DSAVE	; DISK
 			ret
 		*/	
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_devchk(dsk)) {
 			return false; // Bad File Descripter
 		}
@@ -2259,13 +2262,13 @@ class SOS {
 			call	DLOAD		; DISK
 			ret
 		*/
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_devchk(dsk)) {
 			return false; // Bad File Descripter
 		}
 		// jp	z,_TRDD // @todo
 
-		this.#memWriteU8(SOSWorkAddr.DIRNO, 0);
+		this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, 0);
 		this.#dos_RETPOI = 0; // ?
 
 		if(!this.#dos_isOpen()) {
@@ -2390,7 +2393,7 @@ class SOS {
 
 	#dos_dir(ctx)
 	{
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_devchk(dsk)) {
 			return false; // Bad File Descripter
 		}
@@ -2409,8 +2412,8 @@ class SOS {
 		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
 
 		// ディレクトリのレコード
-		const dirRecord  = this.#memReadU16(SOSWorkAddr.DIRPS);
-		const dataBuffer = this.#memReadU16(SOSWorkAddr.DTBUF);
+		const dirRecord  = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
+		const dataBuffer = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF);
 		for(let i = 0; i < 16; ++i) {
 			// ディレクトリ読み込み
 			if(!this.#dos_dskred(ctx, dataBuffer, dirRecord + i, 1)) {
@@ -2522,7 +2525,7 @@ class SOS {
 			;
 			call	adrPRT
 		*/
-		const ib_ptr = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_ptr = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
 			this.#memWriteU8(ib_ptr + i, this.#memReadU8(ib + i));
 		}
@@ -2530,7 +2533,7 @@ class SOS {
 		this.#dos_atrprt(ctx, this.#memReadU8(ib_ptr + SOSInfomationBlock.ib_attribute));
 		// デバイス名
 		this.#beginCursor(ctx);
-		ctx.PRINT(this.#memReadU8(SOSWorkAddr.DSK));
+		ctx.PRINT(this.wrkReadDSK());
 		ctx.PRINT(0x3a); // ":"
 		this.#endCursor(ctx);
 		// ファイル名
@@ -2558,9 +2561,9 @@ class SOS {
 			ret
 		*/
 		this.#dos_parsc();
-		const dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
-		const address     = this.#memReadU16(SOSWorkAddr.DTADR);
-		const execAddress = this.#memReadU16(SOSWorkAddr.EXADR);
+		const dataSize    = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE);
+		const address     = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR);
+		const execAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR);
 		this.#dos_phex(ctx, address);
 		this.#dos_phex(ctx, address + dataSize - 1);
 		this.#dos_phex(ctx, execAddress);
@@ -2642,7 +2645,7 @@ class SOS {
 			call	DREAD
 			ret
 		*/
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_alchk(dsk)) {
 			return false;
 		}
@@ -2679,7 +2682,7 @@ class SOS {
 			call	DWRITE
 			ret
 		*/
-		const dsk = this.#memReadU8(SOSWorkAddr.DSK);
+		const dsk = this.wrkReadDSK();
 		if(!this.#dos_alchk(dsk)) {
 			return false;
 		}
@@ -2982,11 +2985,11 @@ class SOS {
 			xor	a
 			ret
 		*/
-		const ib_base     = this.#memReadU16(SOSWorkAddr.IBFAD);
-		const fatbf       = this.#memReadU16(SOSWorkAddr.FATBF);
-		const dtbuf       = this.#memReadU16(SOSWorkAddr.DTBUF);
-		let   loadAddress = this.#memReadU16(SOSWorkAddr.DTADR);
-		let   dataSize    = this.#memReadU16(SOSWorkAddr.SIZE);
+		const ib_base     = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
+		const fatbf       = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
+		const dtbuf       = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF);
+		let   loadAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR);
+		let   dataSize    = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE);
 		// 初めのクラスタ
 		let current = this.#memReadU8(ib_base + SOSInfomationBlock.ib_cluster);
 		while(dataSize > 0) {
@@ -3148,7 +3151,7 @@ class SOS {
 			ret
 		*/
 		// 書き込める容量があるかどうかを確認
-		let dataSize = this.#memReadU16(SOSWorkAddr.SIZE); // _SIZE
+		let dataSize = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE); // _SIZE
 		const needCluster = ((((dataSize-1) & 0xFFFF) >> 4) + 0x100) >> 8;
 		if(this.#dos_freclu() < needCluster) {
 			this.#setA(SOSErrorCode.DeviceFull);
@@ -3156,7 +3159,7 @@ class SOS {
 			return false;
 		}
 		// @todo 日付設定
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		for(let i = 0; i < 6; ++i) {
 			this.#memWriteU8(ib_base + SOSInfomationBlock.ib_date + i, 0);
 		}
@@ -3174,7 +3177,7 @@ class SOS {
 		//
 		//
 
-		let saveAddress = this.#memReadU16(SOSWorkAddr.DTADR); // _DTADR
+		let saveAddress = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR); // _DTADR
 		let remainSector = dataSize ? (((dataSize - 1) >> 8) + 1) : 1; // 書き込むデータサイズが0の場合は1セクタにする
 		while(remainSector > 0) {
 			const writeSectorSize = this.#min(16, remainSector);
@@ -3186,7 +3189,7 @@ class SOS {
 			remainSector -= writeSectorSize; // 書き込んだ分セクタを減らす
 
 			// FATの繋がりを設定
-			const currentFat = this.#memReadU16(SOSWorkAddr.FATBF) + freePos;
+			const currentFat = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF) + freePos;
 			if(remainSector == 0) {
 				// 最後のクラスタ
 				this.#memWriteU8(currentFat, writeSectorSize + 0x7F);
@@ -3214,7 +3217,7 @@ class SOS {
 			this.#memWriteU8( this.#dos_HLBUF + i, this.#memReadU8(ib_base + i));
 		}
 		// 書き込み
-		if(!this.#dos_dskwrt(ctx, this.#memReadU16(SOSWorkAddr.DTBUF), this.#dos_DEBUF, 1)) {
+		if(!this.#dos_dskwrt(ctx, this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF), this.#dos_DEBUF, 1)) {
 			// 書き込みエラー
 			return false;
 		}
@@ -3243,8 +3246,8 @@ class SOS {
 			pop	de
 			ret
 		*/
-		const fatps = this.#memReadU16(SOSWorkAddr.FATPOS);
-		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		const fatps = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATPOS);
+		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		return this.#dos_dskred(ctx, fatbf, fatps, 1);
 	}
 
@@ -3266,8 +3269,8 @@ class SOS {
 			pop	de
 			ret
 		*/
-		const fatps = this.#memReadU16(SOSWorkAddr.FATPOS);
-		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		const fatps = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATPOS);
+		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		return this.#dos_dskwrt(ctx, fatbf, fatps, 1);
 	}
 
@@ -3296,7 +3299,7 @@ class SOS {
 			ret
 		*/
 		let freeClusters = 0;
-		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		for(let i = 0; i < 0x80; ++i) {
 			if(this.#memReadU16(fatbf + i) == 0) {
 				freeClusters++;
@@ -3336,7 +3339,7 @@ class SOS {
 			pop	bc
 			ret
 		*/
-		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		for(let i = 0; i < 0x80; ++i) {
 			if(this.#memReadU16(fatbf + i) == 0) {
 				this.#clearCY();
@@ -3382,7 +3385,7 @@ class SOS {
 			ret
 		*/
 		let next = startCluster;
-		const fatbf = this.#memReadU16(SOSWorkAddr.FATBF);
+		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		while(true) {
 			const tempAddr = fatbf + next;
 			next = this.#memReadU8(tempAddr);
@@ -3455,9 +3458,9 @@ class SOS {
 			pop	bc
 			ret
 		*/
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
-		const dirps = this.#memReadU16(SOSWorkAddr.DIRPS);
-		const dtbuf = this.#memReadU16(SOSWorkAddr.DTBUF);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
+		const dirps = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
+		const dtbuf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF);
 		for(let c = 0; c < 16; ++c) {
 			// ディレクトリのレコードを読み込む
 			const dir = dirps + c;
@@ -3530,8 +3533,8 @@ class SOS {
 			pop	bc
 			ret
 		*/
-		const dirps = this.#memReadU16(SOSWorkAddr.DIRPS);
-		const dtbuf = this.#memReadU16(SOSWorkAddr.DTBUF);
+		const dirps = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS);
+		const dtbuf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF);
 		for(let c = 0; c < 16; ++c) {
 			// ディレクトリのレコードを読み込む
 			const dir = dirps + c;
@@ -3689,13 +3692,13 @@ class SOS {
 		pop	hl
 		ret
 		*/
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
 		const size  = this.#memReadU16(ib_base + SOSInfomationBlock.ib_size);
 		const dtadr = this.#memReadU16(ib_base + SOSInfomationBlock.ib_startAddress);
 		const exadr = this.#memReadU16(ib_base + SOSInfomationBlock.ib_executeAddress);
-		this.#memWriteU16(SOSWorkAddr.SIZE,  size);
-		this.#memWriteU16(SOSWorkAddr.DTADR, dtadr);
-		this.#memWriteU16(SOSWorkAddr.EXADR, exadr);
+		this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE,  size);
+		this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR, dtadr);
+		this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR, exadr);
 	}
 	#dos_parcs()
 	{
@@ -3712,10 +3715,10 @@ class SOS {
 			ret
 		_PARCS_end
 		*/
-		const ib_base = this.#memReadU16(SOSWorkAddr.IBFAD);
-		const size  = this.#memReadU16(SOSWorkAddr.SIZE);
-		const dtadr = this.#memReadU16(SOSWorkAddr.DTADR);
-		const exadr = this.#memReadU16(SOSWorkAddr.EXADR);
+		const ib_base = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.IBFAD);
+		const size  = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE);
+		const dtadr = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTADR);
+		const exadr = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR);
 		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_size,  size);
 		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_startAddress, dtadr);
 		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_executeAddress, exadr);
