@@ -705,6 +705,12 @@ class TaskMonitor {
 		if(ctx.taskLineInput.isActive()) {
 			ctx.endLineInput();
 		}
+		// プラットフォームモニタ中なら終了させる
+		if(ctx.taskPlatformMonitor.isActive()) {
+			ctx.taskPlatformMonitor.end();
+		}
+		// 念のためキーバッファをクリアしておく
+		ctx.keyMan.keyBufferClear();
 		// バッチを初期化
 		this.#runningBatch = false;
 		this.#batchBuffer.length = 0;
