@@ -701,6 +701,10 @@ class TaskMonitor {
 	 */
 	forceJump(ctx, execAddress)
 	{
+		// ライン入力中なら終了させる
+		if(ctx.taskLineInput.isActive()) {
+			ctx.endLineInput();
+		}
 		// バッチを初期化
 		this.#runningBatch = false;
 		this.#batchBuffer.length = 0;
