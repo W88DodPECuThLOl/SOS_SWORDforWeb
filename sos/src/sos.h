@@ -269,6 +269,7 @@ static constexpr u16 ADDRESS_MEMAX     = 0xFFFF;
 	SOS_FUNC(out  )
 	SOS_FUNC(widch)
 	SOS_FUNC(error)
+	SOS_FUNC(command)
 	// DOSモジュール
 	SOS_FUNC(rdi)
 	SOS_FUNC(tropn)

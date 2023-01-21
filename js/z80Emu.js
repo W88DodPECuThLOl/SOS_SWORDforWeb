@@ -118,6 +118,8 @@ class Z80Emu {
 				out   :()=>{ this.#sos.sos_out   (this.#ctx); },
 				widch :()=>{ this.#sos.sos_widch (this.#ctx); },
 				error :()=>{ this.#sos.sos_error (this.#ctx); },
+				// 隠しサブルーチン？
+				command :()=>{ this.#sos.sos_command(this.#ctx); },
 				// DOSモジュール
 				rdi   :()=>{ this.#sos.sos_rdi   (this.#ctx); },
 				tropn :()=>{ this.#sos.sos_tropn (this.#ctx); },

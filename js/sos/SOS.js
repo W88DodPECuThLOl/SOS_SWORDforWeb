@@ -814,7 +814,6 @@ class SOS {
 	 * ここでBREAKを押すとBRKJOBヘｼﾞｬﾝﾌﾟ  
 	 * さもなくばDW BRKJOBはｽｷｯﾌﾟ。
 	 * 
-	 * @todo テスト
 	 * @param {TaskContext} ctx 
 	 */
 	sos_pause(ctx){
@@ -898,7 +897,7 @@ class SOS {
 		// S-OSのワークからカーソル位置を設定する
 		this.#beginCursor(ctx);
 		// 表示
-		let value = this.#getA();
+		const value = this.#getA();
 		ctx.PRINT(this.#asc((value >>  4) & 0x0F));
 		ctx.PRINT(this.#asc((value      ) & 0x0F));
 		// カーソル位置をS-OSのワークに設定する
@@ -1438,9 +1437,7 @@ class SOS {
 	 */
 	sos_peek(ctx){
 		this.#Log("sos_peek");
-		const offset = this.#getHL();
-		this.#setA(this.#specialRAM[offset]);
-		return 0;
+		this.#setA(this.#specialRAM[this.#getHL()]);
 	}
 	/**
 	 * #PEEK@(1F91H)
@@ -1981,6 +1978,34 @@ class SOS {
 		ctx.ERROR(this.#getA());
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
+	}
+
+	// 隠しサブルーチン？
+	/**
+	 * #COMMAND(211BH)
+	 * 
+	 * DEレジスタに設定してあるアドレスのコマンドを実行する
+	 * @param {TaskContext} ctx 
+	 */
+	sos_command(ctx)
+	{
+		this.#Log("sos_command");
+		const command = [];
+		let address = this.#getDE();
+		while(true) {
+			const ch = this.#memReadU8(address++);
+			command.push(ch);
+			if(ch == 0) { break; }
+		}
+		// コマンド実行
+		const result = ctx.taskMonitor.executeCommand(ctx, command);
+		if(result.result != 0) {
+			// エラー
+			this.#setA(result.result);
+			this.#setCY();
+		} else {
+			this.#clearCY();
+		}
 	}
 
 	// --------------------------------------------------------------------------------------------------------------------

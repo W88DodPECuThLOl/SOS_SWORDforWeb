@@ -110,6 +110,9 @@ class SOS_Context {
 		WIDCH	= 0x2030,
 		ERROR	= 0x2033,
 
+		// 隠し？
+		COMMAND = 0x211B,
+
 		// DOSモジュール
 		RDI     = 0x2900,
 		TROPN   = 0x2903,
@@ -198,6 +201,9 @@ class SOS_Context {
 			{ OUT,   out  },
 			{ WIDCH, widch},
 			{ ERROR, error},
+
+			{ COMMAND, command },
+
 			// DOSモジュール
 			{ RDI,   rdi},
 			{ TROPN, tropn},
@@ -302,6 +308,9 @@ class SOS_Context {
 	SOS_HOOK(out  )
 	SOS_HOOK(widch)
 	SOS_HOOK(error)
+
+	SOS_HOOK(command)
+
 	// DOSモジュール
 	SOS_HOOK(rdi)
 	SOS_HOOK(tropn)

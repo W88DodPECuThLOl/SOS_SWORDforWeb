@@ -296,6 +296,10 @@ SOS_FUNC(error)
 {
 }
 
+SOS_FUNC(command)
+{
+}
+
 // DOSモジュール
 SOS_FUNC(rdi)
 {
