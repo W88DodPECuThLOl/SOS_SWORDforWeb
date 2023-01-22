@@ -11,7 +11,9 @@ graph LR;
 
 ## Demo
 
-デモ https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/
+デモ  
+https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/  
+（PC8001風のフォントマップ => https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?fnt=PC8001 ）
 
 ## 使い方
 
