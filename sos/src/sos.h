@@ -114,6 +114,23 @@ WASM_IMPORT("io", "writePSG")
 extern "C" void writePSG(s32 clock, u8 reg, u8 value);
 
 /**
+ * @brief ゲームパッドの読み込み
+ * 
+ * @param[in]	index	読み込むゲームパッドの番号(0,1)
+ * @return ゲームパッドの状態（ボタンは負論理）
+ * @retval 0x01 : デジタルの上ボタン
+ * @retval 0x02 : デジタルの下ボタン
+ * @retval 0x04 : デジタルの左ボタン
+ * @retval 0x08 : デジタルの右ボタン
+ * @retval 0x10 : 未使用（常に１）
+ * @retval 0x20 : トリガー１
+ * @retval 0x40 : トリガー２
+ * @retval 0x80 : 未使用（常に１）
+ */
+WASM_IMPORT("io", "readGamePad")
+extern "C" u8 readGamePad(u8 index);
+
+/**
  * @brief 実行されたクロック数を取得する
  * 
  * execute()で実行されたクロックを取得する。

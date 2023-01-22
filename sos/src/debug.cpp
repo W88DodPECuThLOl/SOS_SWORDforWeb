@@ -23,6 +23,12 @@ writePSG(s32 clock, u8 reg, u8 value)
 {
 }
 
+u8
+readGamePad(u8 index)
+{
+	return 0xFF;
+}
+
 SOS_FUNC(cold)
 {
 //	WRITE_U16( WorkAddress::USR,    0x1FFA );

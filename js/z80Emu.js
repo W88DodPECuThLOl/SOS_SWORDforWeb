@@ -46,6 +46,10 @@ class Z80Emu {
 	#sos;
 
 	#audio;
+	/**
+	 * ゲームパッド
+	 */
+	#gamePad;
 
 	/**
 	 * WASMのセットアップ
@@ -138,7 +142,24 @@ class Z80Emu {
 			},
 			// IO
 			io: {
-				writePSG:(executedClock, reg, value)=>{ this.#audio.writeReg(executedClock, reg, value); }
+				writePSG:(executedClock, reg, value)=>{ this.#audio.writeReg(executedClock, reg, value); },
+				readGamePad:(index)=>{
+					// 負論理
+					if(index == 0) {
+						return(this.#gamePad.buttons[this.#gamePad.BUTTON_UP_INDEX].current ? 0 : 0x01)
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_DOWN_INDEX].current ? 0 : 0x02)
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_LEFT_INDEX].current ? 0 : 0x04)
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_RIGHT_INDEX].current ? 0 : 0x08)
+						| 0x10
+						  // トリガー１と２ @todo 位置関係が不明
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_B_INDEX].current ? 0 : 0x20) // トリガー1
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_A_INDEX].current ? 0 : 0x40) // トリガー2
+						| 0x80
+						;
+					} else {
+						return 0xFF;
+					}
+				}
 			}
 		};
 		return WebAssembly.instantiateStreaming(fetch("sos.wasm"), importObject).then(
@@ -155,7 +176,7 @@ class Z80Emu {
 	/**
 	 * コンストラクタ
 	 */
-	constructor(audio)
+	constructor(audio, gamePad)
 	{
 		// メモリ確保
 		this.#memory = new WebAssembly.Memory({ initial: ~~(this.#heapSize/(64*1024)), maximum: ~~(this.#heapSize/(64*1024) + 1) });
@@ -163,6 +184,8 @@ class Z80Emu {
 		this.#sos = new SOS(this);
 		// オーディオ
 		this.#audio = audio;
+		// ゲームパッド
+		this.#gamePad = gamePad;
 	}
 
 	/**

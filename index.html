@@ -32,6 +32,7 @@
 			// SOS
 			import CatKey from './js/cat/catKey.js';
 			import CatTextScreen from './js/cat/catTextScreen.js';
+			import CatGamePad from './js/cat/catGamePad.js';
 			// グラフィック
 			const graphicCanvas = document.getElementById("graphicCanvas");
 			graphicCanvas.setAttribute("width", 640);
@@ -46,12 +47,14 @@
 			];
 
 			var audio = new CatAudio();
-			var z80Emu = new Z80Emu(audio);
+			var gamePad = new CatGamePad(navigator);
+			var z80Emu = new Z80Emu(audio, gamePad);
 			var taskLineInput = new TaskLineInput();
 			var taskMonitor = new TaskMonitor();
 			var taskPlatformMonitor = new TaskPlatformMonitor();
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
+			
 			//var sound = new Audio('wav/X1BEEP.WAV'); // BEEPで再生する音声ファイル
 			var catSnd = {
 				/**
@@ -70,7 +73,7 @@
 				}
 			}
 
-			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd);
+			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd, gamePad);
 			ctx.changeFont([0x53,0x4F,0x53,0x00]); // フォントをS-OS標準風に
 			function diskSetup()
 			{
@@ -151,6 +154,8 @@
 
 			function update()
 			{
+				// ゲームパッドの更新
+				gamePad.update();
 				// Z80えみゅ
 				z80Emu.update(ctx);
 				// ライン入力

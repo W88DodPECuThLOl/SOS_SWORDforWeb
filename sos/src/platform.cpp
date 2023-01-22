@@ -333,10 +333,21 @@ platformInPort(u8* io, u16 port)
 		constexpr auto v = (4000000 / 60) * 24 / (200+24); // @todo VSYNC期間のタイミング
 		bool vsync = tick > (4000000 / 60 - v);
 		return (vsync ? 0x00 : 0x80);
+	} else if((port & 0xFF00) == 0x1B00) {
+		// PSG Data Read
+		if(io[0x1C00] == 14) {
+			// ジョイスティック1
+			return readGamePad(0);
+		} else if(io[0x1C00] == 15) {
+			// ジョイスティック2
+			return readGamePad(1);
+		}
+	} else if((port & 0xFF00) == 0x1C00) {
+		// PSG Register address set
+		return io[0x1C00];
 	}
-
-	return 0xFF;
 #endif // IS_TARGET_X1_SERIES(TARGET)
+	return 0xFF;
 }
 
 void
