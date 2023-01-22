@@ -386,7 +386,7 @@ class TaskContext {
 		if(this.strcmp(fontName, "X1") == 0 || this.strcmp(fontName, "SOS") == 0) {
 			this.tblMojiEncode = this.tblMojiEncode_SOS;
 		} else if(this.strcmp(fontName, "PC8001") == 0 || this.strcmp(fontName, "PC8") == 0) {
-			this.tblMojiEncode = this.tblMojiEncode_PC8001N;
+			this.tblMojiEncode = this.tblMojiEncode_PC8001;
 		} else {
 			this.printNativeMsg("Unknown FONT map.\n");
 			return;
