@@ -54,7 +54,13 @@
 			var taskPlatformMonitor = new TaskPlatformMonitor();
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
-			
+
+			// URL Param
+			// ?fnt=PC8001でPC8001風のフォントマップに
+			const queryString = window.location.search;
+			const urlParams = new URLSearchParams(queryString);
+			const fontSet = urlParams.get('fnt');
+
 			//var sound = new Audio('wav/X1BEEP.WAV'); // BEEPで再生する音声ファイル
 			var catSnd = {
 				/**
@@ -74,7 +80,11 @@
 			}
 
 			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd, gamePad);
-			ctx.changeFont([0x53,0x4F,0x53,0x00]); // フォントをS-OS標準風に
+			if(fontSet == 'PC8001' || fontSet == 'PC8') {
+				ctx.changeFont([0x50,0x43,0x38,0x00]); // フォントをPC8001風に
+			} else {
+				ctx.changeFont([0x53,0x4F,0x53,0x00]); // フォントをS-OS標準風に
+			}
 			function diskSetup()
 			{
 				for(let i = 0; i < 1; i++) {
