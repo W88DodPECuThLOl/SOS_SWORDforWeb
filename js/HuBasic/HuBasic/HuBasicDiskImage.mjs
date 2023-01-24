@@ -419,13 +419,14 @@ export default class {
 	 * ディスクを設定する
 	 * @param {string} Filename ディスクイメージのファイル名
 	 * @param {Uint8Array} RawDiskImage 生のディスクイメージデータ
+	 * @param {boolean} plainFormat ヘッダ無しかどうか
 	 * @returns {boolean} セットに成功したら true を返す
 	 */
-	SetDisk(Filename, RawDiskImage)
+	SetDisk(Filename, RawDiskImage, plainFormat)
 	{
 		const fs = new Stream();
 		fs.SetupRead(Filename, RawDiskImage);
-		const result = this.#DiskEntry.Read(fs);
+		const result = this.#DiskEntry.Read(fs, plainFormat);
 		this.#deviceOnline = result;
 		return result;
 	}

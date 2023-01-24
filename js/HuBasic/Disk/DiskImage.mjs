@@ -71,7 +71,7 @@ export default class {
 	#ImageFile;
 
 	/**
-	 * 
+	 * 生データかどうか（ヘッダがない）
 	 * @type {boolean}
 	 */
 	PlainFormat;
@@ -480,11 +480,13 @@ export default class {
 					Sector.Density = density;
 					Sector.IsDelete = 0x00;
 					Sector.Status = 0x00;
-					//Sector.DataSize = 0x00;
+					this.Sectors.push(Sector);
 				}
 			}
+			return true;
 		}
 
+		/*
 		while (true) {
 			Address = fs.GetPosition();
 
@@ -512,5 +514,6 @@ export default class {
 			if (SectorCount > this.TrackPerSector) SectorCount = 1;
 		}
 		return true;
+		*/
 	}
 }

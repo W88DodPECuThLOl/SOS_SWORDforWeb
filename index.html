@@ -16,7 +16,7 @@
 		<link rel="stylesheet" href="./css/catTextScreen.css">
 	</head>
 	<body>
-		<input type="file" id="disk0" accept=".d88, .obj"/>
+		<input type="file" id="disk0" accept=".d88,.2D,.obj"/>
 		<input type="checkbox" id="sound">Snd</input>
 		<div class="canvas-wrapper">
 			<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
@@ -115,7 +115,11 @@
 							} else if(isD88Image(readData)) {
 								// D88イメージとする？
 								// ディスクをセットする
-								disks[i].mount(file.name, readData);
+								disks[i].mount(file.name, readData, false);
+							} else if(is2dImage(file.name, readData)) {
+								// D88イメージとする？
+								// ディスクをセットする
+								disks[i].mount(file.name, readData, true);
 							} else {
 								alert("不明なフォーマットタイプです。")
 							}
@@ -141,6 +145,15 @@
 				return true;
 			}
 
+			function is2dImage(filename, data)
+			{
+				// 2Dフォーマット時の標準的なファイルサイズで、判定
+				if(data.length != 327680) { return false; }
+				// イメージファイル名が2Dではないので違う
+				if(!filename.endsWith(".2D") && !filename.endsWith(".2d")) { return false; }
+				// OK
+				return true;
+			}
 			function isD88Image(data)
 			{
 				// D88の2Dフォーマット時の標準的なファイルサイズで、判定

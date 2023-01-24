@@ -151,11 +151,12 @@ export default class {
 	 * ディスクを設定する
 	 * @param {string} Filename ディスクイメージのファイル名
 	 * @param {Uint8Array} RawDiskImage 生のディスクイメージデータ
+	 * @param {boolean} plainFormat ヘッダ無しかどうか
 	 * @returns {boolean} セットに成功したら true を返す
 	 */
-	mount(Filename, RawDiskImage)
+	mount(Filename, RawDiskImage, plainFormat)
 	{
-		return this.Image.SetDisk(Filename, RawDiskImage);
+		return this.Image.SetDisk(Filename, RawDiskImage, plainFormat);
 	}
 	unmount()
 	{

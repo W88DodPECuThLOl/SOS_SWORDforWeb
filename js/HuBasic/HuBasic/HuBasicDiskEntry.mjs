@@ -137,7 +137,13 @@ export default class {
 
 		this.#SetParameter(false);
 	}
-	Read(fs) {
+	/**
+	 * ディスクイメージの読み込み
+	 * @param {Stream} fs
+	 * @param {boolean} plainFormat
+	 */
+	Read(fs, plainFormat) {
+		this.DiskImage.PlainFormat = plainFormat;
 		if (!this.DiskImage.Read(fs)) {
 			return false;
 		}
