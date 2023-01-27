@@ -41,9 +41,16 @@
     3000 : 実行アドレスを16進4桁で（バイナリファイルのみ有効）
   - URLのパラメータ、fnt=PC8001でPC8001風のフォントマップに  
     例）https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?fnt=PC8001
+  - URLのパラメータ、exec=実行するイメージのURL を追加
+    - ぼや(@boyahina)様、感謝です。  
+      また、サンプルでゲームをご提供頂きました。
+    例）https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?exec=sample/AFTER_BUNER_S.obj
+    セキュリティで、多分、同じドメインじゃないと読み込めないかも？（@todo)
   - 生の2Dディスクイメージに対応  
     拡張子が2Dで、かつ、327,680バイトのファイルであること  
     各セクタが順に並んでいること
+  - CTRL + a～zなどで、制御コード0x00～0x20が入力できるように
+    - ぼや(@boyahina)様、感謝です。  
 
 ## [0.00.00] - 2022-12
 - 最初のリリース

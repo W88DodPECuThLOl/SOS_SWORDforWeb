@@ -11,9 +11,16 @@ graph LR;
 
 ## Demo
 
-デモ  
-https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/  
-（PC8001風のフォントマップ => https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?fnt=PC8001 ）
+|    |  URL  |  備考  |
+| ---- | ---- | ---- |
+|  デモ  | https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/ |  |
+|  デモ<br>PC8001風フォントマップ | https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?fnt=PC8001 | PC8001用のフォントマップ |
+| AFTER BUNER II | https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?exec=sample/AFTER_BUNER_S.obj | ぼや様(@boyahina)ご提供 |
+| MISSILE COMMANDER | https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?exec=sample/MIS_COMMANDER.obj | ぼや様(@boyahina)ご提供 |
+| 大富豪 | https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/?fnt=PC8001&exec=sample/RICH_OR_POOR.obj | ぼや様(@boyahina)ご提供 |
+
+※「AFTER BUNER II」「MISSILE COMMANDER」「大富豪」は、ぼや様(@boyahina)からご提供頂きました。  
+無断転載禁止とのことですので、扱いにはご注意ください。詳しくは ⇒ https://negi.moe/sos/
 
 ## 使い方
 
@@ -28,16 +35,27 @@ https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/
 
 ヘッダは18バイトで、マジックナンバー、属性、読み込み先頭アドレス、実行アドレスが順に格納される。  
 末尾は0x0A。C言語風には"_SOS 01 3000 3000\x0A"みたいな文字列になる。  
-``_``SOS : マジックナンバー。  "``_``"は0x5F。  
-01 : 属性(ファイルモード)。16進2桁。01はバイナリファイル。04はアスキーファイル  
-3000 : 読み込み先頭アドレスを16進4桁で（バイナリファイルのみ有効）  
-3000 : 実行アドレスを16進4桁で（バイナリファイルのみ有効）
+　``_``SOS : マジックナンバー。  "``_``"は0x5F。  
+　01 : 属性(ファイルモード)。16進2桁。01はバイナリファイル。04はアスキーファイル  
+　3000 : 読み込み先頭アドレスを16進4桁で（バイナリファイルのみ有効）  
+　3000 : 実行アドレスを16進4桁で（バイナリファイルのみ有効）
 
-このヘッダの後に、バイナリ本体が続きます。
+| 位置   |  サイズ  |  内容、備考など  |
+| ---- | ---- | ---- |
+| +0 | 4バイト | ヘッダ<br>0x5F,0x53,0x4F,0x53<br>"_SOS" |
+| +4 | 1バイト | 区切り文字(0x20) |
+| +5 | 2バイト | 属性（ファイルモード）<br>16進2桁<br>"01" : バイナリファイル<br>"04" : アスキーファイル |
+| +7 | 1バイト | 区切り文字(0x20) |
+| +8 | 4バイト | 読み込み先頭アドレス<br>16進4桁 |
+| +12 | 1バイト | 区切り文字(0x20) |
+| +13 | 4バイト | 実行アドレス<br>16進4桁 |
+| +17 | 1バイト | 終端文字(0x0A) |
+
+このヘッダの後に、バイナリ本体が続く。
 
 ### Sndのチェックボックス
 
-チェックすると、PSGのI/Oポートに書き込むことで音でるようになる（多分）……はずです。  
+チェックすると、PSGのI/Oポートに書き込むことで音でるようになる……はずです。  
 (Chromeブラウザの仕様でユーザの入力で音の初期化しないと音を出せないみたいなので、チェックするという形でやっています。)
 
 # 内部的なこと
@@ -72,12 +90,12 @@ https://w88dodpecuthlol.github.io/SOS_SWORDforWeb/
 
 | Port | Description |
 | --- | --- |
-| 10xxh b<br>11xxh r<br>12xxh g | X1のグラフィックパレット<br>※未テスト |
-| 1Bxxh data<br>1Cxxh reg. | AY-3-8910<br>※未テスト |
+| 10xxh b<br>11xxh r<br>12xxh g | X1のグラフィックパレット |
+| 1Bxxh data<br>1Cxxh reg. | AY-3-8910<br>R14レジスタ : GamePad<br>　0bit : Up<br>　1bit: Down<br>　2bit: Left<br>　3bit: Right<br>　5bit: Trigger1<br>　6bit: Trigger2<br>※注意）負論理（0で押下されている）<br>@todo Trigger1と2が物理的に左右どっちのボタンなのかがわからないので、調べること |
 | 1FA0h<br>1FA1h<br>1FA2h<br>1FA3h | Z80 CTC |
 | 4000h~FFFFh | X1のグラフィックVRAM |
 
-- AY-3-8910 入力2MHz?
+- AY-3-8910 入力2MHz
 - Z80 CTC
   - 入力4MHz
   - ch0 のTRGはch3に接続
@@ -164,4 +182,5 @@ S-OS標準モニタの「M」コマンド、もしくは、S-OS #MONで起動し
 - THE SENTINEL http://www.retropc.net/ohishi/s-os/
 - Ｓ－ＯＳ　ＳＷＯＲＤ　Ｖｅｒ．２．０ http://www43.tok2.com/home/cmpslv/Unk/SOS/S-OS%20Sword%20Ver2.0%20(J)(1986-02)(Oh!mz)%20[mz80K][type-in].txt
 - HuDisk ディスクイメージ操作ツール https://github.com/BouKiCHi/HuDisk
+- S-OS https://negi.moe/sos/ - ぼや様(@boyahina)のS-OSのページです。
 - その他、多数
