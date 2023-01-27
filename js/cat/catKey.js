@@ -19,7 +19,18 @@ export default class {
 		const index = ' !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~'.indexOf(e.key);
 		if(index >= 0) {
 			// Unicode
-			keyCode = index + 0x20;
+			if(e.ctrlKey) {
+				// コントロールキーが押下されているときの処理
+				if(index >= 0x20 && index < 0x40) {  // " "～？
+					keyCode = index - 0x20;
+				} else if(index >= 0x41 && index < 0x5b) { // a～z
+					keyCode = index - 0x40;
+				} else {
+					keyCode = index + 0x20;
+				}
+			} else {
+				keyCode = index + 0x20;
+			}
 		} else {
 			switch (e.key) {
 				case 'Backspace':  keyCode = 0x08; break; // BS
@@ -92,6 +103,9 @@ export default class {
 			// バッファに積む
 			self.enqueueKeyBuffer(keyCode);
 		}
+		// イベントを処理したので、イベントの処理を他にやらせないようにする
+		e.preventDefault();
+		e.stopPropagation();
 	}
 
 	/**

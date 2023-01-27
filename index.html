@@ -57,9 +57,11 @@
 
 			// URL Param
 			// ?fnt=PC8001でPC8001風のフォントマップに
+			// ?exec=実行したいファイルのURL
 			const queryString = window.location.search;
 			const urlParams = new URLSearchParams(queryString);
 			const fontSet = urlParams.get('fnt');
+			const execFile = urlParams.get('exec');
 
 			//var sound = new Audio('wav/X1BEEP.WAV'); // BEEPで再生する音声ファイル
 			var catSnd = {
@@ -99,34 +101,47 @@
 						const reader = new FileReader();
 						reader.onload = () => {
 							const readData = new Uint8Array(reader.result);
-							if(isSOSFileHeader(readData)) {
-								// SOSのファイルヘッダあり
-								const loadAddress = (ctx.hex(readData[0x8]) << 12) | (ctx.hex(readData[0x9]) << 8) | (ctx.hex(readData[0xA]) << 4) | ctx.hex(readData[0x0B]);
-								const execAddress = (ctx.hex(readData[0xD]) << 12) | (ctx.hex(readData[0xE]) << 8) | (ctx.hex(readData[0xF]) << 4) | ctx.hex(readData[0x10]);
-								const attribute   = (ctx.hex(readData[0x5]) <<  4) |  ctx.hex(readData[0x6]);
-								if((attribute & 7) == 0x01) {
-									// バイナリファイル
-									ctx.memoryWrite(readData.subarray(18), loadAddress); // 読み込んで
-									ctx.execCommand(execAddress); // 実行
-								} else {
-									// アスキーファイル
-									alert("未対応の属性(FileMode)です。")
-								}
-							} else if(isD88Image(readData)) {
-								// D88イメージとする？
-								// ディスクをセットする
-								disks[i].mount(file.name, readData, false);
-							} else if(is2dImage(file.name, readData)) {
-								// D88イメージとする？
-								// ディスクをセットする
-								disks[i].mount(file.name, readData, true);
-							} else {
-								alert("不明なフォーマットタイプです。")
-							}
+							mountImage(i, file.name, readData);
 						};
 						reader.readAsArrayBuffer(file);
 					});
 				}
+			}
+
+			/**
+			 * ディスクイメージをマウント、または、１個のファイルを実行する
+			 * @param {number} deviceNo デバイス(0～3)
+			 * @param {Uint8Array} readData イメージデータ
+			 */
+			function mountImage(deviceNo, filename, readData)
+			{
+				if(isSOSFileHeader(readData)) {
+					// SOSのファイルヘッダあり
+					const loadAddress = (ctx.hex(readData[0x8]) << 12) | (ctx.hex(readData[0x9]) << 8) | (ctx.hex(readData[0xA]) << 4) | ctx.hex(readData[0x0B]);
+					const execAddress = (ctx.hex(readData[0xD]) << 12) | (ctx.hex(readData[0xE]) << 8) | (ctx.hex(readData[0xF]) << 4) | ctx.hex(readData[0x10]);
+					const attribute   = (ctx.hex(readData[0x5]) <<  4) |  ctx.hex(readData[0x6]);
+					if((attribute & 7) == 0x01) {
+						// バイナリファイル
+						ctx.memoryWrite(readData.subarray(18), loadAddress); // 読み込んで
+						ctx.execCommand(execAddress); // 実行
+					} else {
+						// アスキーファイル
+						alert("未対応の属性(FileMode)です。")
+						return false;
+					}
+				} else if(isD88Image(readData)) {
+					// D88のイメージ
+					// ディスクをセットする
+					disks[deviceNo].mount(filename, readData, false);
+				} else if(is2dImage(filename, readData)) {
+					// 2Dの生イメージ
+					// ディスクをセットする
+					disks[deviceNo].mount(filename, readData, true);
+				} else {
+					alert("不明なフォーマットタイプです。")
+					return false;
+				}
+				return true;
 			}
 
 			function isSOSFileHeader(data)
@@ -196,6 +211,27 @@
 				requestAnimationFrame(()=>update());
 			}
 
+			function autoStart() {
+				const execFileReader = new XMLHttpRequest() ;
+				//execFileReader.open("get", "./files/" + execFile, true) ;
+				execFileReader.open("get", execFile, true) ;
+				execFileReader.responseType = "arraybuffer" ;
+				
+				execFileReader.onerror = () => {
+					alert("読み込み中にエラーが発生しました:" + execFile + "\nstatus:" + execFileReader.status);
+				};
+				execFileReader.onload = (evnt) => {
+					if(execFileReader.status >= 400) {
+						alert("読み込み中にエラーが発生しました:" + execFile + "\nstatus:" + execFileReader.status);
+						return;
+					}
+					const objArray = execFileReader.response ;
+					const objFile  = new Uint8Array(objArray) ;
+					mountImage(0, execFile, objFile);
+				}
+				execFileReader.send() ;
+			}
+			
 			// ページ読み込み後に実行される
 			window.onload = async function() {
 				// サウンド
@@ -215,6 +251,10 @@
 						diskSetup();
 						// SOS
 						ctx.reset();
+						// auto staart
+						if(execFile != null) {
+							autoStart() ;
+						}
 						// 開始
 						update();
 					}
