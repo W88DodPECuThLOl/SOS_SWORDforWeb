@@ -116,7 +116,7 @@ export default class {
 	#keyUpHandler(self, e) {
 		const keyCode = self.#keyCodeConverter(e);
 		if(keyCode) {
-			self.#keyUp(keyCode);
+			self.keyUp(keyCode);
 		}
 	}
 
@@ -124,7 +124,7 @@ export default class {
 	 * 
 	 * @param {number|string} keyCode キーコード
 	 */
-	#keyUp(keyCode)
+	keyUp(keyCode)
 	{
 		this.#keyDown.set(keyCode, false);
 	}
