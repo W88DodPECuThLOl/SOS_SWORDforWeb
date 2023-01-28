@@ -164,7 +164,7 @@ export default class {
 	#Make(Cylinder, Side, Sector, SectorsInTrack, Density, Delete, Status, SectorSize) {
 		// ヘッダ部分
 		this.#Header = new Uint8Array(0x10);
-		const dc = new DataController(Header);
+		const dc = new DataController(this.#Header);
 
 		this.Cylinder = Cylinder;
 		this.Side = Side;

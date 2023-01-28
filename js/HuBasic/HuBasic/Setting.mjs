@@ -88,8 +88,9 @@ export default class {
 	}
 
 	/**
+	 * メディアタイプを設定する
 	 * 
-	 * @param {string} Value 
+	 * @param {string} Value ディスクのメディアタイプの文字列（2D、2DD、2HD、1D、1DD）
 	 * @returns {boolean}
 	 */
 	SetImageType(Value) {

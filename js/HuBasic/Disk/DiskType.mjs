@@ -122,8 +122,8 @@ export default class {
 	}
 
 	/**
-	 * ディスクの種類を文字列で取得する
-	 * @returns {string} ディスクの種類の文字列
+	 * ディスクのメディアタイプを文字列で取得する
+	 * @returns {string} ディスクのメディアタイプの文字列
 	 */
 	GetTypeName() {
 		switch (this.GetImageType()) {

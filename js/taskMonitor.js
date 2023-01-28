@@ -186,11 +186,11 @@ class TaskMonitor {
 		// デバイス名（A～D）
 		if(text[1] == 0x3A) { // ":"
 			const device = text[0];
-			if(0x61 <= device && device <= 0x64) { // a～d
+			if(0x61 <= device && device <= 0x65) { // a～e
 				deviceName = device - 0x20;
 				text.shift();
 				text.shift();
-			} else if(0x41 <= device && device <= 0x44) { // A～D
+			} else if(0x41 <= device && device <= 0x45) { // A～E
 				deviceName = device;
 				text.shift();
 				text.shift();
@@ -327,9 +327,9 @@ class TaskMonitor {
 						// デバイス名
 						let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
 						if(this.#commandBuffer[1] == 0x3A) {
-							if(0x61 <= this.#commandBuffer[0] && this.#commandBuffer[0] <= 0x64) {
+							if(0x61 <= this.#commandBuffer[0] && this.#commandBuffer[0] <= 0x65) {
 								deviceName = this.#commandBuffer[0] - 0x20; // 大文字に
-							} else if(0x41 <= this.#commandBuffer[0] && this.#commandBuffer[0] <= 0x44) {
+							} else if(0x41 <= this.#commandBuffer[0] && this.#commandBuffer[0] <= 0x45) {
 								deviceName = this.#commandBuffer[0];
 							} else {
 								this.#doError(ctx, SOSErrorCode.BadFileDescripter);
@@ -775,9 +775,9 @@ class TaskMonitor {
 					// デバイス名
 					let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
 					if(commandBuffer[1] == 0x3A) {
-						if(0x61 <= commandBuffer[0] && commandBuffer[0] <= 0x64) {
+						if(0x61 <= commandBuffer[0] && commandBuffer[0] <= 0x65) {
 							deviceName = commandBuffer[0] - 0x20; // 大文字に
-						} else if(0x41 <= commandBuffer[0] && commandBuffer[0] <= 0x44) {
+						} else if(0x41 <= commandBuffer[0] && commandBuffer[0] <= 0x45) {
 							deviceName = commandBuffer[0];
 						} else {
 							return this.#doError(ctx, SOSErrorCode.BadFileDescripter);

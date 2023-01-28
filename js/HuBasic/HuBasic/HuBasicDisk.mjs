@@ -19,6 +19,7 @@ export default class {
 	Image;
 
 	/**
+	 * コンストラクタ
 	 * 
 	 * @param {Context} Context 
 	 */
@@ -26,6 +27,10 @@ export default class {
 		this.#Context = Context;
 		this.Log = this.#Context.Log;
 		this.Image = new HuBasicDiskImage(Context);
+
+		if(Context.Setting.FormatImage) {
+			this.Image.Mount();
+		}
 	}
 
 	/**

@@ -560,12 +560,13 @@ class TaskContext {
 	 * ディスクデバイスかどうか
 	 * 
 	 * メモ)'A'～'D'がディスク
+	 * メモ)'E'がRAMディスク
 	 * @param {number} descriptor デバイスを示す文字
 	 * @return {boolean} ディスクデバイスなら true を返す
 	 */
 	#checkDiskDescriptor(descriptor)
 	{
-		return 0x41 <= descriptor && descriptor <= 0x44; // A～D
+		return 0x41 <= descriptor && descriptor <= 0x45; // A～E
 	}
 
 	/**

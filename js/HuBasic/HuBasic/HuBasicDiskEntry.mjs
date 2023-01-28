@@ -153,7 +153,7 @@ export default class {
 	}
 	FormatDisk() {
 		this.DiskImage.Format();
-		this.SetParameter(true);
+		this.#SetParameter(true);
 	}
 
 	/**

@@ -40,11 +40,22 @@
 			var graphicCanvasCtx = graphicCanvas.getContext("2d");
 			// ディスクドライブ
 			var disks = [
-				new HuBasicDisk(new Context()),
-				new HuBasicDisk(new Context()),
-				new HuBasicDisk(new Context()),
-				new HuBasicDisk(new Context())
+				new HuBasicDisk(new Context()), // A
+				null,							// B
+				new HuBasicDisk(new Context()),	// C
+				new HuBasicDisk(new Context()), // D
+				null							// E RAMディスク @todo test
 			];
+			// Bドライブに2Dディスクを設定
+			var ctxDisk1 = new Context();
+			ctxDisk1.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+			ctxDisk1.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+			disks[1] = new HuBasicDisk(ctxDisk1);
+			// Eドライブに2Dディスクを設定
+			var ctxDisk4 = new Context();
+			ctxDisk4.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+			ctxDisk4.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+			disks[4] = new HuBasicDisk(ctxDisk4);
 
 			var audio = new CatAudio();
 			var gamePad = new CatGamePad(navigator);
