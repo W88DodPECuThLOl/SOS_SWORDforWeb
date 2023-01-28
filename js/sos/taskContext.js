@@ -457,7 +457,15 @@ class TaskContext {
 	 * @param {string[]} fontUrls フォントのURL
 	 */
 	async changeFont(fontName, fontUrls) {
-		if(this.strcmp(fontName, "X1") == 0) {
+		this.catTextScreen.setHalf(true);
+		if(this.strcmp(fontName, "SOS") == 0) {
+			// S-OS
+			this.tblMojiEncode = this.tblMojiEncode_SOS;
+			fontUrls = [];
+			this.setScreenScale(1.0, 1.0);
+			this.catTextScreen.setSpaceFull(true); // スペースを全角で描画する
+			this.catTextScreen.setHalf(false);
+		} else if(this.strcmp(fontName, "X1") == 0) {
 			// X1風 S-OS
 			this.tblMojiEncode = this.tblMojiEncode_X1;
 			fontUrls = ["./fonts/X1/X1-FONT.ttf", "./fonts/X1/X1-FONT-SYMBOL.ttf"];

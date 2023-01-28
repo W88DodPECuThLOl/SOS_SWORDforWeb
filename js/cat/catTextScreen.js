@@ -306,4 +306,9 @@ export default class {
 		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
 		this.#textLayerControler[layer].setSpaceFull(spaceFull);
 	}
+	setHalf(half, layer)
+	{
+		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
+		this.#textLayerControler[layer].setHalf(half);
+	}
 }

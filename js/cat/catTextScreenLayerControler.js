@@ -560,4 +560,8 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 	{
 		this.#target.setSpaceFull(spaceFull);
 	}
+	setHalf(half)
+	{
+		this.#target.setHalf(half);
+	}
 }

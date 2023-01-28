@@ -84,6 +84,7 @@ export default class {
 	 * @type {boolean}
 	 */
 	isSpaceFull;
+	isHalf;
 
 	// -----------------------------------------------------------------------------------------------------------
 	// -----------------------------------------------------------------------------------------------------------
@@ -179,7 +180,7 @@ export default class {
 					if(codePoint==0xAD) {
 						return '<span class="cursor"><span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span></span>';
 					}
-					if(codePoint >= 0x100) {
+					if(this.isHalf && codePoint >= 0x100) {
 						return '<span class="cursor"><span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span></span>';
 					}
 					if((attr & 3) == 1) {
@@ -195,7 +196,7 @@ export default class {
 					if(codePoint==0xAD) {
 						return '<span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span>';
 					}
-					if(codePoint >= 0x100) {
+					if(this.isHalf && codePoint >= 0x100) {
 						return '<span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span>';
 					}
 					if((attr & 3) == 1) {
@@ -234,6 +235,7 @@ export default class {
 		this.changeScreenSize(width, height)
 		this.setDisplayCursor(true);
 		this.setSpaceFull(true);
+		this.setHalf(false);
 	}
 
 	/**
@@ -493,6 +495,13 @@ export default class {
 		if(this.isSpaceFull != spaceFull) {
 			this.#isModified = true; // 変更フラグセット
 			this.isSpaceFull = spaceFull;
+		}
+	}
+	setHalf(half, layer)
+	{
+		if(this.isHalf != half) {
+			this.#isModified = true; // 変更フラグセット
+			this.isHalf = half;
 		}
 	}
 }
