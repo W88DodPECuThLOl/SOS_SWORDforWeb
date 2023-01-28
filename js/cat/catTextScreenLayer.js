@@ -79,6 +79,12 @@ export default class {
 	 */
 	#display;
 
+	/**
+	 * スペース(U+0020)を全角扱いにするかどうか
+	 * @type {boolean}
+	 */
+	isSpaceFull;
+
 	// -----------------------------------------------------------------------------------------------------------
 	// -----------------------------------------------------------------------------------------------------------
 
@@ -156,12 +162,26 @@ export default class {
 		if(codePoint!=10) {
 			if(codePoint==32 || codePoint== 0) {
 				if(cursor) {
-					return '<span class="cursor">&emsp;</span>';
+					if(this.isSpaceFull) {
+						return '<span class="cursor">&emsp;</span>';
+					} else {
+						return '<span class="cursor">&nbsp;</span>';
+					}
 				} else {
-					return '<span>&emsp;</span>';
+					if(this.isSpaceFull) {
+						return '<span>&emsp;</span>';
+					} else {
+						return '<span>&nbsp;</span>';
+					}
 				}
 			} else {
 				if(cursor) {
+					if(codePoint==0xAD) {
+						return '<span class="cursor"><span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span></span>';
+					}
+					if(codePoint >= 0x100) {
+						return '<span class="cursor"><span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span></span>';
+					}
 					if((attr & 3) == 1) {
 						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + String.fromCodePoint(codePoint) + '</span></font></span></span>';
 					} else if((attr & 3) == 2) {
@@ -172,6 +192,12 @@ export default class {
 						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span>';
 					}
 				} else {
+					if(codePoint==0xAD) {
+						return '<span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span>';
+					}
+					if(codePoint >= 0x100) {
+						return '<span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span>';
+					}
 					if((attr & 3) == 1) {
 						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + String.fromCodePoint(codePoint) + '</span></font>';
 					} else if((attr & 3) == 2) {
@@ -207,6 +233,7 @@ export default class {
 		this.setCursor(0, 0);
 		this.changeScreenSize(width, height)
 		this.setDisplayCursor(true);
+		this.setSpaceFull(true);
 	}
 
 	/**
@@ -455,5 +482,17 @@ export default class {
 		this.#tram[dstIndex + this.#codePointIndex] = codePoint;
 		this.#tram[dstIndex + this.#colorIndex] = this.getColor();
 		this.#tram[dstIndex + this.#attrIndex] = this.getAttr();
+	}
+
+	/**
+	 * スペース(U+0020)を全角扱いにするかどうかを設定する
+	 * @param {boolean} spaceFull 全角扱いするならtrue
+	 */
+	setSpaceFull(spaceFull)
+	{
+		if(this.isSpaceFull != spaceFull) {
+			this.#isModified = true; // 変更フラグセット
+			this.isSpaceFull = spaceFull;
+		}
 	}
 }

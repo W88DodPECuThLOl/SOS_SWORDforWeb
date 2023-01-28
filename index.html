@@ -62,31 +62,44 @@
 			const urlParams = new URLSearchParams(queryString);
 			const fontSet = urlParams.get('fnt');
 			const execFile = urlParams.get('exec');
+			const beepvol = urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.1;
+			const beepfile = urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV';
 
-			//var sound = new Audio('wav/X1BEEP.WAV'); // BEEPで再生する音声ファイル
+			// BELL(BEEP)音
+			var sound = new Audio(beepfile); // BEEPで再生する音声ファイル
 			var catSnd = {
 				/**
 				 * ビープ音を再生する
 				 */
 				bell: ()=> {
-					// @todo 探す
-					// - フリーで、個人、商用利用とわず使用できること
-					// - 短いこと ～300msぐらい？
-					// - 8bit!
-					// - 耳障りではないこと
-					// - 個性的でないこと
-					//sound.currentTime = 0; // 連続再生するときのおまじないらしい
-					//sound.volume = 0.3; // 音量
-					//sound.play();
+					if(beepvol > 0.0) {
+						sound.currentTime = 0; // 連続再生するときのおまじないらしい
+						sound.volume = beepvol; // 音量
+						sound.play();
+					}
 				}
 			}
 
-			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd, gamePad);
-			if(fontSet == 'PC8001' || fontSet == 'PC8') {
-				ctx.changeFont([0x50,0x43,0x38,0x00]); // フォントをPC8001風に
-			} else {
-				ctx.changeFont([0x53,0x4F,0x53,0x00]); // フォントをS-OS標準風に
+			// デフォルトのフォントを読み込む
+			{
+				const fontFace = new FontFace('defaultFont', 'url(./fonts/3/SMILEBASIC.ttf)');
+				fontFace.load().then(function(loadedFace){
+					// フォント読み込み成功
+					document.fonts.add(loadedFace);
+				}).catch(function(e){
+					// フォント読み込み失敗
+					console.error('フォントの読み込みに失敗しました');
+				});
 			}
+
+			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd, gamePad);
+			// 初期のフォント設定
+			if(fontSet) {
+				ctx.changeFont(fontSet); // URLパラメータで設定されたフォント
+			} else {
+				ctx.changeFont("X1"); // デフォルトのフォント
+			}
+
 			function diskSetup()
 			{
 				for(let i = 0; i < 1; i++) {

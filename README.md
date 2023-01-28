@@ -144,7 +144,7 @@ S-OS標準モニタの「M」コマンド、もしくは、S-OS #MONで起動し
 | >Q | モニタを終了し、呼び出し元へ戻る。 |
 | >D [<アドレス>] | <アドレス>で指定されたメモリの内容をダンプする。<br>省略時は、以前の続きからメモリの内容をダンプする。 |
 | >W | 画面の横幅、40文字と80文字を実行のたび切り替える。 |
-| >FNT <フォントマップ名> | アスキーコードとフォントの対応を変更します。<br><フォントマップ名>は、SOSかPC8001を指定できます。(大文字、小文字区別します)<br>例）「FNT PC8001」でPC8001風のマッピング。<br>「FNT SOS」でSOS（X1）風のマッピングになります。 |
+| >FNT <フォント> | アスキーコードの対応とフォントを変更します。<br><フォント>は、X1かPC8001を指定できます。(大文字、小文字区別します)<br>例）「FNT PC8001」でPC8001風(S-OS)。<br>「FNT X1」でX1風(S-OS)になります。<br><br>「FNT X1p」「FNT PC8001p」でS-OS風ではない素の状態のASCIIコードのマッピングになります。<br>"{"、"}"などがそのままのもの。 |
 
 ※[]記号は省略可能  
 ※コマンドは大文字、小文字を区別しない
@@ -167,7 +167,7 @@ S-OS標準モニタの「M」コマンド、もしくは、S-OS #MONで起動し
   (※IOの実装でX1を参考にしており、機種判定をしていた場合などの対応でX1系統にしています。)
 - ~~S-OS #MON 実装中~~
 - ~~S-OS #PAUSE 未テスト~~
-- ~~S-OS #BELL 未実装~~ **猫のセンスの無さゆえに、断念**
+- ~~S-OS #BELL 未実装~~
 - ~~S-OS #WOPEN 未テスト~~
 - ~~S-OS #INP、#OUT 未実装。仕様不明。共通I/Oポートとは何だろう？~~ ~~S-OS側も未実装っぽいからOK？~~
 - S-OS標準モニタ Mコマンド（各機種のモニタ） 実装中
@@ -182,5 +182,6 @@ S-OS標準モニタの「M」コマンド、もしくは、S-OS #MONで起動し
 - THE SENTINEL http://www.retropc.net/ohishi/s-os/
 - Ｓ－ＯＳ　ＳＷＯＲＤ　Ｖｅｒ．２．０ http://www43.tok2.com/home/cmpslv/Unk/SOS/S-OS%20Sword%20Ver2.0%20(J)(1986-02)(Oh!mz)%20[mz80K][type-in].txt
 - HuDisk ディスクイメージ操作ツール https://github.com/BouKiCHi/HuDisk
-- S-OS https://negi.moe/sos/ - ぼや様(@boyahina)のS-OSのページです。
+- S-OS https://negi.moe/sos/ - ぼや様(@boyahina)のS-OSのページ
+- NRTDRV http://nrtdrv.sakura.ne.jp/index.cgi?page=FrontPage - SHARP X1シリーズ用のOPM+PSGドライバと、Windows用のクロスMMLコンパイラ
 - その他、多数

@@ -551,4 +551,13 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 	setDisplayCursor(display) {
 		this.#target.setDisplayCursor(display);
 	}
+
+	/**
+	 * スペース(U+0020)を全角扱いにするかどうかを設定する
+	 * @param {boolean} spaceFull 全角扱いするならtrue
+	 */
+	setSpaceFull(spaceFull)
+	{
+		this.#target.setSpaceFull(spaceFull);
+	}
 }

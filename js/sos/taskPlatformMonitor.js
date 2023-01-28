@@ -168,9 +168,11 @@ class TaskPlatformMonitor {
  Q          quit
  D [xxxx]   Dump memory from $xxxx
  W          Width change
- FNT <FMAP> Font map change
+ FNT <FMAP> Font change
   ex.) FNT PC8001
-       FNT SOS
+       FNT PC8001p
+       FNT X1
+       FNT X1p
 `);
 					this.changeState(this.#state_start);
 					return;
@@ -220,7 +222,7 @@ class TaskPlatformMonitor {
 				case 0x66:
 					if(this.#commandBuffer.length >= 2
 						&& (this.#commandBuffer[0] == 0x4E || this.#commandBuffer[0] == 0x6E)
-						&& (this.#commandBuffer[1] == 0x54 || this.#commandBuffer[1] == 0x64)) {
+						&& (this.#commandBuffer[1] == 0x54 || this.#commandBuffer[1] == 0x74)) {
 						this.#commandBuffer.shift();
 						this.#commandBuffer.shift();
 						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ

@@ -295,4 +295,15 @@ export default class {
 		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
 		this.#textLayerControler[layer].setDisplayCursor(display);
 	}
+
+	/**
+	 * スペース(U+0020)を全角扱いにするかどうかを設定する
+	 * @param {boolean} spaceFull 全角扱いするならtrue
+	 * @param {number} layer	レイヤ番号
+	 */
+	setSpaceFull(spaceFull, layer)
+	{
+		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
+		this.#textLayerControler[layer].setSpaceFull(spaceFull);
+	}
 }
