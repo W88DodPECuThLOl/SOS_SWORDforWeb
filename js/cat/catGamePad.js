@@ -129,7 +129,7 @@ export default class {
                     this.axis[1].y = y;
 
                     // ボタン
-                    for(let index = 0; index < 17; ++index) {
+                    for(let index = 0; index < gamepad.buttons.length; ++index) {
                         const current = (gamepad.buttons[index].value > 0 || gamepad.buttons[index].pressed == true);
                         this.buttons[index].previous = this.buttons[index].current;
                         this.buttons[index].current = current;
