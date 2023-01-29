@@ -114,7 +114,7 @@ export default class {
 	 */
 	SetCopy(pos, data, length = -1) {
 		if (length < 0) {
-			length = data.Length - pos;
+			length = data.length - pos;
 		}
 		for (let i = 0; i < length; i++) { this.#Buffer[pos + i] = data[i]; }
 	}

@@ -73,7 +73,8 @@ export default class {
 			if (!this.AddFile(s, EntryName)) return false;
 		}
 
-		this.WriteImage();
+		// 書き出す
+		// this.WriteImage(); // @todo
 		return true;
 	}
 
@@ -153,7 +154,8 @@ export default class {
 		for (let Filename of Files) {
 			this.Delete_ParamString(Filename);
 		}
-		this.WriteImage();
+		// 書き出す
+		// this.WriteImage(); // @todo
 	}
 
 	/**
@@ -164,7 +166,8 @@ export default class {
 		for (let Entry of EntryData) {
 			this.#DiskEntry.Delete(Entry);
 		}
-		this.WriteImage();
+		// 書き出す
+		// this.WriteImage(); // @todo
 	}
 
 
@@ -173,20 +176,10 @@ export default class {
 	/// </summary>
 	DeleteAll() {
 		this.Delete_ParamString("*");
-		this.WriteImage();
+		// 書き出す
+		// this.WriteImage(); // @todo
 	}
 
-
-	/**
-	 * イメージの書き出し
-	 */
-	WriteImage() {
-		const fs = new Stream();
-		const Filename = "";
-		const FileSize = 0; // ?
-		fs.SetupWrite(Filename, FileSize);
-		this.#DiskEntry.WriteImage(fs);
-	}
 
 	/**
 	 * ファイル展開
@@ -433,6 +426,21 @@ export default class {
 			this.Unmount(); // 失敗したらアンマウント
 		}
 		return result;
+	}
+
+	/**
+	 * イメージの書き出し
+	 * 
+	 * @param {boolean} IsPlainFormat ヘッダ無しかどうか
+	 * @returns {Uint8Array}
+	 */
+	WriteImage(IsPlainFormat) {
+		const fs = new Stream();
+		const Filename = "";
+		const FileSize = IsPlainFormat ? 327680 : 348848;  // 2D : D88_2D  @todo ちゃんとしたサイズ
+		fs.SetupWrite(Filename, FileSize);
+		this.#DiskEntry.WriteImage(fs);
+		return fs.GetBuffer();
 	}
 
 	/**

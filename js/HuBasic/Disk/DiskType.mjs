@@ -11,9 +11,10 @@ export default class {
 	 */
 	#ForceType;
 	/**
+	 * 生データかどうか（ヘッダがない）
 	 * @type {boolean}
 	 */
-	PlainFormat;
+	#PlainFormat;
 	/**
 	 * ディスクの種類
 	 * 
@@ -39,7 +40,9 @@ export default class {
 	 */
 	SetImageType(imageType) {
 		this.#imageType = imageType;
+		// ディスクの種類に対応したトラックフォーマットを設定
 		this.CurrentTrackFormat = new TrackFormat(imageType);
+		// ディスクの種類に対応したディスクのパラメータを設定
 		this.DiskParameter = new DiskParameter(imageType);
 	}
 
@@ -59,7 +62,9 @@ export default class {
 	 * コンストラクタ
 	 */
 	constructor() {
+		// 2DでD88ヘッダありに設定
 		this.SetImageType(DiskTypeEnum.Disk2D);
+		this.SetPlainFormat(false);
 	}
 
 	/**
@@ -145,33 +150,50 @@ export default class {
 	/**
 	 * 
 	 */
-	SetPlainFormat() { this.PlainFormat = true; }
+	SetPlainFormat(PlainFormat) { this.#PlainFormat = PlainFormat; }
+
+	/**
+	 * 生データかどうか（ヘッダがない）を取得する
+	 * @type {boolean} 生データかどうか（ヘッダがない）
+	 */
+	GetPlainFormat() { return this.#PlainFormat; }
 
 	/**
 	 * @param {string} ext
 	 */
 	SetTypeFromExtension(ext) {
-		if (this.#IsNotPlainExtension(ext)) return;
-
-		this.SetPlainFormat();
-		const TypeFromExtenstion = (ext == "2D") ? DiskTypeEnum.Disk2D : DiskTypeEnum.Disk2HD;
-		if (!this.#ForceType) SetImageType(TypeFromExtenstion);
+		if (!this.#IsPlainExtension(ext)) {
+			this.SetPlainFormat(false); // ヘッダ必要
+			return;
+		}
+		if (!this.#ForceType) {
+			if(ext == "2D") {
+				SetImageType(DiskTypeEnum.Disk2D);
+				this.SetPlainFormat(true); // ヘッダ必要なし
+			} else if(ext == "2DD") {
+				SetImageType(DiskTypeEnum.Disk2DD);
+				this.SetPlainFormat(true); // ヘッダ必要なし
+			} else if(ext == "2HD") {
+				SetImageType(DiskTypeEnum.Disk2HD);
+				this.SetPlainFormat(true); // ヘッダ必要なし
+			}
+		}
 	}
 
 	/**
-	 * 
+	 * 拡張子でヘッダが必要かどうかを判定する
 	 * @param {string} ext 
-	 * @returns {boolean}
+	 * @returns {boolean} trueならヘッダ必要なし
 	 */
-	#IsNotPlainExtension(ext) {
-		return ext != "2D" && ext != "2HD";
+	#IsPlainExtension(ext) {
+		return (ext == "2D") || (ext == "2DD") || (ext == "2HD");
 	}
 
 	/**
 	 * トラックあたりのセクタ数を取得する
 	 * @returns {number} トラックあたりのセクタ数
 	 */
-	GetTrackPerSector() { return this.CurrentTrackFormat.TrackPerSector; }
+	GetTrackPerSector() { return this.CurrentTrackFormat.GetTrackPerSector(); }
 
 	/**
 	 * 記録密度を取得する
@@ -180,7 +202,11 @@ export default class {
 	 */
 	GetDensity() { return 0x00; }
 
-	GetMaxTrackSize() { return this.CurrentTrackFormat.TrackMax; }
+	/**
+	 * ディスクの最大トラック数を取得する
+	 * @returns {number} ディスクの最大トラック数
+	 */
+	GetMaxTrackSize() { return this.CurrentTrackFormat.GetTrackMax(); }
 
 	GetSectorSize() {
 		return 1;

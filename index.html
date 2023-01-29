@@ -17,6 +17,11 @@
 	</head>
 	<body>
 		<input type="file" id="disk0" accept=".d88,.2D,.obj"/>
+		<input type="button" id="save0"></input>
+		<input type="button" id="save1"></input>
+		<input type="button" id="save2"></input>
+		<input type="button" id="save3"></input>
+		<input type="button" id="save4"></input>
 		<input type="checkbox" id="sound">Snd</input>
 		<div class="canvas-wrapper">
 			<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
@@ -39,23 +44,24 @@
 			graphicCanvas.setAttribute("height", 200);
 			var graphicCanvasCtx = graphicCanvas.getContext("2d");
 			// ディスクドライブ
-			var disks = [
-				new HuBasicDisk(new Context()), // A
-				null,							// B
-				new HuBasicDisk(new Context()),	// C
-				new HuBasicDisk(new Context()), // D
-				null							// E RAMディスク @todo test
-			];
-			// Bドライブに2Dディスクを設定
-			var ctxDisk1 = new Context();
-			ctxDisk1.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
-			ctxDisk1.Setting.FormatImage = true; // マウント時にフォーマットするように設定
-			disks[1] = new HuBasicDisk(ctxDisk1);
-			// Eドライブに2Dディスクを設定
-			var ctxDisk4 = new Context();
-			ctxDisk4.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
-			ctxDisk4.Setting.FormatImage = true; // マウント時にフォーマットするように設定
-			disks[4] = new HuBasicDisk(ctxDisk4);
+			var disks = [];
+			for(let i = 0; i < 5; ++i) {
+				var ctxDisk = new Context();
+				ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+				ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+				disks.push(new HuBasicDisk(ctxDisk));
+
+				const diskSave = document.getElementById('save' + i);
+				diskSave.addEventListener('click', evt => {
+					const diskImage = disks[i].SaveDisk(false);
+					const blob = new Blob([diskImage], {type: 'application/octet-stream'}); // Blob オブジェクトの作成
+					const link = document.createElement('a');
+					link.download = 'disk' + String.fromCodePoint(0x41 + i) + '.d88'; // ダウンロードファイル名称
+					link.href = window.URL.createObjectURL(blob); // オブジェクト URL を生成
+					link.click(); // クリックイベントを発生させる
+					window.URL.revokeObjectURL(link.href); // オブジェクト URL を解放」
+				});
+			}
 
 			var audio = new CatAudio();
 			var gamePad = new CatGamePad(navigator);

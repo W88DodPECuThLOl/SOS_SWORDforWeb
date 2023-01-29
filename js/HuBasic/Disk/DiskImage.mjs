@@ -17,7 +17,7 @@ export default class {
 	 * D88のヘッダサイズ
 	 * @type {number}
 	 */
-	#DefaultHeaderSize = 0x2b0;
+	#D88HeaderSize = 0x2b0;
 
 	/**
 	 * @type {number}
@@ -35,7 +35,6 @@ export default class {
 	 */
 	TrackPerSector = 0;
 
-
 	/**
 	 * D88のヘッダ部分に記録されているディスクの名前
 	 * 
@@ -43,12 +42,12 @@ export default class {
 	 * 未加工の生のママのデータ
 	 * @type {Uint8Array}
 	 */
-	DiskName;
+	DiskName = new Uint8Array(17);
 	/**
 	 * ライトプロテクト
 	 * @type {boolean}
 	 */
-	IsWriteProtect;
+	IsWriteProtect = false;
 
 	/**
 	 * ディスクの種類
@@ -117,16 +116,13 @@ export default class {
 
 		const Setting = Context.Setting;
 		this.#ImageFile = Setting.ImageFile;
-		this.PlainFormat = Setting.DiskType.PlainFormat;
-
-		// ディスクの名前
-		this.DiskName = new Uint8Array(17);
-		// ライトプロテクト
-		this.IsWriteProtect = false;
+		// ディスクタイプ
 		this.DiskType = Setting.DiskType;
+		// ログ
 		this.Log = Context.Log;
+		// 生データかどうか（ヘッダがない）
+		this.PlainFormat = this.DiskType.GetPlainFormat();
 	}
-
 
 	/**
 	 * 書き込み用としてセクタのデータ部分をデータコントローラで取得する
@@ -166,8 +162,8 @@ export default class {
 	 */
 	Format() {
 		const tf = this.DiskType.CurrentTrackFormat;
-		this.TrackPerSector = tf.TrackPerSector;
-		this.#TrackFormat(tf.TrackMax, tf.TrackPerSector);
+		this.TrackPerSector = tf.GetTrackPerSector();
+		this.#TrackFormat(tf.GetTrackMax(), tf.GetTrackPerSector(), this.#DefaultSectorSize);
 		this.CurrentHeaderSize = 0;
 	}
 
@@ -175,18 +171,18 @@ export default class {
 	 * フォーマットする
 	 * @param {number} TrackMax ディスクの最大トラック数
 	 * @param {number} TrackPerSector １トラックのセクタ数
+	 * @param {number} SectorSize １セクタのバイト数
 	 */
-	#TrackFormat(TrackMax, TrackPerSector) {
+	#TrackFormat(TrackMax, TrackPerSector, SectorSize) {
 		this.Sectors = new Array();
-		let Position = this.PlainFormat ? 0x0 : this.#DefaultHeaderSize;
+		let Position = this.PlainFormat ? 0x0 : this.#D88HeaderSize;
 		for (let t = 0; t < TrackMax; t++) {
 			this.TrackAddress[t] = Position;
 			for (let s = 0; s < TrackPerSector; s++) {
 				const Sector = new SectorData();
-				Sector.Format(t, s, TrackPerSector, this.#DefaultSectorSize, Position);
-
+				Sector.Format(t, s, TrackPerSector, SectorSize, Position);
 				this.Sectors.push(Sector);
-				Position += this.#DefaultSectorSize;
+				Position += SectorSize;
 			}
 		}
 	}
@@ -207,17 +203,22 @@ export default class {
 		return this.#ReadSectors(fs);
 	}
 
-
-
 	/**
 	 * イメージを出力する
 	 * @param {Stream} fs
 	 */
 	Write(fs) {
+		/*
 		const RebuildImage = this.#IsRebuildRequired();
 		this.Log.Verbose("RebuildImage:" + RebuildImage);
 		if (!this.PlainFormat) {
 			if (RebuildImage) this.#WriteHeader(fs);
+		}
+		this.#WriteSectors(fs, RebuildImage);
+		*/
+		const RebuildImage = true;
+		if (!this.PlainFormat) {
+			this.#WriteHeader(fs);
 		}
 		this.#WriteSectors(fs, RebuildImage);
 	}
@@ -239,7 +240,7 @@ export default class {
 		}
 
 		// プレーンフォーマットでなく、ヘッダが異なる場合は再構築
-		if (!this.PlainFormat && this.CurrentHeaderSize != this.#DefaultHeaderSize) return true;
+		if (!this.PlainFormat && this.CurrentHeaderSize != this.#D88HeaderSize) return true;
 		if (LastTrack < MaxDirtyTrack) return true;
 
 		return false;
@@ -250,24 +251,24 @@ export default class {
 	 * @param {Stream} fs 
 	 */
 	#WriteHeader(fs) {
-		let header = new Uint8Array(this.#DefaultHeaderSize);
-		this.ImageSize = header.length;
+		this.ImageSize = this.#D88HeaderSize;
 		let t = 0;
 		for(let s of this.Sectors) {
 			if (s.Sector == 0x01) this.TrackAddress[t++] = this.ImageSize;
 			this.ImageSize += s.GetLength();
 		}
 
+		let header = new Uint8Array(this.#D88HeaderSize);
 		const dc = new DataController(header);
-		dc.SetCopy(0, this.TextEncoding.GetBytes(this.DiskName), 0x10);
+		dc.SetCopy(0, this.DiskName);
 		dc.SetByte(0x1a, this.IsWriteProtect ? 0x10 : 0x00);
-		dc.SetByte(0x1b, this.DiskType.ImageTypeByte);
+		dc.SetByte(0x1b, this.DiskType.ImageTypeByte());
 		dc.SetLong(0x1c, this.ImageSize);
 
 		// トラック分のアドレスを出力する
 		for (let i = 0; i < this.#MaxTrack; i++) {
 			const a = this.TrackAddress[i];
-			if (a == 0x00) break;
+			if (a === undefined || a == 0) break;
 			dc.SetLong(0x20 + (i * 4), a);
 		}
 		fs.Write(header, 0, header.length);
@@ -313,8 +314,8 @@ export default class {
 		let rc = true;
 
 		// ヘッダ部分読み込み
-		let header = new Uint8Array(this.#DefaultHeaderSize);
-		if(fs.Read(header, 0, header.length) != this.#DefaultHeaderSize) {
+		let header = new Uint8Array(this.#D88HeaderSize);
+		if(fs.Read(header, 0, header.length) != this.#D88HeaderSize) {
 			this.Log.Error("ディスクイメージサイズが不正です。ヘッダ部分を読み込めませんでした。" + fs.GetSize());
 			return false;
 		}
@@ -381,7 +382,7 @@ export default class {
 		let Track = 0; // トラックは0オリジン
 		let SectorCount = 1; // セクタは1オリジン
 		let Address = this.PlainFormat ? 0x00 : this.TrackAddress[Track];
-		if (!this.PlainFormat && Address < this.#DefaultHeaderSize) {
+		if (!this.PlainFormat && Address < this.#D88HeaderSize) {
 			this.Log.Error("トラック部分のアドレスが不正です。 Track:" + Track + " トラック部分のアドレス:0x" + (Address).toString(16));
 			return false;
 		}
@@ -401,7 +402,7 @@ export default class {
 					// トラックが無いので、スキップ
 					continue;
 				}
-				if (Address < this.#DefaultHeaderSize) {
+				if (Address < this.#D88HeaderSize) {
 					this.Log.Error("トラック部分のアドレスが不正です。 Track:" + track + " トラック部分のアドレス:0x" + (Address).toString(16));
 					return false;
 				}

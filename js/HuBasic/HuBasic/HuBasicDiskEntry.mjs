@@ -121,6 +121,10 @@ export default class {
 		}
 	}
 
+	/**
+	 * ディスクイメージの書き込み
+	 * @param {Stream} fs
+	 */
 	WriteImage(fs) {
 		this.DiskImage.Write(fs);
 	}
@@ -140,10 +144,10 @@ export default class {
 	/**
 	 * ディスクイメージの読み込み
 	 * @param {Stream} fs
-	 * @param {boolean} plainFormat
+	 * @param {boolean} IsPlainFormat ヘッダ無しかどうか
 	 */
-	Read(fs, plainFormat) {
-		this.DiskImage.PlainFormat = plainFormat;
+	Read(fs, IsPlainFormat) {
+		this.DiskImage.PlainFormat = IsPlainFormat;
 		if (!this.DiskImage.Read(fs)) {
 			return false;
 		}
@@ -151,6 +155,7 @@ export default class {
 		this.#SetParameter(false);
 		return true;
 	}
+
 	FormatDisk() {
 		this.DiskImage.Format();
 		this.#SetParameter(true);

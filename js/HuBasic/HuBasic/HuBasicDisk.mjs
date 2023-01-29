@@ -14,6 +14,7 @@ export default class {
 	 */
 	Log;
 	/**
+	 * ディスクイメージ
 	 * @type {HuBasicDiskImage}
 	 */
 	Image;
@@ -85,7 +86,8 @@ export default class {
 	AddFile(Files, EntryName) {
 		if (Files.length == 1) {
 			this.Log.Info("No files to add.");
-			this.Image.WriteImage();
+			//@todo
+			//this.Image.WriteImage();
 			return true;
 		}
 		return this.Image.AddFile(Files.slice(1), EntryName);
@@ -156,16 +158,26 @@ export default class {
 	 * ディスクを設定する
 	 * @param {string} Filename ディスクイメージのファイル名
 	 * @param {Uint8Array} RawDiskImage 生のディスクイメージデータ
-	 * @param {boolean} PlainFormat ヘッダ無しかどうか
+	 * @param {boolean} IsPlainFormat ヘッダ無しかどうか
 	 * @returns {boolean} セットに成功したら true を返す
 	 */
-	mount(Filename, RawDiskImage, PlainFormat)
+	mount(Filename, RawDiskImage, IsPlainFormat)
 	{
-		return this.Image.SetDisk(Filename, RawDiskImage, PlainFormat);
+		return this.Image.SetDisk(Filename, RawDiskImage, IsPlainFormat);
 	}
 	unmount()
 	{
 		return this.Image.Unmount();
+	}
+	/**
+	 * ディスクイメージの書き出し
+	 * 
+	 * @param {boolean} IsPlainFormat ヘッダ無しかどうか
+	 * @returns {Uint8Array}
+	 */
+	SaveDisk(IsPlainFormat)
+	{
+		return this.Image.WriteImage(IsPlainFormat);
 	}
 
 	/**
