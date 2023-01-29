@@ -180,33 +180,37 @@ export default class {
 					if(codePoint==0xAD) {
 						return '<span class="cursor"><span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span></span>';
 					}
+					const moji = String.fromCodePoint(codePoint);
 					if(this.isHalf && codePoint >= 0x100) {
-						return '<span class="cursor"><span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span></span>';
+						return '<span class="cursor"><span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font></span></span>';
 					}
 					if((attr & 3) == 1) {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + String.fromCodePoint(codePoint) + '</span></font></span></span>';
+						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + moji + '</span></font></span></span>';
 					} else if((attr & 3) == 2) {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot180">' + String.fromCodePoint(codePoint) + '</span></font></span>';
+						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot180">' + moji + '</span></font></span>';
 					} else if((attr & 3) == 3) {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot270">' + String.fromCodePoint(codePoint) + '</span></font></span>';
+						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot270">' + moji + '</span></font></span>';
 					} else {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span>';
+						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font></span>';
 					}
 				} else {
 					if(codePoint==0xAD) {
 						return '<span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span>';
 					}
+					const moji = String.fromCodePoint(codePoint);
+					//const moji = "&#" + codePoint + ";";
+
 					if(this.isHalf && codePoint >= 0x100) {
-						return '<span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font></span>';
+						return '<span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font></span>';
 					}
 					if((attr & 3) == 1) {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + String.fromCodePoint(codePoint) + '</span></font>';
+						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + moji + '</span></font>';
 					} else if((attr & 3) == 2) {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot180">' + String.fromCodePoint(codePoint) + '</span></font>';
+						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot180">' + moji + '</span></font>';
 					} else if((attr & 3) == 3) {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot270">' + String.fromCodePoint(codePoint) + '</span></font>';
+						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot270">' + moji + '</span></font>';
 					} else {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(codePoint) + '</span></font>';
+						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font>';
 					}
 				}
 			}

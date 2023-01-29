@@ -71,10 +71,11 @@
 			// ?exec=実行したいファイルのURL
 			const queryString = window.location.search;
 			const urlParams = new URLSearchParams(queryString);
-			const fontSet = urlParams.get('fnt');
-			const execFile = urlParams.get('exec');
-			const beepvol = urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.1;
-			const beepfile = urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV';
+			const fontSet = urlParams.get('fnt'); // 起動時に使用するフォント名
+			const execFile = urlParams.get('exec'); // 起動時に使用するイメージファイル名
+			const beepvol = urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.1; // BEEP音の音量
+			const beepfile = urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV'; // BEEP音で使用する音声ファイル名
+			const GamePadConfig = parseGamePadConfig(queryString); // ゲームパッドの設定
 
 			// BELL(BEEP)音
 			var sound = new Audio(beepfile); // BEEPで再生する音声ファイル
@@ -214,10 +215,135 @@
 				return true;
 			}
 
+			// ゲームパッドの設定
+			function parseGamePadConfig(queryString)
+			{
+				const urlParams = new URLSearchParams(queryString);
+				let cfg = {
+					/**
+					 * ゲームパッドをキーに割り当てるかどうか
+					 */
+					KeyAssign: urlParams.get('padKeyAssign') ? urlParams.get('padKeyAssign') : false,
+
+					/**
+					 * テンキー（数字）に左アナログスティックを割り当てるかどうか
+					 * 
+					 * 0: 割り当てない
+					 * 1: 左アナログスティックを割り当てる
+					 */
+					AssignNumPad: urlParams.get('padAssignNumPad') ? urlParams.get('padAssignNumPad') : 0,
+
+					/**
+					 * ボタン類のキーマッピング
+					 */
+					ButtonMap: []
+				};
+				// 定型
+				if(urlParams.get('padMap') == "boya") {
+					cfg.KeyAssign = true;
+					cfg.AssignNumPad = 1;
+					cfg.ButtonMap = [
+						{ GamePadButtonIndex: [gamePad.BUTTON_A_INDEX],  KeyCode: 0x20 },  // spc
+						{ GamePadButtonIndex: [gamePad.BUTTON_LT_INDEX], KeyCode: 0x0d },  // CR
+						{ GamePadButtonIndex: [gamePad.BUTTON_B_INDEX, gamePad.BUTTON_Y_INDEX],  KeyCode: 0x5a },  // Z
+						{ GamePadButtonIndex: [gamePad.BUTTON_X_INDEX, gamePad.BUTTON_LB_INDEX],  KeyCode: 0x58 },  // X
+						{ GamePadButtonIndex: [gamePad.BUTTON_RB_INDEX, gamePad.BUTTON_RT_INDEX], KeyCode: 0x43 },  // C
+					];
+				}
+				// URLパラメータからボタンを割り当てる
+				// 例）padKey20=0     Aボタン(0)をキーコード0x20(スペース)に割り当てる
+				// 例）padKeyD=1      Bボタン(1)をキーコード0x0D(エンター)に割り当てる
+				// ボタンの値
+				//   0: A
+				//   1: B
+				//   2: X
+				//   3: Y
+				//   4: LB
+				//   5: RB
+				//   6: LT
+				//   7: RT
+				//   8: BACK
+				//   9: START
+				//  10: L3
+				//  11: R3
+				//  12: デジタルの方向キーの上
+				//  13: デジタルの方向キーの下
+				//  14: デジタルの方向キーの左
+				//  15: デジタルの方向キーの右
+				//  16: HOME
+				//　仮想ボタン
+				//  28: 左アナログスティックとデジタルを合わせたもの 右
+				//  29: 左アナログスティックとデジタルを合わせたもの 左
+				//  30: 左アナログスティックとデジタルを合わせたもの 上
+				//  31: 左アナログスティックとデジタルを合わせたもの 下
+				for(let keyCode = 0; keyCode < 0x100; ++keyCode) {
+					const name = 'padKey' + keyCode.toString(16).toUpperCase();
+					if(urlParams.has(name)) {
+						let k = keyCode;
+						switch(keyCode) {
+							case 0x1C: k = "ArrowRight"; break;
+							case 0x1D: k = "ArrowLeft"; break;
+							case 0x1E: k = "ArrowUp"; break;
+							case 0x1F: k = "ArrowDown"; break;
+						}
+						cfg.ButtonMap.push({ GamePadButtonIndex: [urlParams.get(name)], KeyCode: k } );
+						// １個でも設定されていたらゲームパッドのキー割り当てを有効にしておく
+						cfg.KeyAssign = true;
+					}
+				}
+				return cfg;
+			}
+
+			function gamePadToKey(gamePadConfig)
+			{
+				if(!gamePadConfig.KeyAssign) {
+					return; // ゲームパッドのキーボード割り当て無効
+				}
+				// ボタン
+				let release = false ;
+				for(let m of gamePadConfig.ButtonMap) {
+					// 押した、離した
+					let pressed = false;
+					let released = false;
+					for(let idx of m.GamePadButtonIndex) {
+						const btn = gamePad.buttons[idx];
+						pressed  = pressed  || btn.pressed;
+						released = released || btn.released;
+					}
+					// キーとして反映させる
+					if (pressed) {
+						catKey.enqueueKeyBuffer(m.KeyCode) ;
+					} else if (released) {
+						catKey.keyUp(m.KeyCode) ;
+						release = true ;
+					}
+				}
+				// 方向
+				if(gamePadConfig.AssignNumPad == 1) {
+					// テンキー（数字）に反映させる
+					// メモ）ボタン類が離されたときに、方向が入っていたら方向が押されたように。
+					// 　　　移動中に、ボタンおしたときに、移動が中断されにくくなるので。
+					for (let k = 1; k <= 9; ++k) {
+						const btn = gamePad.buttons[gamePad.BUTTON_VDIR_NUM0 + k];
+						if (btn.current) {
+							if (btn.pressed || release == true) {
+								catKey.enqueueKeyBuffer(0x30 + k) ;
+							}
+						} else {
+							if (btn.released) {
+								catKey.keyUp(0x30 + k) ;
+							}
+						}
+					}
+				}
+			}
+
 			function update()
 			{
 				// ゲームパッドの更新
 				gamePad.update();
+				// ゲームパッドのキー割り当て処理
+				gamePadToKey(GamePadConfig);
 				// Z80えみゅ
 				z80Emu.update(ctx);
 				// ライン入力
