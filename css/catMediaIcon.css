@@ -1,0 +1,164 @@
+@keyframes access-lamp {
+    0%,100%{
+        filter: drop-shadow(1px 1px 2px #c0c000);
+        transform:rotateZ(0deg);
+    }
+    25%{
+        transform:rotateZ(2deg);
+    }
+    50%{
+        filter: drop-shadow(1px 1px 6px #FF0000);
+        transform:rotateZ(-2deg);
+    }
+}
+
+/* unmout状態 */
+.cat-media-icon-fd {
+    background: url("../img/icon/フロッピーディスクアイコン3.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    filter: brightness(0.7);
+}
+.cat-media-icon-fd:hover {
+    filter:
+        brightness(0.7) 
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+
+/* mount状態 */
+.cat-media-icon-fd-mnt {
+    background: url("../img/icon/フロッピーディスクアイコン3.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    filter: brightness(1.0);
+}
+.cat-media-icon-fd-mnt:hover {
+    filter:
+        brightness(1.0) 
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+
+/* mount状態 - アクセス中 */
+.cat-media-icon-fd-mnt-acc {
+    background: url("../img/icon/フロッピーディスクアイコン3.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    filter: brightness(1.0);
+    animation: access-lamp 0.2s linear; /* infinite; */
+    animation-iteration-count: 5;
+}
+.cat-media-icon-fd-mnt-acc:hover {
+    filter:
+        brightness(1.0) 
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* unmout状態 */
+.cat-media-icon-ram-disk {
+    background: url("../img/icon/メモリアイコン1.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    filter: brightness(0.8);
+
+    animation: access-lamp 0.2s linear;
+    animation-iteration-count: 5;
+}
+.cat-media-icon-ram-disk:hover {
+    filter:
+        brightness(0.8)
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+/* mount状態 */
+.cat-media-icon-ram-disk-mnt {
+    background: url("../img/icon/メモリアイコン1.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    filter: brightness(1.0);
+}
+.cat-media-icon-ram-disk-mnt:hover {
+    filter:
+        brightness(1.0) 
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+/* mount状態 - アクセス中 */
+.cat-media-icon-ram-disk-mnt-acc {
+    background: url("../img/icon/メモリアイコン1.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    filter: brightness(1.0);
+    animation: access-lamp 0.1s linear; /* infinite; */
+    animation-iteration-count: 5;
+}
+.cat-media-icon-ram-disk-mnt-acc:hover {
+    filter:
+        brightness(1.0) 
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+
+
+
+
+
+
+.cat-media-icon-tape {
+    background: url("../img/icon/カセットテープのフリーアイコン2.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 28px;
+    height: 24px;
+    transform: translate(1px, -1px);
+    transition: all .15s;
+    filter: brightness(0.8);
+}
+.cat-media-icon-tape:hover {
+    filter:
+        brightness(0.8)
+        drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, -2px);
+}

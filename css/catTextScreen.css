@@ -19,8 +19,9 @@
     font-size: 16px;
     line-height: 16px;
     transform-origin: top left;
-    width: 1280px;
-    height: 400px;
+    width: 100%;
+    height: 100%;
+
     background-color:#00000000;
 }
 
@@ -56,7 +57,7 @@
 }
 
 .graphicsLayer {
-    width: 640px;
+    width: 100%;
     height: 200px;
     transform-origin: top left;
     transform: scaleY(2.0);
@@ -64,6 +65,11 @@
 
 .canvas-wrapper {
     position: relative;
+    width: 640px;
+    height: 400px;
+    margin: 0;
+
+    transform-origin: top left;
 }
 
 .canvas-wrapper canvas {
@@ -76,4 +82,208 @@
     position: absolute;
     top: 0;
     left: 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+.cat-bar {
+    background-color: #333;
+    width: 640px;
+    cursor: default;
+}
+
+.cat-bar-inner {
+    display: flex; /* 横並びに配置する */
+    border-color: #111;
+    border-style:solid;
+    border-width: 1px;
+}
+
+.cat-bar-media {
+    color: #CECECE;
+    text-align: center;
+}
+
+.cat-bar-media ul {
+    display: flex; /* 横並びに配置する */
+    list-style: none; /* リストの●を出さないように */
+    margin: 0px;
+}
+
+.cat-bar-media ul li {
+    margin-top: 1px;
+    margin-bottom: 1px;
+    margin-right: 3px;
+    position: relative;
+    width: 24px;
+    height: 24px;
+}
+
+.cat-bar-media ul li ul {
+    display: block; /* 子供は縦の並びに配置する */
+    position: absolute;
+
+    top: 0px;
+    left: -4px;
+    height: 0px;
+    width: 212px;
+
+    /* 非表示 */
+    visibility: hidden;
+    /* 矩形でクリッピング */
+    clip-path:inset(0px);
+
+    background-color: #101010;
+    transition: all 0.1s;
+    transition-timing-function: ease-out;
+}
+.cat-bar-media ul li:hover ul {
+    visibility: visible;
+    top: -126px;
+    height: 126px; /* 4:102 5:126 */
+}
+
+
+
+/*下の階層を持っているulの指定*/
+.cat-bar-media ul li ul li {
+    /*絶対配置で位置を指定*/
+    position: relative;
+    width: 250px;
+    left: -40px;
+    height: 24px;
+}
+
+.cat-bar-media ul li ul li div {
+    background-color: #292929;
+/*    color: #CECECE;
+    text-align: center; */
+    height: 24px;
+
+    transition: all 0.1s;
+}
+.cat-bar-media ul li ul li div:hover {
+    background-color: #CFCFCF;
+    color: #202020;
+}
+
+
+.media-menu-item-disable {
+    color: #606060;
+}
+
+
+
+
+
+.cat-bar-system {
+    display: flex; /* 横に並べる */
+    margin: 0 0 0 auto; /* 右寄せ */
+}
+
+.cat-volume-off-icon {
+    background: url("../img/icon/ボリュームOFFアイコン.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    margin-right: 3px;
+}
+.cat-volume-off-icon:hover {
+    filter: drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px);
+}
+
+.cat-volume-icon {
+    background: url("../img/icon/ボリュームアイコン3.png");
+    background-repeat: no-repeat;
+    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
+    width: 24px;
+    height: 24px;
+    transform: translate(1px, 1px);
+    transition: all .15s;
+    margin-right: 3px;
+
+    /* 非表示 */
+    display: none;
+}
+.cat-volume-icon:hover {
+    filter: drop-shadow(1px 1px 2px rgb(192, 192, 0));
+    transform: translate(0px, 0px); 
+}
+
+.cat-volume-setting {
+    display: flex; /* 横に並べる */
+    /* position: relative; */
+}
+.cat-volume-setting input {
+    /*
+    position: absolute;
+    transform-origin: 100% 50%; transform: translateX(-100px) rotate(-90deg);
+    top: -115px;
+    left: 12px;
+    height: 24px;
+    width: 100px;
+    */
+    top: 5px;
+    width: 80px;
+
+    /* 非表示 */
+    display: none;
 }

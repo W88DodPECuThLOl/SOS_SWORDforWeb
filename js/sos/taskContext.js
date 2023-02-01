@@ -96,7 +96,7 @@ class TaskContext {
 	{
 		this.catTextScreen.clearScreen();
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
-		this.printNativeMsg("Version 0.00.01 猫大名 ねこ猫\n");
+		this.printNativeMsg("Version 0.00.02 猫大名 ねこ猫\n");
 	}
 
 	/**

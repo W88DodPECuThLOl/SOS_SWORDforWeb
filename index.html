@@ -14,23 +14,116 @@
 		<script src="./js/taskMonitor.js"></script>
 		<script src="./js/cat/catAudio.js"></script>
 		<link rel="stylesheet" href="./css/catTextScreen.css">
+		<link rel="stylesheet" href="./css/sosLogo.css">
+		<link rel="stylesheet" href="./css/catMediaIcon.css">
+		<link rel="stylesheet" href="./css/catSystemIcon.css">
+		<style>
+			@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap');
+		</style>
 	</head>
 	<body>
-		<input type="file" id="disk0" accept=".d88,.2D,.obj"/>
-		<input type="button" id="save0"></input>
-		<input type="button" id="save1"></input>
-		<input type="button" id="save2"></input>
-		<input type="button" id="save3"></input>
-		<input type="button" id="save4"></input>
-		<input type="checkbox" id="sound">Snd</input>
-		<div class="canvas-wrapper">
-			<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
-			<div id="sos_output" class="console"></div>
+		<div>
+			<div id="fs-target">
+				<div id="fs-inner" class="canvas-wrapper">
+					<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
+					<div id="sos_output" class="console"></div>
+				</div>
+			</div>
+			<div class="cat-bar">
+				<div class="cat-bar-inner">
+					<div id="cat-bar-media" class="cat-bar-media">
+						<ul>
+							<li><div id="drive0" class="cat-media-icon-fd"></div>
+								<ul>
+									<li><div>Drive A</div></li>
+									<li>
+										<div id="mnt0">Insert disk image</div>
+										<input type="file" id="disk0" accept=".d88,.2D,.obj" style="display:none;"/>
+									</li>
+									<li><div id="blankdisk0">Insert blank image</div></li>
+									<li><div id="save0" class="media-menu-item-disable">Save disk image</div></li>
+									<li><div id="unmnt0" class="media-menu-item-disable">Remove disk image</div></li>
+								</ul>
+							</li>
+							<li><div id="drive1" class="cat-media-icon-fd"></div>
+								<ul>
+									<li><div>Drive B</div></li>
+									<li>
+										<div id="mnt1">Insert disk image</div>
+										<input type="file" id="disk1" accept=".d88,.2D,.obj" style="display:none;"/>
+									</li>
+									<li><div id="blankdisk1">Insert blank image</div></li>
+									<li><div id="save1" class="media-menu-item-disable">Save disk image</div></li>
+									<li><div id="unmnt1" class="media-menu-item-disable">Remove disk image</div></li>
+								</ul>
+							</li>
+							<li><div id="drive2" class="cat-media-icon-fd"></div>
+								<ul>
+									<li><div>Drive C</div></li>
+									<li>
+										<div id="mnt2">Insert disk image</div>
+										<input type="file" id="disk2" accept=".d88,.2D,.obj" style="display:none;"/>
+									</li>
+									<li><div id="blankdisk2">Insert blank image</div></li>
+									<li><div id="save2" class="media-menu-item-disable">Save disk image</div></li>
+									<li><div id="unmnt2" class="media-menu-item-disable">Remove disk image</div></li>
+								</ul>
+							</li>
+							<li><div id="drive3" class="cat-media-icon-fd"></div>
+								<ul>
+									<li><div>Drive D</div></li>
+									<li>
+										<div id="mnt3">Insert disk image</div>
+										<input type="file" id="disk3" accept=".d88,.2D,.obj" style="display:none;"/>
+									</li>
+									<li><div id="blankdisk3">Insert blank image</div></li>
+									<li><div id="save3" class="media-menu-item-disable">Save disk image</div></li>
+									<li><div id="unmnt3" class="media-menu-item-disable">Remove disk image</div></li>
+								</ul>
+							</li>
+							<li><div id="drive4" class="cat-media-icon-ram-disk"></div>
+								<ul>
+									<li><div>Drive E(RAM DISK)</div></li>
+									<li><div id="save4" class="media-menu-item-disable">Save disk image</div></li>
+								</ul>
+							</li>
+							<!--
+							<li><div class="cat-media-icon-tape"></div>
+								<ul>
+									<li><div>Drive T(Tape)</div></li>
+									<li><div>Insert tape image</div></li>
+									<li><div>Remove tape image</div></li>
+								</ul>
+							</li>
+							-->
+						</ul>
+					</div>
+					<div class="sos-logo">
+						<span>S-OS“SWORD”</span>
+					</div>
+					<div id="cat-bar-system" class="cat-bar-system">
+						<div class="cat-volume-setting">
+							<div id="cat-volume-off" class="cat-volume-off-icon"></div>
+							<div id="cat-volume" class="cat-volume-icon"></div>
+							<input id="cat-volume-bar" type="range" class="input-range" value="0" min="0" max="100" data-unit="%">
+						</div>
+						<div id="full-screen" class="cat-media-icon-full-screen"></div>
+						<!--
+						<div class="cat-system-icon-setting"></div>
+						<div class="cat-system-icon-game-pad"></div>
+						-->
+					<div>
+				</div>
+			</div>
 		</div>
+
+
+
+
+
 
 		<script type="module">
 			"use strict";
-
 			// D88
 			import Context from './js/HuBasic/HuBasic/Context.mjs';
 			import HuBasicDisk from './js/HuBasic/HuBasic/HuBasicDisk.mjs';
@@ -38,6 +131,51 @@
 			import CatKey from './js/cat/catKey.js';
 			import CatTextScreen from './js/cat/catTextScreen.js';
 			import CatGamePad from './js/cat/catGamePad.js';
+			import CatFullScreen from './js/cat/catFullScreen.js';
+			
+			// フルスクリーン制御
+			new CatFullScreen(document, "fs-target", "full-screen", evt => {
+					// フルスクリーンの設定
+					const screenWidth = window.parent.screen.width;
+					const screenHeight = window.parent.screen.height;
+					const elem = document.getElementById("fs-inner")
+					elem.style.transform = "scale(" + screenWidth / 640 + "," + screenHeight / 400 + ")";
+				},
+				evt => {
+					// フルスクリーン抜けたときの設定
+					const elem = document.getElementById("fs-inner")
+					elem.style.transform = "scale(" + 1 + "," + 1 + ")";
+				}
+			);
+
+			// サウンド制御
+			var soundMute = true;
+			var soundMasterVolume = 0.5;
+			{
+				const volumeCtrl = document.getElementById("cat-volume");
+				const volumeBar = document.getElementById("cat-volume-bar");
+				volumeBar.value = soundMasterVolume * 100;
+
+				volumeCtrl.addEventListener("click", ()=>{
+					soundMute = !soundMute;
+					if(soundMute) {
+						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームOFFアイコン.png)';
+					} else {
+						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームアイコン3.png)';
+					}
+				});
+				volumeBar.addEventListener("change", ()=>{
+					soundMute = false;
+					if(soundMute) {
+						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームOFFアイコン.png)';
+					} else {
+						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームアイコン3.png)';
+					}
+					soundMasterVolume = volumeBar.value / 100;
+					//console.log(soundMasterVolume);
+				});
+			}
+
 			// グラフィック
 			const graphicCanvas = document.getElementById("graphicCanvas");
 			graphicCanvas.setAttribute("width", 640);
@@ -47,8 +185,11 @@
 			var disks = [];
 			for(let i = 0; i < 5; ++i) {
 				var ctxDisk = new Context();
-				ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
-				ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+				if(i != 2 && i != 3) {
+					ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+					ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+				}
+				ctxDisk.onDriveStateChange = (isMount, isAccess) => { updateDriveInfo(i, isMount, isAccess); };
 				disks.push(new HuBasicDisk(ctxDisk));
 
 				const diskSave = document.getElementById('save' + i);
@@ -79,7 +220,10 @@
 			const urlParams = new URLSearchParams(queryString);
 			const fontSet = urlParams.get('fnt'); // 起動時に使用するフォント名
 			const execFile = urlParams.get('exec'); // 起動時に使用するイメージファイル名
-			const beepvol = urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.1; // BEEP音の音量
+			const mountDisk1 = urlParams.get('mnt1'); // B
+			const mountDisk2 = urlParams.get('mnt2'); // C
+			const mountDisk3 = urlParams.get('mnt3'); // D
+			var beepvol = urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.2; // BEEP音の音量
 			const beepfile = urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV'; // BEEP音で使用する音声ファイル名
 			const GamePadConfig = parseGamePadConfig(queryString); // ゲームパッドの設定
 
@@ -91,9 +235,11 @@
 				 */
 				bell: ()=> {
 					if(beepvol > 0.0) {
-						sound.currentTime = 0; // 連続再生するときのおまじないらしい
-						sound.volume = beepvol; // 音量
-						sound.play();
+						if(!soundMute) {
+							sound.currentTime = 0; // 連続再生するときのおまじないらしい
+							sound.volume = beepvol * soundMasterVolume; // 音量
+							sound.play();
+						}
 					}
 				}
 			}
@@ -120,8 +266,14 @@
 
 			function diskSetup()
 			{
-				for(let i = 0; i < 1; i++) {
+				for(let i = 0; i < 4; i++) {
 					const disk = document.getElementById('disk' + i);
+					// マウント
+					const mnt = document.getElementById('mnt' + i);
+					mnt.addEventListener('click', evt => {
+						disk.value = '';
+						disk.click();
+					});
 					disk.addEventListener('change', evt => {
 						let input = evt.target;
 						if (input.files.length == 0) {
@@ -136,12 +288,75 @@
 						};
 						reader.readAsArrayBuffer(file);
 					});
+					// アンマウント
+					const unmnt = document.getElementById('unmnt' + i);
+					unmnt.addEventListener('click', evt => {
+						disks[i].unmount();
+						disk.value = '';
+					});
+					// 空きディスク
+					const blankDisk = document.getElementById('blankdisk' + i);
+					blankDisk.addEventListener('click', evt => {
+						const ctxDisk = new Context();
+						ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+						ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+						ctxDisk.onDriveStateChange = (isMount, isAccess) => { updateDriveInfo(i, isMount, isAccess); };
+						disks[i] = new HuBasicDisk(ctxDisk);
+						disk.value = '';
+					});
+				}
+			}
+
+			/**
+			 * ドライブの状態を更新する
+			 */
+			function updateDriveInfo(driveNo, isMount, isAccess)
+			{
+				let baseClass = driveNo <= 3 ? "cat-media-icon-fd" : "cat-media-icon-ram-disk";
+				const drive = document.getElementById('drive' + driveNo);
+				const saveMenuItem = document.getElementById('save' + driveNo);
+				const unmountMenuItem = document.getElementById('unmnt' + driveNo);
+				if(isMount) {
+					if(isAccess) {
+						// ドライブアクセス
+						//
+						// アニメ再生
+						// メモ）１回リセットして次のフレームで、再生させる
+						//      そうしないと、再生されない
+						drive.className = baseClass + "-mnt";
+						window.requestAnimationFrame(function(time) {
+							window.requestAnimationFrame(function(time) {
+								drive.className = baseClass + "-mnt-acc";
+							});
+						});
+					} else {
+						// マウント状態
+						drive.className = baseClass + "-mnt";
+					}
+					// メニュー項目
+					if(unmountMenuItem) {
+						unmountMenuItem.className = "";
+					}
+					if(saveMenuItem) {
+						saveMenuItem.className = "";
+					}
+				} else {
+					// アンマウント状態
+					drive.className = baseClass;
+					// メニュー項目
+					if(unmountMenuItem) {
+						unmountMenuItem.className = "media-menu-item-disable";
+					}
+					if(saveMenuItem) {
+						saveMenuItem.className = "media-menu-item-disable";
+					}
 				}
 			}
 
 			/**
 			 * ディスクイメージをマウント、または、１個のファイルを実行する
 			 * @param {number} deviceNo デバイス(0～3)
+			 * @param filename
 			 * @param {Uint8Array} readData イメージデータ
 			 */
 			function mountImage(deviceNo, filename, readData)
@@ -392,12 +607,17 @@
 			window.onload = async function() {
 				// サウンド
 				let psgBin = await (await fetch('./psg.wasm')).arrayBuffer();
-				const soundOn = document.getElementById("sound");
-				soundOn.addEventListener("change", ()=>{
+				const soundOn = document.getElementById("cat-volume-off");
+				const volume = document.getElementById("cat-volume");
+				const volumeBar = document.getElementById("cat-volume-bar");
+				soundOn.addEventListener("click", ()=>{
 					// サウンドの初期化
 					audio.init(psgBin);
 					// 多重初期化できないように消しちゃう
-					soundOn.style.visibility = 'hidden';
+					soundMute = false;
+					soundOn.style.display = 'none';
+					volume.style.display = 'inline';
+					volumeBar.style.display = 'inline';
 				});
 
 				// Z80エミュのセットアップ

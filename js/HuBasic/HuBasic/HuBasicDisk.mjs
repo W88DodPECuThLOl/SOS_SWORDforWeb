@@ -19,6 +19,8 @@ export default class {
 	 */
 	Image;
 
+	#onDriveStateChange;
+
 	/**
 	 * コンストラクタ
 	 * 
@@ -28,6 +30,8 @@ export default class {
 		this.#Context = Context;
 		this.Log = this.#Context.Log;
 		this.Image = new HuBasicDiskImage(Context);
+
+		this.#onDriveStateChange = Context.onDriveStateChange;
 
 		if(Context.Setting.FormatImage) {
 			this.Image.Mount();
@@ -177,6 +181,9 @@ export default class {
 	 */
 	SaveDisk(IsPlainFormat)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.WriteImage(IsPlainFormat);
 	}
 
@@ -199,6 +206,9 @@ export default class {
 	 * }}
 	 */
 	Files(dirRecord) {
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.Files(dirRecord);
 	}
 
@@ -219,6 +229,9 @@ export default class {
 	 */
 	ReadFile(DirRecord, Filename, Extension)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.ReadFile(DirRecord, Filename, Extension);
 	}
 	/**
@@ -239,6 +252,9 @@ export default class {
 	 */
    	WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
 	}
 	/**
@@ -251,6 +267,9 @@ export default class {
 	 */
 	ReadRecord(record)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.ReadRecord(record);
 	}
    /**
@@ -263,6 +282,9 @@ export default class {
 	 */
 	WriteRecord(record, data)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.WriteRecord(record, data);
 	}
 
@@ -284,6 +306,9 @@ export default class {
 	 */
 	GetInfomationBlock(DirRecord, Filename, Extension)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.GetInfomationBlock(DirRecord, Filename, Extension);
 	}
 
@@ -298,6 +323,9 @@ export default class {
 	 */
     SetWriteProtected(DirRecord, Filename, Extension)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.SetWriteProtected(DirRecord, Filename, Extension);
 	}
 
@@ -312,6 +340,9 @@ export default class {
 	 */
 	ResetWriteProtected(DirRecord, Filename, Extension)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.ResetWriteProtected(DirRecord, Filename, Extension);
 	}
 
@@ -326,6 +357,9 @@ export default class {
 	 */
 	Kill(DirRecord, Filename, Extension)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.Kill(DirRecord, Filename, Extension);
 	}
 
@@ -342,6 +376,14 @@ export default class {
 	 */
 	Rename(DirRecord, Filename, Extension, NewFilename, NewExtension)
 	{
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(this.isMount(), true);
+		}
 		return this.Image.Rename(DirRecord, Filename, Extension, NewFilename, NewExtension);
+	}
+
+	isMount()
+	{
+		return this.Image.isMount();
 	}
 }

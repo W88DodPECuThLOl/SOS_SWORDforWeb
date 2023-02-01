@@ -448,6 +448,11 @@ export default class {
 	 */
 	Mount()
 	{
+		if(this.#deviceOnline != true) {
+			if(this.#Context.onDriveStateChange) {
+				this.#Context.onDriveStateChange(true, false);
+			}
+		}
 		this.#deviceOnline = true;
 	}
 
@@ -456,7 +461,17 @@ export default class {
 	 */
 	Unmount()
 	{
+		if(this.#deviceOnline != false) {
+			if(this.#Context.onDriveStateChange) {
+				this.#Context.onDriveStateChange(false, false);
+			}
+		}
 		this.#deviceOnline = false;
+	}
+
+	isMount()
+	{
+		return this.#deviceOnline;
 	}
 
 	/**
