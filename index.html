@@ -13,6 +13,7 @@
 		<script src="./js/z80Emu.js"></script>
 		<script src="./js/taskMonitor.js"></script>
 		<script src="./js/cat/catAudio.js"></script>
+		<link rel="stylesheet" href="./css/catVolume.css">
 		<link rel="stylesheet" href="./css/catTextScreen.css">
 		<link rel="stylesheet" href="./css/sosLogo.css">
 		<link rel="stylesheet" href="./css/catMediaIcon.css">
@@ -35,7 +36,7 @@
 						<ul>
 							<li><div id="drive0" class="cat-media-icon-fd"></div>
 								<ul>
-									<li><div>Drive A</div></li>
+									<li><div class="media-menu-item-header">Drive A</div></li>
 									<li>
 										<div id="mnt0">Insert disk image</div>
 										<input type="file" id="disk0" accept=".d88,.2D,.obj" style="display:none;"/>
@@ -47,7 +48,7 @@
 							</li>
 							<li><div id="drive1" class="cat-media-icon-fd"></div>
 								<ul>
-									<li><div>Drive B</div></li>
+									<li><div class="media-menu-item-header">Drive B</div></li>
 									<li>
 										<div id="mnt1">Insert disk image</div>
 										<input type="file" id="disk1" accept=".d88,.2D,.obj" style="display:none;"/>
@@ -59,7 +60,7 @@
 							</li>
 							<li><div id="drive2" class="cat-media-icon-fd"></div>
 								<ul>
-									<li><div>Drive C</div></li>
+									<li><div class="media-menu-item-header">Drive C</div></li>
 									<li>
 										<div id="mnt2">Insert disk image</div>
 										<input type="file" id="disk2" accept=".d88,.2D,.obj" style="display:none;"/>
@@ -71,7 +72,7 @@
 							</li>
 							<li><div id="drive3" class="cat-media-icon-fd"></div>
 								<ul>
-									<li><div>Drive D</div></li>
+									<li><div class="media-menu-item-header">Drive D</div></li>
 									<li>
 										<div id="mnt3">Insert disk image</div>
 										<input type="file" id="disk3" accept=".d88,.2D,.obj" style="display:none;"/>
@@ -83,16 +84,16 @@
 							</li>
 							<li><div id="drive4" class="cat-media-icon-ram-disk"></div>
 								<ul>
-									<li><div>Drive E(RAM DISK)</div></li>
+									<li><div class="media-menu-item-header">Drive E(RAM DISK)</div></li>
 									<li><div id="save4" class="media-menu-item-disable">Save disk image</div></li>
 								</ul>
 							</li>
 							<!--
 							<li><div class="cat-media-icon-tape"></div>
 								<ul>
-									<li><div>Drive T(Tape)</div></li>
+									<li><div class="media-menu-item-header">Drive T(Tape)</div></li>
 									<li><div>Insert tape image</div></li>
-									<li><div>Remove tape image</div></li>
+									<li><div class="media-menu-item-disable">Remove tape image</div></li>
 								</ul>
 							</li>
 							-->
@@ -102,11 +103,13 @@
 						<span>S-OS“SWORD”</span>
 					</div>
 					<div id="cat-bar-system" class="cat-bar-system">
+						<!-- ボリューム -->
 						<div class="cat-volume-setting">
 							<div id="cat-volume-off" class="cat-volume-off-icon"></div>
 							<div id="cat-volume" class="cat-volume-icon"></div>
-							<input id="cat-volume-bar" type="range" class="input-range" value="0" min="0" max="100" data-unit="%">
+							<input id="cat-volume-bar" type="range" value="0" min="0" max="100" data-unit="%"/>
 						</div>
+						<!-- フルスクリーン切り替え -->
 						<div id="full-screen" class="cat-media-icon-full-screen"></div>
 						<!--
 						<div class="cat-system-icon-setting"></div>

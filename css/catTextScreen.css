@@ -1,3 +1,13 @@
+* {
+	margin:0;
+	padding:0;
+}
+
+body {
+    margin: 0;
+	padding: 0;
+}
+
 /* 文字コード0xAD表示用 */
 .letter0xAD {
     transform: scale(0.4, 1.0);
@@ -76,12 +86,14 @@
     position: absolute;
     top: 0;
     left: 0;
+    margin: 0;
 }
 
 .canvas-wrapper .console {
     position: absolute;
     top: 0;
     left: 0;
+    margin: 0;
 }
 
 
@@ -144,6 +156,7 @@
     background-color: #333;
     width: 640px;
     cursor: default;
+    user-select: none;
 }
 
 .cat-bar-inner {
@@ -209,9 +222,9 @@
 }
 
 .cat-bar-media ul li ul li div {
+    /*
     background-color: #292929;
-/*    color: #CECECE;
-    text-align: center; */
+    */
     height: 24px;
 
     transition: all 0.1s;
@@ -222,10 +235,18 @@
 }
 
 
+/* メディアメニューの無効な項目 */
 .media-menu-item-disable {
     color: #606060;
+    pointer-events: none; /* マウスイベントを受け付けないように */
 }
 
+/* メディアメニューのヘッダ部分 */
+.media-menu-item-header {
+    background-color: #5A5A5A;
+    font-weight: bold;
+    pointer-events: none; /* マウスイベントを受け付けないように */
+}
 
 
 
@@ -233,57 +254,4 @@
 .cat-bar-system {
     display: flex; /* 横に並べる */
     margin: 0 0 0 auto; /* 右寄せ */
-}
-
-.cat-volume-off-icon {
-    background: url("../img/icon/ボリュームOFFアイコン.png");
-    background-repeat: no-repeat;
-    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
-    width: 24px;
-    height: 24px;
-    transform: translate(1px, 1px);
-    transition: all .15s;
-    margin-right: 3px;
-}
-.cat-volume-off-icon:hover {
-    filter: drop-shadow(1px 1px 2px rgb(192, 192, 0));
-    transform: translate(0px, 0px);
-}
-
-.cat-volume-icon {
-    background: url("../img/icon/ボリュームアイコン3.png");
-    background-repeat: no-repeat;
-    background-size: cover; /* 元画像の縦横比のまま、要素内で可能な限り大きくする */
-    width: 24px;
-    height: 24px;
-    transform: translate(1px, 1px);
-    transition: all .15s;
-    margin-right: 3px;
-
-    /* 非表示 */
-    display: none;
-}
-.cat-volume-icon:hover {
-    filter: drop-shadow(1px 1px 2px rgb(192, 192, 0));
-    transform: translate(0px, 0px); 
-}
-
-.cat-volume-setting {
-    display: flex; /* 横に並べる */
-    /* position: relative; */
-}
-.cat-volume-setting input {
-    /*
-    position: absolute;
-    transform-origin: 100% 50%; transform: translateX(-100px) rotate(-90deg);
-    top: -115px;
-    left: 12px;
-    height: 24px;
-    width: 100px;
-    */
-    top: 5px;
-    width: 80px;
-
-    /* 非表示 */
-    display: none;
 }
