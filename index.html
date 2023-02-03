@@ -136,6 +136,24 @@
 			import CatGamePad from './js/cat/catGamePad.js';
 			import CatFullScreen from './js/cat/catFullScreen.js';
 			
+			// URL Param
+			// ?fnt=PC8001でPC8001風のフォントマップに
+			// ?exec=実行したいファイルのURL
+			// ?beepvol=BEEP音の音量 (0～1)
+			// ?beepfile=BEEP音で使用する音声ファイル名
+			const queryString = window.location.search;
+			const urlParams = new URLSearchParams(queryString);
+			const cfg = {
+				fontSet: urlParams.get('fnt'), // 起動時に使用するフォント名
+				execFile: urlParams.get('exec'), // 起動時に使用するイメージファイル名
+				mountDisk1: urlParams.get('mnt1'), // B
+				mountDisk2: urlParams.get('mnt2'), // C
+				mountDisk3: urlParams.get('mnt3'), // D
+				beepvol: urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.2, // BEEP音の音量
+				beepfile: urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV', // BEEP音で使用する音声ファイル名
+				gamePadConfig: parseGamePadConfig(queryString), // ゲームパッドの設定
+			};
+
 			// フルスクリーン制御
 			new CatFullScreen(document, "fs-target", "full-screen", evt => {
 					// フルスクリーンの設定
@@ -184,6 +202,7 @@
 			graphicCanvas.setAttribute("width", 640);
 			graphicCanvas.setAttribute("height", 200);
 			var graphicCanvasCtx = graphicCanvas.getContext("2d");
+
 			// ディスクドライブ
 			var disks = [];
 			for(let i = 0; i < 5; ++i) {
@@ -216,31 +235,17 @@
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
 
-			// URL Param
-			// ?fnt=PC8001でPC8001風のフォントマップに
-			// ?exec=実行したいファイルのURL
-			const queryString = window.location.search;
-			const urlParams = new URLSearchParams(queryString);
-			const fontSet = urlParams.get('fnt'); // 起動時に使用するフォント名
-			const execFile = urlParams.get('exec'); // 起動時に使用するイメージファイル名
-			const mountDisk1 = urlParams.get('mnt1'); // B
-			const mountDisk2 = urlParams.get('mnt2'); // C
-			const mountDisk3 = urlParams.get('mnt3'); // D
-			var beepvol = urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.2; // BEEP音の音量
-			const beepfile = urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV'; // BEEP音で使用する音声ファイル名
-			const GamePadConfig = parseGamePadConfig(queryString); // ゲームパッドの設定
-
 			// BELL(BEEP)音
-			var sound = new Audio(beepfile); // BEEPで再生する音声ファイル
+			var sound = new Audio(cfg.beepfile); // BEEPで再生する音声ファイル
 			var catSnd = {
 				/**
 				 * ビープ音を再生する
 				 */
 				bell: ()=> {
-					if(beepvol > 0.0) {
+					if(cfg.beepvol > 0.0) {
 						if(!soundMute) {
 							sound.currentTime = 0; // 連続再生するときのおまじないらしい
-							sound.volume = beepvol * soundMasterVolume; // 音量
+							sound.volume = cfg.beepvol * soundMasterVolume; // 音量
 							sound.play();
 						}
 					}
@@ -261,8 +266,8 @@
 
 			var ctx = new TaskContext(z80Emu, catKey, catTextScreen, taskLineInput, taskMonitor, taskPlatformMonitor, disks, catSnd, gamePad);
 			// 初期のフォント設定
-			if(fontSet) {
-				ctx.changeFont(fontSet); // URLパラメータで設定されたフォント
+			if(cfg.fontSet) {
+				ctx.changeFont(cfg.fontSet); // URLパラメータで設定されたフォント
 			} else {
 				ctx.changeFont("SOS"); // デフォルトのフォント
 			}
@@ -567,7 +572,7 @@
 				// ゲームパッドの更新
 				gamePad.update();
 				// ゲームパッドのキー割り当て処理
-				gamePadToKey(GamePadConfig);
+				gamePadToKey(cfg.gamePadConfig);
 				// Z80えみゅ
 				z80Emu.update(ctx);
 				// ライン入力
@@ -585,7 +590,10 @@
 				requestAnimationFrame(()=>update());
 			}
 
-			function autoStart() {
+			/**
+			 * @param {string} 実行するファイル名
+			 */
+			function autoStart(execFile) {
 				const execFileReader = new XMLHttpRequest() ;
 				//execFileReader.open("get", "./files/" + execFile, true) ;
 				execFileReader.open("get", execFile, true) ;
@@ -631,8 +639,8 @@
 						// SOS
 						ctx.reset();
 						// auto staart
-						if(execFile != null) {
-							autoStart() ;
+						if(cfg.execFile != null) {
+							autoStart(cfg.execFile) ;
 						}
 						// 開始
 						update();

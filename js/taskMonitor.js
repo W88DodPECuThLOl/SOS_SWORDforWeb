@@ -104,6 +104,17 @@ class TaskMonitor {
 	}
 
 	/**
+	 * 画面サイズを変更する
+	 * @param {TaskContext} ctx 
+	 */
+	changeScreenSize(ctx, screenWidth, screenHeight)
+	{
+		ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, screenWidth);
+		ctx.z80Emu.memWriteU8(SOSWorkAddr.MAXLIN, screenHeight);
+		ctx.changeScreenSize(screenWidth, screenHeight);
+	}
+
+	/**
 	 * 桁数変更コマンド
 	 * @param {TaskContext} ctx 
 	 */
@@ -112,11 +123,9 @@ class TaskMonitor {
 		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
 		const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);
 		if(width <= 40) {
-			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 80);
-			ctx.changeScreenSize(80, maxlin);
+			this.changeScreenSize(ctx, 80, maxlin);
 		} else {
-			ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, 40);
-			ctx.changeScreenSize(40, maxlin);
+			this.changeScreenSize(ctx, 40, maxlin);
 		}
 	}
 

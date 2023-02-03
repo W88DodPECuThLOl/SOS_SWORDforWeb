@@ -46,6 +46,12 @@ class TaskPlatformMonitor {
 	 * @type {number}
 	 */
 	#state_end = 5;
+	/**
+	 * メモリ書き換えの入力待ち
+	 * @type {number}
+	 */
+	#state_memory_write_wait = 6;
+	#state_memory_write_exec = 7;
 
 	#dumpAddress = 0x0000;
 
@@ -119,7 +125,73 @@ class TaskPlatformMonitor {
 		}
 		return -1;
 	}
-   
+
+	/**
+	 * ヘルプを表示する
+	 * 
+	 * @param {TaskContext} ctx 
+	 */
+	#printHelpMessage(ctx) {
+		ctx.printNativeMsg(` ?          help
+ Q          quit
+ D [xxxx]   Dump memory from $xxxx
+ S xxxx     Edit memory at $xxxx
+ W          Width change
+ FNT <FMAP> Font change
+    ex.) FNT PC8001
+         FNT PC8001p
+         FNT X1
+         FNT X1p
+         FNT SOS
+`);
+	}
+
+	/**
+	 * メモリ内容を表示する
+	 * 
+	 * @param {TaskContext} ctx 
+	 * @param {number} dumpAddress メモリの開始アドレス
+	 * @returns {number} 次に表示するメモリのアドレス
+	 */
+	#dumpMemory(ctx, dumpAddress)
+	{
+		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
+		let startAddress = dumpAddress;
+		dumpAddress = (dumpAddress + ((width <= 40) ? 0x80 : 0x100)) & 0xFFFF;
+		let endAddress = startAddress + ((width <= 40) ? 0x80 : 0x100);
+		let address = startAddress & 0xFFF0;
+		while(address < endAddress) {
+			ctx.printNativeMsg((address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + ":");
+			for(let i = 0; i < ((width <= 40) ? 8 : 16); ++i) {
+				if(startAddress <= address && address < endAddress) {
+					ctx.printNativeMsg((ctx.z80Emu.memReadU8(address & 0xFFFF)).toString(16).padStart(2, 0).toUpperCase());
+				} else {
+					ctx.printNativeMsg("  ");
+				}
+				if((width > 40) && i == 7) {
+					ctx.printNativeMsg("-");
+				} else {
+					ctx.printNativeMsg(" ");
+				}
+				address++;
+			}
+			ctx.PRINT(0x0D);
+		}
+		return dumpAddress;
+	}
+
+	#writeMemory(ctx, address)
+	{
+		const mem = ctx.z80Emu.memReadU8(address & 0xFFFF);
+		ctx.printNativeMsg(
+			"+" + (address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + ":"
+			 + (mem).toString(16).padStart(2, 0).toUpperCase() + " -> ");
+		// ライン入力開始へ
+		ctx.startLineInput();
+		this.#dumpAddress = mem;
+		this.changeState(this.#state_memory_write_wait);
+	}
+		
 	/**
 	 * コンストラクタ
 	 */
@@ -164,16 +236,7 @@ class TaskPlatformMonitor {
 					this.changeState(this.#state_start);
 					return;
 				case 0x3F: // '?'
-					ctx.printNativeMsg(` ?          help
- Q          quit
- D [xxxx]   Dump memory from $xxxx
- W          Width change
- FNT <FMAP> Font change
-  ex.) FNT PC8001
-       FNT PC8001p
-       FNT X1
-       FNT X1p
-`);
+					this.#printHelpMessage(ctx);
 					this.changeState(this.#state_start);
 					return;
 				case 0x51: // 'Q'
@@ -189,32 +252,29 @@ class TaskPlatformMonitor {
 							if(!this.#checkResult(ctx, result)) { return; }
 							this.#dumpAddress = result.value & 0xFFFF;
 						}
-						const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
-						let startAddress = this.#dumpAddress;
-						this.#dumpAddress = (this.#dumpAddress + ((width <= 40) ? 0x88 : 0x100)) & 0xFFFF;
-						let endAddress = startAddress + ((width <= 40) ? 0x80 : 0x100);
-						let address = startAddress & 0xFFF0;
-						while(address < endAddress) {
-							ctx.printNativeMsg((address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + ":");
-							for(let i = 0; i < ((width <= 40) ? 8 : 16); ++i) {
-								if(startAddress <= address && address < endAddress) {
-									ctx.printNativeMsg((ctx.z80Emu.memReadU8(address & 0xFFFF)).toString(16).padStart(2, 0).toUpperCase());
-								} else {
-									ctx.printNativeMsg("  ");
-								}
-								if((width > 40) && i == 7) {
-									ctx.printNativeMsg("-");
-								} else {
-									ctx.printNativeMsg(" ");
-								}
-								address++;
-							}
-							ctx.PRINT(0x0D);
-						}
+						this.#dumpAddress = this.#dumpMemory(ctx, this.#dumpAddress);
+						return;
 					}
-					return;
+				case 0x53: // 'S'
+				case 0x73:
+					{
+						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
+						if(this.#commandBuffer[0] != 0x00) {
+							const result = this.#parseHex4(this.#commandBuffer);
+							if(!this.#checkResult(ctx, result)) { return; }
+							this.#dumpAddress = result.value & 0xFFFF;
+						} else {
+							this.#doError(ctx, SOSErrorCode.SyntaxError);
+							return;
+						}
+						ctx.printNativeMsg("memory edit [break(ESC) key: exit]\n");
+						this.#writeMemory(ctx, this.#dumpAddress);
+						return;
+					}
+
 				case 0x57: // W	桁数変更
 				case 0x77:
+					// スクリーンサイズ変更
 					ctx.taskMonitor.W_Command(ctx);
 					this.changeState(this.#state_start);
 					return;
@@ -236,6 +296,101 @@ class TaskPlatformMonitor {
 			this.changeState(this.#state_start);
 		};
 		this.#state[this.#state_end] = (ctx)=>{};
+		this.#state[this.#state_memory_write_wait] = (ctx)=>{
+			if(!ctx.isFinishLineInput()) {
+				return; // ライン入力中...
+			}
+			const resultCode = ctx.getResultLineInput();
+			if(resultCode.resultCode == 0) {
+				this.#commandBuffer = resultCode.result;
+			} else {
+				this.#commandBuffer = [0];
+			}
+			// ライン入力終了
+			ctx.endLineInput();
+			// メモリ書き換え
+			this.changeState(this.#state_memory_write_exec);
+		};
+		this.#state[this.#state_memory_write_exec] = (ctx)=>{
+			let address = this.#dumpAddress & 0xFFFF;
+			if(!this.#commandBuffer) {
+				this.#writeMemory(ctx, address);
+				return;
+			}
+			if(this.#commandBuffer[0] == this.#keyCodeBRK) {
+				ctx.PRINT(0xD);
+				this.changeState(this.#state_start);
+				return;
+			}
+			if(this.#commandBuffer.length <= 11
+				|| this.#commandBuffer[0] != 0x2B // +
+				|| this.#commandBuffer[0] == 0) {
+				ctx.PRINT(0xD);
+				this.#writeMemory(ctx, address);
+				return;
+			}
+			this.#commandBuffer.shift();
+			// アドレス取得
+			while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
+			if(this.#commandBuffer[0] == 0x00) {
+				ctx.PRINT(0xD);
+				this.#writeMemory(ctx, address);
+				return;
+			}
+			let result = this.#parseHex4(this.#commandBuffer);
+			if(!this.#checkResult(ctx, result)) {
+				ctx.PRINT(0xD);
+				this.#writeMemory(ctx, address);
+				return;
+			}
+			// 残りの文字チェック
+			if(this.#commandBuffer.length <= 6
+				|| this.#commandBuffer[0] != 0x3A // :
+				|| this.#commandBuffer[3] != 0x20 // ' '
+				|| this.#commandBuffer[4] != 0x2D // -
+				|| this.#commandBuffer[5] != 0x3E // >
+			) {
+				ctx.PRINT(0xD);
+				this.#writeMemory(ctx, address);
+				return;
+			}
+			address = result.value & 0xFFFF;
+			this.#commandBuffer.shift();
+			this.#commandBuffer.shift();
+			this.#commandBuffer.shift();
+			this.#commandBuffer.shift();
+			this.#commandBuffer.shift();
+			this.#commandBuffer.shift();
+			while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
+			if(this.#commandBuffer[0] == 0) {
+				this.#writeMemory(ctx, address + 1); // スキップ
+				return;
+			}
+			for(;this.#commandBuffer[0] != 0;) {
+				// 書き込む数値を取得
+				result = this.#parseHex4(this.#commandBuffer);
+				if(!this.#checkResult(ctx, result)) {
+					ctx.PRINT(0xD);
+					this.#writeMemory(ctx, address);
+					return;
+				}
+				let value = result.value;
+				// 書き込む
+				if(value >= 0x100) {
+					ctx.z80Emu.memWriteU8(address, value & 0xFF);
+					ctx.z80Emu.memWriteU8(address + 1, value >> 8);
+					address += 2;
+				} else {
+					ctx.z80Emu.memWriteU8(address, value);
+					address += 1;
+				}
+				while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
+			}
+			this.#writeMemory(ctx, address);
+			return;
+		}
+
+
 
 		this.#stateNo = this.#state_idle;
 		this.#commandBuffer = [];

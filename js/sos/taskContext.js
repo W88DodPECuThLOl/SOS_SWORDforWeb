@@ -155,7 +155,9 @@ class TaskContext {
 		this.catTextScreen.changeScreenSize(width, height);
 		// スタイルを変更して、スケーリング
 		const elem = document.getElementById("sos_output");
-		elem.style.transform = "scale(" + 40 * this.screenScale.x / width + "," + this.screenScale.y + ")";
+		elem.style.transform = "scale("
+			+ 40 * this.screenScale.x / width + ","
+			+ 25 * this.screenScale.y / height + ")";
 	}
 
 	/**
