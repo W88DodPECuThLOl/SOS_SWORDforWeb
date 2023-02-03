@@ -166,7 +166,7 @@ S-OS標準モニタの「M」コマンド、もしくは、S-OS #MONで起動し
 - S-OS標準モニタ AUTOEXEC.BATの実装
 - S-OS標準モニタ バッチ内のパラメータ書き換え処理
 - S-OS #GETLなどのリダイレクト処理
-- S-OS"SWORD" for Web ローカルストレージ対応
+- ~~S-OS"SWORD" for Web ローカルストレージ対応~~
 
 # 参考
 

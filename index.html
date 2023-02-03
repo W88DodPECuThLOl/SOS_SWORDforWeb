@@ -13,6 +13,8 @@
 		<script src="./js/z80Emu.js"></script>
 		<script src="./js/taskMonitor.js"></script>
 		<script src="./js/cat/catAudio.js"></script>
+		<script src="./js/jszip/jszip.min.js"></script>
+		<script src="./js/jszip/jszip-utils.min.js"></script>
 		<link rel="stylesheet" href="./css/catVolume.css">
 		<link rel="stylesheet" href="./css/catTextScreen.css">
 		<link rel="stylesheet" href="./css/sosLogo.css">
@@ -43,7 +45,9 @@
 									</li>
 									<li><div id="blankdisk0">Insert blank image</div></li>
 									<li><div id="save0" class="media-menu-item-disable">Save disk image</div></li>
-									<li><div id="unmnt0" class="media-menu-item-disable">Remove disk image</div></li>
+									<li><div id="store0" class="media-menu-item-disable">Store to local strage</div></li>
+									<li><div id="restore0" class="media-menu-item-disable">Restore from local strage</div></li>
+									<li><div id="unmnt0" class="media-menu-item-disable">Eject</div></li>
 								</ul>
 							</li>
 							<li><div id="drive1" class="cat-media-icon-fd"></div>
@@ -55,7 +59,9 @@
 									</li>
 									<li><div id="blankdisk1">Insert blank image</div></li>
 									<li><div id="save1" class="media-menu-item-disable">Save disk image</div></li>
-									<li><div id="unmnt1" class="media-menu-item-disable">Remove disk image</div></li>
+									<li><div id="store1" class="media-menu-item-disable">Store to local strage</div></li>
+									<li><div id="restore1" class="media-menu-item-disable">Restore from local strage</div></li>
+									<li><div id="unmnt1" class="media-menu-item-disable">Eject</div></li>
 								</ul>
 							</li>
 							<li><div id="drive2" class="cat-media-icon-fd"></div>
@@ -67,7 +73,9 @@
 									</li>
 									<li><div id="blankdisk2">Insert blank image</div></li>
 									<li><div id="save2" class="media-menu-item-disable">Save disk image</div></li>
-									<li><div id="unmnt2" class="media-menu-item-disable">Remove disk image</div></li>
+									<li><div id="store2" class="media-menu-item-disable">Store to local strage</div></li>
+									<li><div id="restore2" class="media-menu-item-disable">Restore from local strage</div></li>
+									<li><div id="unmnt2" class="media-menu-item-disable">Eject</div></li>
 								</ul>
 							</li>
 							<li><div id="drive3" class="cat-media-icon-fd"></div>
@@ -79,7 +87,9 @@
 									</li>
 									<li><div id="blankdisk3">Insert blank image</div></li>
 									<li><div id="save3" class="media-menu-item-disable">Save disk image</div></li>
-									<li><div id="unmnt3" class="media-menu-item-disable">Remove disk image</div></li>
+									<li><div id="store3" class="media-menu-item-disable">Store to local strage</div></li>
+									<li><div id="restore3" class="media-menu-item-disable">Restore from local strage</div></li>
+									<li><div id="unmnt3" class="media-menu-item-disable">Eject</div></li>
 								</ul>
 							</li>
 							<li><div id="drive4" class="cat-media-icon-ram-disk"></div>
@@ -112,18 +122,13 @@
 						<!-- フルスクリーン切り替え -->
 						<div id="full-screen" class="cat-media-icon-full-screen"></div>
 						<!--
-						<div class="cat-system-icon-setting"></div>
+						<div id="system-setting" class="cat-system-icon-setting"></div>
 						<div class="cat-system-icon-game-pad"></div>
 						-->
 					<div>
 				</div>
 			</div>
 		</div>
-
-
-
-
-
 
 		<script type="module">
 			"use strict";
@@ -205,26 +210,7 @@
 
 			// ディスクドライブ
 			var disks = [];
-			for(let i = 0; i < 5; ++i) {
-				var ctxDisk = new Context();
-				if(i != 2 && i != 3) {
-					ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
-					ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
-				}
-				ctxDisk.onDriveStateChange = (isMount, isAccess) => { updateDriveInfo(i, isMount, isAccess); };
-				disks.push(new HuBasicDisk(ctxDisk));
-
-				const diskSave = document.getElementById('save' + i);
-				diskSave.addEventListener('click', evt => {
-					const diskImage = disks[i].SaveDisk(false);
-					const blob = new Blob([diskImage], {type: 'application/octet-stream'}); // Blob オブジェクトの作成
-					const link = document.createElement('a');
-					link.download = 'disk' + String.fromCodePoint(0x41 + i) + '.d88'; // ダウンロードファイル名称
-					link.href = window.URL.createObjectURL(blob); // オブジェクト URL を生成
-					link.click(); // クリックイベントを発生させる
-					window.URL.revokeObjectURL(link.href); // オブジェクト URL を解放」
-				});
-			}
+			diskSetup();
 
 			var audio = new CatAudio();
 			var gamePad = new CatGamePad(navigator);
@@ -234,7 +220,7 @@
 			var taskPlatformMonitor = new TaskPlatformMonitor();
 			var catKey = new CatKey(document);
 			var catTextScreen = new CatTextScreen(80,25);
-
+			
 			// BELL(BEEP)音
 			var sound = new Audio(cfg.beepfile); // BEEPで再生する音声ファイル
 			var catSnd = {
@@ -272,58 +258,127 @@
 				ctx.changeFont("SOS"); // デフォルトのフォント
 			}
 
+			/**
+			 * ディスクのセットアップ
+			 */
 			function diskSetup()
 			{
-				for(let i = 0; i < 4; i++) {
-					const disk = document.getElementById('disk' + i);
-					// マウント
-					const mnt = document.getElementById('mnt' + i);
-					mnt.addEventListener('click', evt => {
-						disk.value = '';
-						disk.click();
-					});
-					disk.addEventListener('change', evt => {
-						let input = evt.target;
-						if (input.files.length == 0) {
-							disks[i].unmount();
-							return;
-						}
-						const file = input.files[0];
-						const reader = new FileReader();
-						reader.onload = () => {
-							const readData = new Uint8Array(reader.result);
-							mountImage(i, file.name, readData);
-						};
-						reader.readAsArrayBuffer(file);
-					});
-					// アンマウント
-					const unmnt = document.getElementById('unmnt' + i);
-					unmnt.addEventListener('click', evt => {
-						disks[i].unmount();
-						disk.value = '';
-					});
-					// 空きディスク
-					const blankDisk = document.getElementById('blankdisk' + i);
-					blankDisk.addEventListener('click', evt => {
-						const ctxDisk = new Context();
+				for(let i = 0; i < 5; ++i) {
+					var ctxDisk = new Context();
+					if(i != 2 && i != 3) {
 						ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
 						ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
-						ctxDisk.onDriveStateChange = (isMount, isAccess) => { updateDriveInfo(i, isMount, isAccess); };
-						disks[i] = new HuBasicDisk(ctxDisk);
-						disk.value = '';
+					}
+					ctxDisk.onDriveStateChange = (isMount, isAccess, needSave) => { updateDriveInfo(i, isMount, isAccess, needSave); };
+					disks.push(new HuBasicDisk(ctxDisk));
+
+					// 保存
+					const diskSave = document.getElementById('save' + i);
+					diskSave.addEventListener('click', evt => {
+						const diskImage = disks[i].SaveDisk(false);
+						const blob = new Blob([diskImage], {type: 'application/octet-stream'}); // Blob オブジェクトの作成
+						const link = document.createElement('a');
+						link.download = 'disk' + String.fromCodePoint(0x41 + i) + '.d88'; // ダウンロードファイル名称
+						link.href = window.URL.createObjectURL(blob); // オブジェクト URL を生成
+						link.click(); // クリックイベントを発生させる
+						window.URL.revokeObjectURL(link.href); // オブジェクト URL を解放」
 					});
+					// ローカルストレージに保存
+					const diskStore = document.getElementById('store' + i) ;
+					if(diskStore) {
+						diskStore.addEventListener('click', evt => {
+							const diskImage = disks[i].SaveDisk(false) ;
+							// パック
+							pack(diskImage).then((b64)=>{
+								// console.log(b64.length);
+								const name = getLocalStorageDriveKey(i) ;
+								localStorage.setItem(name, b64) ;
+							});
+						}) ;
+					}
+					// ローカルストレージから復帰
+					const diskRestore = document.getElementById('restore' + i) ;
+					if(diskRestore) {
+						diskRestore.addEventListener('click', evt => {
+							const name = getLocalStorageDriveKey(i) ;
+							if(isExistLocalStorageData(name)) {
+								const data = localStorage.getItem(name) ;
+								// アンパック
+								unpack(data).then((diskImage)=>{
+									//console.log(diskImage.length);
+									disks[i].mount(name, diskImage, false) ;
+								}); 
+							}
+						}) ;
+					}
+
+					// マウント
+					const disk = document.getElementById('disk' + i);
+					if(disk) {
+						const mnt = document.getElementById('mnt' + i);
+						if(mnt) {
+							mnt.addEventListener('click', evt => {
+								disk.value = '';
+								disk.click();
+							});
+							disk.addEventListener('change', evt => {
+								let input = evt.target;
+								if (input.files.length == 0) {
+									disks[i].unmount();
+									return;
+								}
+								const file = input.files[0];
+								const reader = new FileReader();
+								reader.onload = () => {
+									const readData = new Uint8Array(reader.result);
+									mountImage(i, file.name, readData);
+								};
+								reader.readAsArrayBuffer(file);
+							});
+						}
+					}
+					// アンマウント
+					if(disk) {
+						const unmnt = document.getElementById('unmnt' + i);
+						if(unmnt) {
+							unmnt.addEventListener('click', evt => {
+								disks[i].unmount();
+								disk.value = '';
+							});
+						}
+					}
+					// 空きディスク
+					if(disk) {
+						const blankDisk = document.getElementById('blankdisk' + i);
+						blankDisk.addEventListener('click', evt => {
+							const ctxDisk = new Context();
+							ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+							ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
+							ctxDisk.onDriveStateChange = (isMount, isAccess, needSave) => { updateDriveInfo(i, isMount, isAccess, needSave); };
+							disks[i] = new HuBasicDisk(ctxDisk);
+							disk.value = '';
+						});
+					}
 				}
 			}
 
+
 			/**
 			 * ドライブの状態を更新する
+			 * @param {number} driveNo
+			 * @param {boolean} isMount マウンドされているかどうか
+			 * @param {boolean} isAccess アクセスされたかどうか
+			 * @param {boolean} needSave 変更されたので保存が必要なとき true
 			 */
-			function updateDriveInfo(driveNo, isMount, isAccess)
+			async function updateDriveInfo(driveNo, isMount, isAccess, needSave)
 			{
 				let baseClass = driveNo <= 3 ? "cat-media-icon-fd" : "cat-media-icon-ram-disk";
 				const drive = document.getElementById('drive' + driveNo);
 				const saveMenuItem = document.getElementById('save' + driveNo);
 				const unmountMenuItem = document.getElementById('unmnt' + driveNo);
+				const storeMenuItem = document.getElementById('store' + driveNo);
+				const restoreMenuItem = document.getElementById('restore' + driveNo);
+
 				if(isMount) {
 					if(isAccess) {
 						// ドライブアクセス
@@ -342,23 +397,41 @@
 						drive.className = baseClass + "-mnt";
 					}
 					// メニュー項目
-					if(unmountMenuItem) {
-						unmountMenuItem.className = "";
-					}
-					if(saveMenuItem) {
-						saveMenuItem.className = "";
-					}
+					if(unmountMenuItem) { unmountMenuItem.className = ""; }
+					if(saveMenuItem) { saveMenuItem.className = ""; }
+					if(storeMenuItem) { storeMenuItem.className = ""; }
 				} else {
 					// アンマウント状態
 					drive.className = baseClass;
 					// メニュー項目
-					if(unmountMenuItem) {
-						unmountMenuItem.className = "media-menu-item-disable";
-					}
-					if(saveMenuItem) {
-						saveMenuItem.className = "media-menu-item-disable";
+					if(unmountMenuItem) { unmountMenuItem.className = "media-menu-item-disable"; }
+					if(saveMenuItem) { saveMenuItem.className = "media-menu-item-disable"; }
+					if(storeMenuItem) { storeMenuItem.className = "media-menu-item-disable"; }
+				}
+				// メニュー項目
+				if(restoreMenuItem) {
+					const name = getLocalStorageDriveKey(driveNo) ;
+					if(isExistLocalStorageData(name)) {
+						restoreMenuItem.className = "";
+					} else {
+						restoreMenuItem.className = "media-menu-item-disable";
 					}
 				}
+
+				// ローカルストレージに保存する
+				/*
+				@todo 保存する条件
+				@todo ・起動時のブランクディスクのマウント時には保存しないようにすること
+				@todo  そうしないと、ブランクディスクで上書きされてしまう
+
+				if(needSave && disks && driveNo < disks.length) {
+					const diskImage = disks[driveNo].SaveDisk(false) ;
+					await pack(diskImage).then((b64)=>{
+						const name = getLocalStorageDriveKey(driveNo);
+						localStorage.setItem(name, b64);
+					});
+				}
+				*/
 			}
 
 			/**
@@ -398,6 +471,9 @@
 				return true;
 			}
 
+			/**
+			 * S-OSのヘッダ付きファイルかどうか
+			 */
 			function isSOSFileHeader(data)
 			{
 				// ファイルサイズで、判定
@@ -414,6 +490,9 @@
 				return true;
 			}
 
+			/**
+			 * 2Dの生イメージかどうか
+			 */
 			function is2dImage(filename, data)
 			{
 				// 2Dフォーマット時の標準的なファイルサイズで、判定
@@ -423,6 +502,10 @@
 				// OK
 				return true;
 			}
+
+			/**
+			 * 2DのD88形式かどうか
+			 */
 			function isD88Image(data)
 			{
 				// D88の2Dフォーマット時の標準的なファイルサイズで、判定
@@ -567,6 +650,56 @@
 				}
 			}
 
+			/**
+			 * データをパックする
+			 * 
+			 * @param {Uint8Array} buffer パックするデータ
+			 * @returns {string} パックされた文字列（BASE64）
+			 */
+			 function pack(buffer) {
+				const zip = new JSZip();
+				zip.file("disk.d88", buffer, {binary: true}); // 登録
+				return zip.generateAsync({
+					type: "base64",	// BASE64で結果を取得
+					compression: "DEFLATE", // 圧縮する
+					compressionOptions: {
+						level: 9 // 最高圧縮
+					}
+				});
+			}
+
+			/**
+			 * データをアンパックする
+			 * 
+			 * @param {string} b64 パックされた文字列（BASE64）
+			 * @returns {Uint8Array} アンパックされたデータ
+			 */
+			function unpack(b64) {
+				var zip = new JSZip();
+				return zip.loadAsync(b64, {
+					base64: true,		// 入力はBASE64
+					checkCRC32: true	// CRCチェックする
+				}).then((zip)=> {
+					return zip.file("disk.d88").async("uint8array"); // 展開する。結果はUint8Arrayにする
+				});
+			}
+
+			function getLocalStorageDriveKey(driveNo)
+			{
+				return 'disk' + String.fromCodePoint(0x41 + driveNo);
+			}
+
+			/**
+			 * ローカルストレージにキーが存在するかどうか
+			 * 
+			 * @type {string} key キー
+			 * @returns {boolean} 存在するかどうか
+			 */
+			function isExistLocalStorageData(key)
+			{
+				return !!localStorage.getItem(key);
+			}
+
 			function update()
 			{
 				// ゲームパッドの更新
@@ -634,8 +767,6 @@
 				// Z80エミュのセットアップ
 				z80Emu.setup().then(
 					(emu)=> {
-						// ディスク
-						diskSetup();
 						// SOS
 						ctx.reset();
 						// auto staart

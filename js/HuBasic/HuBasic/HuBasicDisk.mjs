@@ -182,7 +182,7 @@ export default class {
 	SaveDisk(IsPlainFormat)
 	{
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+			this.#onDriveStateChange(this.isMount(), true, false);
 		}
 		return this.Image.WriteImage(IsPlainFormat);
 	}
@@ -207,7 +207,7 @@ export default class {
 	 */
 	Files(dirRecord) {
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+			this.#onDriveStateChange(this.isMount(), true, false);
 		}
 		return this.Image.Files(dirRecord);
 	}
@@ -230,7 +230,7 @@ export default class {
 	ReadFile(DirRecord, Filename, Extension)
 	{
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+			this.#onDriveStateChange(this.isMount(), true, false);
 		}
 		return this.Image.ReadFile(DirRecord, Filename, Extension);
 	}
@@ -252,10 +252,13 @@ export default class {
 	 */
    	WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
-		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+		const result = this.Image.WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
+		if(result.result == 0) {
+			if(this.#onDriveStateChange) {
+				this.#onDriveStateChange(this.isMount(), true, true);
+			}
 		}
-		return this.Image.WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
+		return result;
 	}
 	/**
 	 * レコード（セクタ）を読み込む
@@ -268,7 +271,7 @@ export default class {
 	ReadRecord(record)
 	{
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+			this.#onDriveStateChange(this.isMount(), true, false);
 		}
 		return this.Image.ReadRecord(record);
 	}
@@ -282,10 +285,13 @@ export default class {
 	 */
 	WriteRecord(record, data)
 	{
-		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+		const result = this.Image.WriteRecord(record, data);
+		if(result.result == 0) {
+			if(this.#onDriveStateChange) {
+				this.#onDriveStateChange(this.isMount(), true, true);
+			}
 		}
-		return this.Image.WriteRecord(record, data);
+		return result;
 	}
 
 	/**
@@ -307,7 +313,7 @@ export default class {
 	GetInfomationBlock(DirRecord, Filename, Extension)
 	{
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+			this.#onDriveStateChange(this.isMount(), true, false);
 		}
 		return this.Image.GetInfomationBlock(DirRecord, Filename, Extension);
 	}
@@ -323,10 +329,13 @@ export default class {
 	 */
     SetWriteProtected(DirRecord, Filename, Extension)
 	{
-		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+		const result = this.Image.SetWriteProtected(DirRecord, Filename, Extension);
+		if(result.result == 0) {
+			if(this.#onDriveStateChange) {
+				this.#onDriveStateChange(this.isMount(), true, true);
+			}
 		}
-		return this.Image.SetWriteProtected(DirRecord, Filename, Extension);
+		return result;
 	}
 
 	/**
@@ -340,10 +349,13 @@ export default class {
 	 */
 	ResetWriteProtected(DirRecord, Filename, Extension)
 	{
-		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+		const result = this.Image.ResetWriteProtected(DirRecord, Filename, Extension);
+		if(result.result == 0) {
+			if(this.#onDriveStateChange) {
+				this.#onDriveStateChange(this.isMount(), true, true);
+			}
 		}
-		return this.Image.ResetWriteProtected(DirRecord, Filename, Extension);
+		return result;
 	}
 
 	/**
@@ -357,10 +369,13 @@ export default class {
 	 */
 	Kill(DirRecord, Filename, Extension)
 	{
-		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+		const result = this.Image.Kill(DirRecord, Filename, Extension);
+		if(result.result == 0) {
+			if(this.#onDriveStateChange) {
+				this.#onDriveStateChange(this.isMount(), true, true);
+			}
 		}
-		return this.Image.Kill(DirRecord, Filename, Extension);
+		return result;
 	}
 
 	/**
@@ -376,10 +391,13 @@ export default class {
 	 */
 	Rename(DirRecord, Filename, Extension, NewFilename, NewExtension)
 	{
-		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true);
+		const result = this.Image.Rename(DirRecord, Filename, Extension, NewFilename, NewExtension);
+		if(result.result == 0) {
+			if(this.#onDriveStateChange) {
+				this.#onDriveStateChange(this.isMount(), true, true);
+			}
 		}
-		return this.Image.Rename(DirRecord, Filename, Extension, NewFilename, NewExtension);
+		return result;
 	}
 
 	isMount()

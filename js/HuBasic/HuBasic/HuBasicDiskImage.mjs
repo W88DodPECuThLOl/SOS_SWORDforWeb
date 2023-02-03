@@ -448,10 +448,8 @@ export default class {
 	 */
 	Mount()
 	{
-		if(this.#deviceOnline != true) {
-			if(this.#Context.onDriveStateChange) {
-				this.#Context.onDriveStateChange(true, false);
-			}
+		if(this.#Context.onDriveStateChange) {
+			this.#Context.onDriveStateChange(true, false, true);
 		}
 		this.#deviceOnline = true;
 	}
@@ -461,10 +459,8 @@ export default class {
 	 */
 	Unmount()
 	{
-		if(this.#deviceOnline != false) {
-			if(this.#Context.onDriveStateChange) {
-				this.#Context.onDriveStateChange(false, false);
-			}
+		if(this.#Context.onDriveStateChange) {
+			this.#Context.onDriveStateChange(false, false, false);
 		}
 		this.#deviceOnline = false;
 	}

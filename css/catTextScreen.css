@@ -169,6 +169,7 @@ body {
 .cat-bar-media {
     color: #CECECE;
     text-align: center;
+    font-size: 12px;
 }
 
 .cat-bar-media ul {
@@ -180,7 +181,7 @@ body {
 .cat-bar-media ul li {
     margin-top: 1px;
     margin-bottom: 1px;
-    margin-right: 3px;
+    margin-right: 5px;
     position: relative;
     width: 24px;
     height: 24px;
@@ -193,7 +194,7 @@ body {
     top: 0px;
     left: -4px;
     height: 0px;
-    width: 212px;
+    width: 180px;
 
     /* 非表示 */
     visibility: hidden;
@@ -206,8 +207,8 @@ body {
 }
 .cat-bar-media ul li:hover ul {
     visibility: visible;
-    top: -126px;
-    height: 126px; /* 4:102 5:126 */
+    top: -128px;
+    height: 128px; /* 4:102 5:126 6:150 7:174 */
 }
 
 
@@ -218,14 +219,14 @@ body {
     position: relative;
     width: 250px;
     left: -40px;
-    height: 24px;
+    height: 16px;
 }
 
 .cat-bar-media ul li ul li div {
     /*
     background-color: #292929;
     */
-    height: 24px;
+    height: 16px;
 
     transition: all 0.1s;
 }
