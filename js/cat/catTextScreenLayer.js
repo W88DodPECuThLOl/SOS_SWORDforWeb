@@ -86,6 +86,16 @@ export default class {
 	isSpaceFull;
 	isHalf;
 
+	/**
+	 * @type {Map}
+	 */
+	svgLetter;
+
+	/**
+	 * カスタム文字描画
+	 */
+	#customDrawLetter = null;
+	
 	// -----------------------------------------------------------------------------------------------------------
 	// -----------------------------------------------------------------------------------------------------------
 
@@ -152,16 +162,20 @@ export default class {
 
 	/**
 	 * １文字文描画するテキストを生成（HTMLに設定する文字列を生成）
+	 * デフォルトの実装
 	 * @param {number} codePoint 文字(UTF-32)
-	 * @param {number} color 色 
-	 * @param {number} attr 属性
+	 * @param {number} color 色（0～0xFFFFFFFF）
+	 * @param {number} attr 属性（0:通常 1:90回転 2:180度回転 3:270度回転）
 	 * @param {boolean} cursor カーソルを描画するかどうか
 	 * @returns {string} １文字文描画するテキスト
 	 */
-	#drawLetter(codePoint, color, attr, cursor)
+	#defaultDrawLetter(codePoint, color, attr, cursor)
 	{
-		if(codePoint!=10) {
-			if(codePoint==32 || codePoint== 0) {
+		if(codePoint != 10) {
+			if(codePoint == 32 || codePoint == 0) {
+				// 0x00と空白
+				// ・消えてしまうので、スペースを表示するようにする
+				// ・isSpaceFullで半角と全角のスペースを選べる
 				if(cursor) {
 					if(this.isSpaceFull) {
 						return '<span class="cursor">&emsp;</span>';
@@ -176,41 +190,48 @@ export default class {
 					}
 				}
 			} else {
+				const moji = String.fromCodePoint(codePoint);
 				if(cursor) {
-					if(codePoint==0xAD) {
-						return '<span class="cursor"><span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span></span>';
-					}
-					const moji = String.fromCodePoint(codePoint);
-					if(this.isHalf && codePoint >= 0x100) {
-						return '<span class="cursor"><span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font></span></span>';
-					}
-					if((attr & 3) == 1) {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + moji + '</span></font></span></span>';
-					} else if((attr & 3) == 2) {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot180">' + moji + '</span></font></span>';
-					} else if((attr & 3) == 3) {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot270">' + moji + '</span></font></span>';
-					} else {
-						return '<span class="cursor"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font></span>';
+					switch(attr & 3) {
+						case 0:
+							if(color == 0xFFFFFFFF) {
+								return '<span class="cursor">' + moji + '</span>';
+							} else {
+								return '<font class="cursor" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+							}
+						case 1:
+							return '<span class="cursor"><font class="rot90" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font></span>';
+						case 2:
+							return '<span class="cursor"><font class="rot180" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font></span>';
+						case 3:
+							return '<span class="cursor"><font class="rot270" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font></span>';
 					}
 				} else {
-					if(codePoint==0xAD) {
-						return '<span class="letter0xAD"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + String.fromCodePoint(0x30E5) + '</span></font></span>';
-					}
-					const moji = String.fromCodePoint(codePoint);
-					//const moji = "&#" + codePoint + ";";
-
-					if(this.isHalf && codePoint >= 0x100) {
-						return '<span class="letterHalf"><font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font></span>';
-					}
-					if((attr & 3) == 1) {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot90">' + moji + '</span></font>';
-					} else if((attr & 3) == 2) {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot180">' + moji + '</span></font>';
-					} else if((attr & 3) == 3) {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span class="rot270">' + moji + '</span></font>';
-					} else {
-						return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '"><span>' + moji + '</span></font>';
+					switch(attr & 3) {
+						case 0:
+							if(color == 0xFFFFFFFF) {
+								return '<span>' + moji + '</span>';
+							} else {
+								return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+							}
+						case 1:
+							if(color == 0xFFFFFFFF) {
+								return '<span class="rot90">' + moji + '</span>';
+							} else {
+								return '<font class="rot90" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+							}
+						case 2:
+							if(color == 0xFFFFFFFF) {
+								return '<span class="rot180">' + moji + '</span>';
+							} else {
+								return '<font class="rot180" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+							}
+						case 3:
+							if(color == 0xFFFFFFFF) {
+								return '<span class="rot270">' + moji + '</span>';
+							} else {
+								return '<font class="rot270" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+							}
 					}
 				}
 			}
@@ -220,6 +241,25 @@ export default class {
 			} else {
 				return '<span>&emsp;</span>';
 			}
+		}
+	}
+
+	/**
+	 * １文字文描画するテキストを生成（HTMLに設定する文字列を生成）
+	 * @param {number} codePoint 文字(UTF-32)
+	 * @param {number} color 色 
+	 * @param {number} attr 属性
+	 * @param {boolean} cursor カーソルを描画するかどうか
+	 * @returns {string} １文字文描画するテキスト
+	 */
+	#drawLetter(codePoint, color, attr, cursor)
+	{
+		if(this.#customDrawLetter) {
+			// カスタム文字描画
+			return this.#customDrawLetter(codePoint, color, attr, cursor);
+		} else {
+			// デフォルトの文字描画
+			return this.#defaultDrawLetter(codePoint, color, attr, cursor);
 		}
 	}
 
@@ -240,6 +280,7 @@ export default class {
 		this.setDisplayCursor(true);
 		this.setSpaceFull(true);
 		this.setHalf(false);
+		this.setCustomDrawLetter(null);
 	}
 
 	/**
@@ -349,13 +390,14 @@ export default class {
 		let text = "";
 		let addr = 0;
 		for(let y = 0; y < this.#height; ++y) {
-			text += "<nobr>";
+			//text += '<nobr>';
 			for(let x = 0; x < this.#width; ++x) {
 				const cursor = this.getDisplayCursor() && (x == this.#cursor.x) && (y == this.#cursor.y);
 				text += this.#drawLetter(this.#tram[addr], this.#tram[addr + 1], this.#tram[addr + 2], cursor);
 				addr += this.#letterSize;
 			}
-			text += "</nobr><br>";
+			//text += "</nobr><br>";
+			text += "<br>";
 		}
 		return text;
 	}
@@ -501,11 +543,20 @@ export default class {
 			this.isSpaceFull = spaceFull;
 		}
 	}
-	setHalf(half, layer)
+	setHalf(half)
 	{
 		if(this.isHalf != half) {
 			this.#isModified = true; // 変更フラグセット
 			this.isHalf = half;
 		}
+	}
+
+	/**
+	 * 文字を描画する関数を設定する
+	 * @param {*} drawLetter 
+	 */
+	setCustomDrawLetter(drawLetter)
+	{
+		this.#customDrawLetter = drawLetter;
 	}
 }

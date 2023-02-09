@@ -221,6 +221,54 @@ CatCTC::execute(s32 clock)
 	return iniVector;
 }
 
+class CatPCG {
+	u8 indexB;
+	u8 indexG;
+	u8 indexR;
+	u8 pcg[24*256];
+	u16 ch = 0;
+public:
+	CatPCG()
+		: indexB(0)
+		, indexG(0)
+		, indexR(0)
+		, ch(0)
+	{
+		for(int i = 0; i < 24*256; ++i) {
+			pcg[i] = (i & 1) ? 0x55 : 0xAA;
+		}
+	}
+
+	void setChar(u16 value)
+	{
+		ch = value & 0xFF;
+		indexB = 0;
+		indexG = 0;
+		indexR = 0;
+	}
+	u8* getData(u16 ch)
+	{
+		return &pcg[ch * 24];
+	}
+
+	void writeB(const u8 pattern)
+	{
+		pcg[ch * 24 + 16 + (indexB & 0x7)] = pattern;
+		indexB++;
+	}
+	void writeG(const u8 pattern)
+	{
+		pcg[ch * 24 + 8 + (indexG & 0x7)] = pattern;
+		indexG++;
+	}
+	void writeR(const u8 pattern)
+	{
+		pcg[ch * 24 + (indexR & 0x7)] = pattern;
+		indexR++;
+	}
+};
+
+
 #if IS_TARGET_X1_SERIES(TARGET)
 /**
  * @brief VRAMのイメージ
@@ -235,6 +283,9 @@ u8 paletteG[8];
 u8 paletteB[8];
 
 CatCTC* ctc = nullptr;
+CatPCG* pcg = nullptr;
+
+u8 textWidth = 80;
 #endif // IS_TARGET_X1_SERIES(TARGET)
 
 void
@@ -244,6 +295,7 @@ initPlatform()
 	// VRAMのイメージ化に使用するメモリ
 	delete[] imageMemory;
 	imageMemory = new u8[640*200*4];
+	setVRAMDirty();
 
 	// パレット
 	for(s32 i = 0; i < 8; i++) {
@@ -255,6 +307,17 @@ initPlatform()
 	// CTC
 	delete ctc;
 	ctc = new CatCTC();
+	// PCG
+	delete pcg;
+	pcg = new CatPCG();
+
+	/* PCGデバッグ
+	u8* text = (u8*)getIO() + 0x3000;
+	u8* attr = (u8*)getIO() + 0x2000;
+	for(int i = 0; i < 256; i++) {
+		text[i] = i;
+		attr[i] = 0x27;
+	}*/
 #endif // IS_TARGET_X1_SERIES(TARGET)
 }
 
@@ -262,33 +325,132 @@ void*
 getPlatformVRAMImage()
 {
 #if IS_TARGET_X1_SERIES(TARGET)
-	s8* vramR = (s8*)getIO() + 0x8000;
-	s8* vramG = (s8*)getIO() + 0xC000;
-	s8* vramB = (s8*)getIO() + 0x4000;
-	for(s32 yy = 0; yy < 8; ++yy) {
-		s8* dst = (s8*)&imageMemory[yy * 640*4];
-		for(s32 y = 0; y < 25; ++y) {
-			// 1ライン
-			for(s32 x = 0; x < 80; ++x) {
-				u8 R = *vramR++;
-				u8 G = *vramG++;
-				u8 B = *vramB++;
-				for(s32 i = 0; i < 8; ++i) {
-					u8 index  = B >> 7;  B <<= 1;
-					index |= R >> 7 << 1;  R <<= 1;
-					index |= G >> 7 << 2;  G <<= 1;
-					*dst++ = paletteR[index];
-					*dst++ = paletteG[index];
-					*dst++ = paletteB[index];
-					*dst++ = 0xFF;
+	int width = textWidth;
+
+	if(width <= 40) {
+		// @todo
+		s8* vramR = (s8*)getIO() + 0x8000;
+		s8* vramG = (s8*)getIO() + 0xC000;
+		s8* vramB = (s8*)getIO() + 0x4000;
+		for(s32 yy = 0; yy < 8; ++yy) {
+			s8* dst = (s8*)&imageMemory[yy * 640*4];
+			for(s32 y = 0; y < 25; ++y) {
+				// 1ライン
+				for(s32 x = 0; x < 80; ++x) {
+					u8 R = *vramR++;
+					u8 G = *vramG++;
+					u8 B = *vramB++;
+					for(s32 i = 0; i < 8; ++i) {
+						u8 index  = B >> 7;  B <<= 1;
+						index |= R >> 7 << 1;  R <<= 1;
+						index |= G >> 7 << 2;  G <<= 1;
+						*dst++ = paletteR[index];
+						*dst++ = paletteG[index];
+						*dst++ = paletteB[index];
+						*dst++ = 0xFF;
+					}
+				}
+				dst += 7 * 640 * 4; // 次の行へ(+8)
+			}
+			vramR += 0x30;
+			vramG += 0x30;
+			vramB += 0x30;
+		}
+	} else {
+		s8* vramR = (s8*)getIO() + 0x8000;
+		s8* vramG = (s8*)getIO() + 0xC000;
+		s8* vramB = (s8*)getIO() + 0x4000;
+		for(s32 yy = 0; yy < 8; ++yy) {
+			s8* dst = (s8*)&imageMemory[yy * 640*4];
+			for(s32 y = 0; y < 25; ++y) {
+				// 1ライン
+				for(s32 x = 0; x < 80; ++x) {
+					u8 R = *vramR++;
+					u8 G = *vramG++;
+					u8 B = *vramB++;
+					for(s32 i = 0; i < 8; ++i) {
+						u8 index  = B >> 7;  B <<= 1;
+						index |= R >> 7 << 1;  R <<= 1;
+						index |= G >> 7 << 2;  G <<= 1;
+						*dst++ = paletteR[index];
+						*dst++ = paletteG[index];
+						*dst++ = paletteB[index];
+						*dst++ = 0xFF;
+					}
+				}
+				dst += 7 * 640 * 4; // 次の行へ(+8)
+			}
+			vramR += 0x30;
+			vramG += 0x30;
+			vramB += 0x30;
+		}
+	}
+
+	// PCG
+	if(width <= 40) {
+		// 80
+		u8* text = (u8*)getIO() + 0x3000;
+		u8* attr = (u8*)getIO() + 0x2000;
+		for(int i = 0; i < 40 * 25; i++) {
+			if(attr[i] & 0x20) {
+				u16 ch = text[i];
+				s32 y = (i / 40) * 8;
+				s32 x = (i % 40) * 16;
+				// PCG
+				const u8* pattern = pcg->getData(ch);
+				for(s32 yy = y; yy < y + 8; ++yy) {
+					s8* dst = (s8*)&imageMemory[yy * 640*4 + x * 4];
+					for(u8 mask = 0x80; mask != 0; mask >>= 1) {
+						u8 r = (pattern[0]  & mask) ? 0xFF : 0x00; // R
+						u8 g = (pattern[8]  & mask) ? 0xFF : 0x00; // G
+						u8 b = (pattern[16] & mask) ? 0xFF : 0x00; // B
+						if(r | g | b) {
+							dst[0] = r; // R
+							dst[1] = g; // G
+							dst[2] = b; // B
+							dst[3] = 0xFF;
+							dst[4] = r; // R
+							dst[5] = g; // G
+							dst[6] = b; // B
+							dst[7] = 0xFF;
+						}
+						dst += 8;
+					}
+					pattern++;
 				}
 			}
-			dst += 7 * 640 * 4; // 次の行へ(+8)
 		}
-		vramR += 0x30;
-		vramG += 0x30;
-		vramB += 0x30;
+	} else {
+		// 80
+		u8* text = (u8*)getIO() + 0x3000;
+		u8* attr = (u8*)getIO() + 0x2000;
+		for(int i = 0; i < 80 * 25; i++) {
+			if(attr[i] & 0x20) {
+				u16 ch = text[i];
+				s32 y = (i / 80) * 8;
+				s32 x = (i % 80) * 8;
+				// PCG
+				const u8* pattern = pcg->getData(ch);
+				for(s32 yy = y; yy < y + 8; ++yy) {
+					s8* dst = (s8*)&imageMemory[yy * 640*4 + x * 4];
+					for(u8 mask = 0x80; mask != 0; mask >>= 1) {
+						u8 r = (pattern[0]  & mask) ? 0xFF : 0x00; // R
+						u8 g = (pattern[8]  & mask) ? 0xFF : 0x00; // G
+						u8 b = (pattern[16] & mask) ? 0xFF : 0x00; // B
+						if(r | g | b) {
+							dst[0] = r; // R
+							dst[1] = g; // G
+							dst[2] = b; // B
+							dst[3] = 0xFF;
+						}
+						dst += 4;
+					}
+					pattern++;
+				}
+			}
+		}
 	}
+
 	return (void*)imageMemory;
 #else // IS_TARGET_X1_SERIES(TARGET)
 	return nullptr;
@@ -299,7 +461,14 @@ u8
 platformInPort(u8* io, u16 port)
 {
 #if IS_TARGET_X1_SERIES(TARGET)
-	if(0x4000 <= port) [[likely]]{
+	if(0x2000 <= port && port <= 0x3FFF) {
+		// TEXT ATTR
+		// TEXT
+		if(0x2800 <= port && port <= 0x2FFF) {
+			port -= 0x800; // 0x2800～0x2FFF => 0x2000～0x27FF
+		}
+		return io[port];
+	} else if(0x4000 <= port) [[likely]]{
 		// VRAM
 		return io[port];
 	} else if((port & 0xFF00) == 0x1000) {
@@ -328,6 +497,7 @@ platformInPort(u8* io, u16 port)
 		progressPlatformTick(getExecutedClock());
 		return ctc->read8(3);
 	} else if((port & 0xFF0F) == 0x1A01) {
+		// 8255 B
 		const auto tick = getExecutedClock();
 		progressPlatformTick(tick);
 		constexpr auto v = (4000000 / 60) * 24 / (200+24); // @todo VSYNC期間のタイミング
@@ -354,10 +524,35 @@ void
 platformOutPort(u8* io, u16 port, u8 value)
 {
 #if IS_TARGET_X1_SERIES(TARGET)
-	// VRAM
-	if(0x4000 <= port) [[likely]]{
-		setVRAMDirty();
-		io[port] = value;
+
+	if(0x2000 <= port && port <= 0x3FFF) {
+		// TEXT ATTR
+		// TEXT
+		if(0x2800 <= port && port <= 0x2FFF) {
+			port -= 0x800; // 0x2800～0x2FFF => 0x2000～0x27FF
+		}
+		if(io[port] != value) {
+			setVRAMDirty();
+			io[port] = value;
+		}
+
+		// PCGのキャラ
+		if(textWidth <= 40) {
+			if(port == 0x33E8) {
+				// 40桁表示時
+				pcg->setChar(value);
+			}
+		} else {
+			if(port == 0x37D0) {
+				// 80桁表示時
+				pcg->setChar(value);
+			}
+		}
+	} else if(0x4000 <= port) [[likely]]{
+		// VRAM
+		if(io[port] != value) {
+			setVRAMDirty();
+		}
 	} else if((port & 0xFF00) == 0x1000) {
 		// PALETTE B
 		if(io[0x1000] != value) {
@@ -381,6 +576,14 @@ platformOutPort(u8* io, u16 port, u8 value)
 			auto tmp = value;
 			for(s32 i = 0; i < 8; ++i) { paletteG[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
 			io[0x1200] = value;
+		}
+	} else if(port == 0x1800) {
+		// CTRC AR
+		io[0x1800] = value;
+	} else if(port == 0x1801) {
+		if(io[0x1800] == 1) {
+			// CTRC R1 桁数
+			textWidth = value;
 		}
 	} else if((port & 0xFF00) == 0x1B00) {
 		// PSG Data write
@@ -406,6 +609,15 @@ platformOutPort(u8* io, u16 port, u8 value)
 		// CTC3
 		progressPlatformTick(getExecutedClock());
 		ctc->write8(3, value);
+	} else if((port & 0xFF00) == 0x1500) {
+		// PCG B
+		pcg->writeB(value);
+	} else if((port & 0xFF00) == 0x1600) {
+		// PCG R
+		pcg->writeR(value);
+	} else if((port & 0xFF00) == 0x1700) {
+		// PCG G
+		pcg->writeG(value);
 	}
 #endif // IS_TARGET_X1_SERIES(TARGET)
 }

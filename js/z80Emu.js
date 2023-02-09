@@ -9,7 +9,8 @@ class Z80Emu {
 	/**
 	 * 使用するヒープサイズ(64KiBの倍数であること)
 	 */
-	#heapSize = 256*1024*1024; // 256MiB
+	//#heapSize = 256*1024*1024; // 256MiB
+	#heapSize = 16*1024*1024; // 16MiB
 
 	/**
 	 * Wasmのメモリ
@@ -160,6 +161,14 @@ class Z80Emu {
 						return 0xFF;
 					}
 				}
+			},
+			log: {
+				logHex02: (value)=> {
+					console.log(value.toString(16).padStart(2, 0).toUpperCase());
+				},
+				logHex04: (value)=> {
+					console.log(value.toString(16).padStart(4, 0).toUpperCase());
+				}
 			}
 		};
 		return WebAssembly.instantiateStreaming(fetch("sos.wasm"), importObject).then(
@@ -186,6 +195,10 @@ class Z80Emu {
 		this.#audio = audio;
 		// ゲームパッド
 		this.#gamePad = gamePad;
+
+		this.#Z80Regs = null;
+		this.#RAM8    = null;
+		this.#IO8     = null;
 	}
 
 	/**
@@ -290,7 +303,11 @@ class Z80Emu {
 	 * @param {number} addr		IOアドレス
 	 * @param {number} value	値
 	 */
-	ioWrite(addr, value) { this.#IO8[addr & 0xFFFF] = value; }
+	ioWrite(addr, value) { 
+		if(this.#IO8) {
+			this.wasm.writeIO(addr, value);
+		}
+	}
 	
 	// -------------------------------------------------------------------------------------------------
 	//  Z80レジスタアクセス

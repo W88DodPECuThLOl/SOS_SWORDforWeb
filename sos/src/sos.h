@@ -101,6 +101,9 @@ extern "C" void setVRAMDirty();
 WASM_EXPORT
 extern "C" void* getVRAMImage();
 
+WASM_EXPORT
+extern "C" void writeIO(u16 port, u8 value);
+
 /**
  * @brief PSGへ書き込みがされた時に呼び出される関数
  * 
@@ -184,7 +187,8 @@ enum WorkAddress : u16 {
  * 
  * このアドレスにZ80エミュのブレイクポイントが仕掛けてあり、JavaScriptへフックされる。
  */
-static constexpr u16 ADDRESS_JUMPTABLE = 0x0100; // ～ 0x017F
+static constexpr u16 ADDRESS_JUMPTABLE     = 0x0100; // ～ 0x017F
+static constexpr u16 ADDRESS_JUMPTABLE_END = 0x017F;
 /**
  * @brief S-OS IBバッファのアドレス
  */

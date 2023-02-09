@@ -82,6 +82,9 @@ class TaskContext {
 		this.diskManager = diskManager;
 		this.sndMan = sndMan;
 		this.gamePad = gamePad;
+
+		// PCGの初期化
+		this.#initializeSvgPCG();
 	}
 
 	/**
@@ -158,6 +161,9 @@ class TaskContext {
 		elem.style.transform = "scale("
 			+ 40 * this.screenScale.x / width + ","
 			+ 25 * this.screenScale.y / height + ")";
+		// CTRC設定
+		this.z80Emu.ioWrite(0x1800, 1);
+		this.z80Emu.ioWrite(0x1801, width);
 	}
 
 	/**
@@ -396,10 +402,8 @@ class TaskContext {
 	/**
 	 * X1用
 	 * 
-	 * 0x7B {    => 0x87  
-	 * 0x87      => ■の塗りつぶし 0xE2A8  
-	 * 0x7D }    => 0xF0  
-	 * 0xF0      => メッシュの■  0xE2FF
+	 * 0x7B {    => ■の塗りつぶし 0xE2A8  
+	 * 0x7D }    => メッシュの■  0xE2FF
 	 * @type {Uin8Array}
 	 */
 	tblMojiEncode_X1 = [
@@ -418,22 +422,22 @@ class TaskContext {
 		/* 60 */ 0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067,
 		/* 68 */ 0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F,
 		/* 70 */ 0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077,
-		/* 78 */ 0x0078, 0x0079, 0x007A, 0x0087, 0x007C, 0x00F0, 0x007E, 0x007F,
-		/* 80 */ 0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086, 0xE2A8,
+		/* 78 */ 0x0078, 0x0079, 0x007A, 0xE2A8, 0x007C, 0xE2FF, 0x007E, 0x007F,
+		/* 80 */ 0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086, 0x0087,
 		/* 88 */ 0x0088, 0x0089, 0x008A, 0x008B, 0x008C, 0x008D, 0x008E, 0x008F,
 		/* 90 */ 0x0090, 0x0091, 0x0092, 0x0093, 0x0094, 0x0095, 0x0096, 0x0097,
-		/* 98 */ 0x0098, 0x0099, 0x009A, 0x009B, 0x009C, 0x009D, 0x009E, 0x009F, 
+		/* 98 */ 0x0098, 0x0099, 0x009A, 0x009B, 0x009C, 0x009D, 0x009E, 0x009F,
 		/* A0 */ 0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7,
-		/* A8 */ 0x00A8, 0x00A9, 0x00AA, 0x00AB, 0x00AC, 0x00AD, 0x00AE, 0x00AF, 
+		/* A8 */ 0x00A8, 0x00A9, 0x00AA, 0x00AB, 0x00AC, 0x00AD, 0x00AE, 0x00AF,
 		/* B0 */ 0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7,
-		/* B8 */ 0x00B8, 0x00B9, 0x00BA, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x00BF, 
+		/* B8 */ 0x00B8, 0x00B9, 0x00BA, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x00BF,
 		/* C0 */ 0x00C0, 0x00C1, 0x00C2, 0x00C3, 0x00C4, 0x00C5, 0x00C6, 0x00C7,
 		/* C8 */ 0x00C8, 0x00C9, 0x00CA, 0x00CB, 0x00CC, 0x00CD, 0x00CE, 0x00CF,
 		/* D0 */ 0x00D0, 0x00D1, 0x00D2, 0x00D3, 0x00D4, 0x00D5, 0x00D6, 0x00D7,
 		/* D8 */ 0x00D8, 0x00D9, 0x00DA, 0x00DB, 0x00DC, 0x00DD, 0x00DE, 0x00DF,
 		/* E0 */ 0x00E0, 0x00E1, 0x00E2, 0x00E3, 0x00E4, 0x00E5, 0x00E6, 0x00E7,
 		/* E8 */ 0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x00EC, 0x00ED, 0x00EE, 0x00EF,
-		/* F0 */ 0xE2FF, 0x00F1, 0x00F2, 0x00F3, 0x00F4, 0x00F5, 0x00F6, 0x00F7,
+		/* F0 */ 0x00F0, 0x00F1, 0x00F2, 0x00F3, 0x00F4, 0x00F5, 0x00F6, 0x00F7,
 		/* F8 */ 0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x00FF
 	];
 
@@ -453,6 +457,174 @@ class TaskContext {
 		}
 	}
 
+	#svg_PCG = [];
+
+	#initializeSvgPCG()
+	{
+		// 16だと駄目なので14に
+		const initPattern = `<svg width=8 height=14 viewBox="0 0 80 80" preserveAspectRatio="none" style="border:0;margin:0;padding:0;">
+		<rect x="0"  y="0"  width="10" height="10" fill="#f00"/><rect x="20" y="0"  width="10" height="10" fill="#f00"/><rect x="40" y="0"  width="10" height="10" fill="#f00"/><rect x="60" y="0"  width="10" height="10" fill="#f00"/>
+		<rect x="10" y="10" width="10" height="10" fill="#ff0"/><rect x="30" y="10" width="10" height="10" fill="#f0f"/><rect x="50" y="10" width="10" height="10" fill="#f00"/><rect x="70" y="10" width="10" height="10" fill="#0f0"/>
+		<rect x="0"  y="20" width="10" height="10" fill="#0f0"/><rect x="20" y="20" width="10" height="10" fill="#f00"/><rect x="40" y="20" width="10" height="10" fill="#f00"/><rect x="60" y="20" width="10" height="10" fill="#f00"/>
+		<rect x="10" y="30" width="10" height="10" fill="#ff0"/><rect x="30" y="30" width="10" height="10" fill="#f0f"/><rect x="50" y="30" width="10" height="10" fill="#f00"/><rect x="70" y="30" width="10" height="10" fill="#0f0"/>
+		<rect x="0"  y="40" width="10" height="10" fill="#f00"/><rect x="20" y="40" width="10" height="10" fill="#f00"/><rect x="40" y="40" width="10" height="10" fill="#f00"/><rect x="60" y="40" width="10" height="10" fill="#f00"/>
+		<rect x="10" y="50" width="10" height="10" fill="#ff0"/><rect x="30" y="50" width="10" height="10" fill="#f0f"/><rect x="50" y="50" width="10" height="10" fill="#f00"/><rect x="70" y="50" width="10" height="10" fill="#0f0"/>
+		<rect x="0"  y="60" width="10" height="10" fill="#f00"/><rect x="20" y="60" width="10" height="10" fill="#f00"/><rect x="40" y="60" width="10" height="10" fill="#f00"/><rect x="60" y="60" width="10" height="10" fill="#f00"/>
+		<rect x="10" y="70" width="10" height="10" fill="#ff0"/><rect x="30" y="70" width="10" height="10" fill="#fff"/><rect x="50" y="70" width="10" height="10" fill="#f00"/><rect x="70" y="70" width="10" height="10" fill="#ff0"/>
+		<rect x="0" y="70" width="80" height="10" fill="#fff"/>
+		</svg>`;
+		this.#svg_PCG = [];
+		for(let i = 0; i <= 0xFF; ++i) {
+			this.#svg_PCG.push(initPattern);
+		}
+	}
+
+	/**
+	 * レトロPCフォント用の文字描画 X1
+	 * 
+	 * @param {number} codePoint 文字(UTF-32)
+	 * @param {number} color 色 
+	 * @param {number} attr 属性
+	 * @param {boolean} cursor カーソルを描画するかどうか
+	 * @returns {string} １文字文描画するテキスト
+	 */
+	#customDrawLetter_RetoroPC_X1(codePoint, color, attr, cursor) {
+		const paletteIndex = attr & 0x07;
+		const isPCG = ((attr & 0x20) != 0);
+
+		if(codePoint >= 0x100) {
+			// 0x0100～は、半分のサイズにして描画
+			const moji = String.fromCodePoint(codePoint);
+			if(cursor) {
+				if(color == 0xFFFFFFFF) {
+					// デフォルトが白なので、色設定不要
+					return '<span class="cursor letterHalf">' + moji + '</span>';
+				} else {
+					return '<font class="cursor letterHalf" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+				}
+			} else {
+				if(color == 0xFFFFFFFF) {
+					// デフォルトが白なので、色設定不要
+					return '<span class="letterHalf">' + moji + '</span>';
+				} else {
+					return '<font class="letterHalf" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+				}
+			}
+		}
+		if(isPCG) {
+			// PCG
+			return this.#svg_PCG[codePoint];
+		}
+		// 文字コードを調整
+		// 0x020～0x7Aはそのまま メモ）なるべくコピペできるようにそのままに
+		// 0x01～0x1F、0x7B～0xFFを0xF001～0xF01F、0xF07B～F0FFにマップ
+		if((0x01 <= codePoint && codePoint <= 0x1F) || (0x7A < codePoint)) {
+			codePoint += 0xF000;
+		}
+
+		// 文字生成
+		// ・必要ならエスケープしておく
+		let moji;
+		switch(codePoint) {
+			case 0x00:
+			case 0x20: moji = '&nbsp;'; break; // 半角スペース
+			case 0x26: moji = '&amp;'; break; // &
+			case 0x3C: moji = '&lt;'; break; // <
+			case 0x3E: moji = '&gt;'; break; // >
+			default:
+				moji = String.fromCodePoint(codePoint);
+				break;
+		}
+
+		// HTMLの文字列生成
+		if(cursor) {
+			if(color == 0xFFFFFFFF) {
+				// デフォルトが白なので、色設定不要
+				// カーソルだけ設定する
+				return '<span class="cursor">' + moji + '</span>';
+			} else {
+				return '<font class="cursor" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+			}
+		} else {
+			if(color == 0xFFFFFFFF) {
+				// デフォルトが白なので、色設定不要
+				return moji;
+			} else {
+				return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+			}
+		}
+	};
+
+	/**
+	 * レトロPCフォント用の文字描画 X1
+	 * 
+	 * @param {number} codePoint 文字(UTF-32)
+	 * @param {number} color 色 
+	 * @param {number} attr 属性
+	 * @param {boolean} cursor カーソルを描画するかどうか
+	 * @returns {string} １文字文描画するテキスト
+	 */
+	#customDrawLetter_RetoroPC(codePoint, color, attr, cursor) {
+		if(codePoint >= 0x100) {
+			// 0x0100～は、半分のサイズにして描画
+			const moji = String.fromCodePoint(codePoint);
+			if(cursor) {
+				if(color == 0xFFFFFFFF) {
+					// デフォルトが白なので、色設定不要
+					return '<span class="cursor letterHalf">' + moji + '</span>';
+				} else {
+					return '<font class="cursor letterHalf" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+				}
+			} else {
+				if(color == 0xFFFFFFFF) {
+					// デフォルトが白なので、色設定不要
+					return '<span class="letterHalf">' + moji + '</span>';
+				} else {
+					return '<font class="letterHalf" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+				}
+			}
+		}
+
+		// 文字コードを調整
+		// 0x020～0x7Aはそのまま メモ）なるべくコピペできるようにそのままに
+		// 0x01～0x1F、0x7B～0xFFを0xF001～0xF01F、0xF07B～F0FFにマップ
+		if((0x01 <= codePoint && codePoint <= 0x1F) || (0x7A < codePoint)) {
+			codePoint += 0xF000;
+		}
+
+		// 文字生成
+		// ・必要ならエスケープしておく
+		let moji;
+		switch(codePoint) {
+			case 0x00:
+			case 0x20: moji = '&nbsp;'; break; // 半角スペース
+			case 0x26: moji = '&amp;'; break; // &
+			case 0x3C: moji = '&lt;'; break; // <
+			case 0x3E: moji = '&gt;'; break; // >
+			default:
+				moji = String.fromCodePoint(codePoint);
+				break;
+		}
+
+		// HTMLの文字列生成
+		if(cursor) {
+			if(color == 0xFFFFFFFF) {
+				// デフォルトが白なので、色設定不要
+				// カーソルだけ設定する
+				return '<span class="cursor">' + moji + '</span>';
+			} else {
+				return '<font class="cursor" color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+			}
+		} else {
+			if(color == 0xFFFFFFFF) {
+				// デフォルトが白なので、色設定不要
+				return moji;
+			} else {
+				return '<font color="#' + ('00000000' + color.toString(16)).slice(-6) + '">' + moji + '</font>';
+			}
+		}
+	};
+
 	/**
 	 * フォントを変更する
 	 * @param {Uint8Array|string} fontName 機種名
@@ -467,36 +639,37 @@ class TaskContext {
 			this.setScreenScale(1.0, 1.0);
 			this.catTextScreen.setSpaceFull(true); // スペースを全角で描画する
 			this.catTextScreen.setHalf(false);
+			this.catTextScreen.setCustomDrawLetter(null);
 		} else if(this.strcmp(fontName, "X1") == 0) {
 			// X1風 S-OS
 			this.tblMojiEncode = this.tblMojiEncode_X1;
-			fontUrls = ["./fonts/X1/X1-FONT.ttf", "./fonts/X1/X1-FONT-SYMBOL.ttf"];
+			fontUrls = ["./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setSpaceFull(false); // スペースを半角で描画する
+			this.catTextScreen.setCustomDrawLetter( (codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(codePoint, color, attr, cursor ); });
 		} else if(this.strcmp(fontName, "X1p") == 0) {
 			// X1風
 			this.tblMojiEncode = this.tblMojiEncode_Unit;
-			fontUrls = ["./fonts/X1/X1-FONT.ttf", "./fonts/X1/X1-FONT-SYMBOL.ttf"];
+			fontUrls = ["./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setSpaceFull(false); // スペースを半角で描画する
+			this.catTextScreen.setCustomDrawLetter( (codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(codePoint, color, attr, cursor ); });
 		} else if(this.strcmp(fontName, "PC8001") == 0 || this.strcmp(fontName, "PC8") == 0) {
 			// PC8001風(Original) S-OS
 			this.tblMojiEncode = this.tblMojiEncode_PC8001;
-			fontUrls = ["./fonts/N-Font/N-Font_Original.TTF"];
+			fontUrls = ["./fonts/N-Font/N-Font_Original.TTF", "./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setSpaceFull(false); // スペースを半角で描画する
+			this.catTextScreen.setCustomDrawLetter(this.#customDrawLetter_RetoroPC);
 		} else if(this.strcmp(fontName, "PC8001p") == 0 || this.strcmp(fontName, "PC8p") == 0) {
 			// PC8001風(Original)
 			this.tblMojiEncode = this.tblMojiEncode_Unit;
-			fontUrls = ["./fonts/N-Font/N-Font_Original.TTF"];
+			fontUrls = ["./fonts/N-Font/N-Font_Original.TTF", "./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setSpaceFull(false); // スペースを半角で描画する
+			this.catTextScreen.setCustomDrawLetter(this.#customDrawLetter_RetoroPC);
 		} else if(this.strcmp(fontName, "PC8001r") == 0 || this.strcmp(fontName, "PC8r") == 0) {
 			// PC8001風(Refine)
 			this.tblMojiEncode = this.tblMojiEncode_Unit;
-			fontUrls = ["./fonts/N-Font/N-Font_Refine.TTF"];
+			fontUrls = ["./fonts/N-Font/N-Font_Refine.TTF", "./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setSpaceFull(false); // スペースを半角で描画する
+			this.catTextScreen.setCustomDrawLetter(this.#customDrawLetter_RetoroPC);
 		} else {
 			this.printNativeMsg("Unknown FONT map.\n");
 			return;

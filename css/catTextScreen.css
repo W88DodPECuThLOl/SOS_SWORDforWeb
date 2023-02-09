@@ -6,14 +6,7 @@
 body {
     margin: 0;
 	padding: 0;
-}
-
-/* 文字コード0xAD表示用 */
-.letter0xAD {
-    transform: scale(0.4, 1.0);
-    display: inline-block;
-    width: 8px;
-    height: 16px;
+    background-color: #606060;
 }
 
 /* 全角文字を半角にして表示する用 */
@@ -25,29 +18,54 @@ body {
     height: 16px;
 }
 
+
+
+
+
+
+
+
+
+
+
+
 .console {
     font-size: 16px;
     line-height: 16px;
     transform-origin: top left;
-    width: 100%;
-    height: 100%;
-
     background-color:#00000000;
+    color: #FFFFFFFF; /* デフォルトの文字の色を白に */
+    display: inline-block;
 }
 
 .console .rot90 {
     display: inline-block;
-    transform: rotate(90deg)
+    transform: rotate(90deg);
 }
 
 .console .rot180 {
     display: inline-block;
-    transform: rotate(180deg)
+    transform: rotate(180deg);
 }
 
 .console .rot270 {
     display: inline-block;
-    transform: rotate(270deg)
+    transform: rotate(270deg);
+}
+
+.console .h {
+    display: inline-block;
+    transform: scaleX(-1);
+}
+
+.console .v {
+    display: inline-block;
+    transform: scaleY(-1);
+}
+
+.console .hv {
+    display: inline-block;
+    transform: scale(-1,-1);
 }
 
 .console .cursor {
@@ -256,3 +274,11 @@ body {
     display: flex; /* 横に並べる */
     margin: 0 0 0 auto; /* 右寄せ */
 }
+
+
+
+
+
+
+
+

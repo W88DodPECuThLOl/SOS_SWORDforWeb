@@ -37,7 +37,7 @@
 					<div id="cat-bar-media" class="cat-bar-media">
 						<ul>
 							<li><div id="drive0" class="cat-media-icon-fd"></div>
-								<ul>
+								<ul id="aaa0">
 									<li><div class="media-menu-item-header">Drive A</div></li>
 									<li>
 										<div id="mnt0">Insert disk image</div>
@@ -255,7 +255,7 @@
 			if(cfg.fontSet) {
 				ctx.changeFont(cfg.fontSet); // URLパラメータで設定されたフォント
 			} else {
-				ctx.changeFont("SOS"); // デフォルトのフォント
+				ctx.changeFont("X1"); // デフォルトのフォント
 			}
 
 			/**
@@ -407,6 +407,18 @@
 					if(unmountMenuItem) { unmountMenuItem.className = "media-menu-item-disable"; }
 					if(saveMenuItem) { saveMenuItem.className = "media-menu-item-disable"; }
 					if(storeMenuItem) { storeMenuItem.className = "media-menu-item-disable"; }
+
+					// focus
+					/*
+					document.getElementById("drive" + i).hidden = true;
+					window.requestAnimationFrame(function(time) {
+						window.requestAnimationFrame(function(time) {
+							unmnt.hidden = false;
+							document.getElementById("drive" + i).hidden = false;
+						});
+					});
+					document.getElementById("drive" + i).blur() ;
+					*/
 				}
 				// メニュー項目
 				if(restoreMenuItem) {

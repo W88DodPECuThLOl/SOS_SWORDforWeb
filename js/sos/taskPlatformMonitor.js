@@ -147,6 +147,33 @@ class TaskPlatformMonitor {
 	}
 
 	/**
+	 * calculate CRC
+	 * 
+	 * 下記を参考にさせていただきました。
+	 * https://twitter.com/akikawa134/status/1247839587537317894
+	 * @param {number} crc 0～0xFFFF
+	 * @param {number} data 0～0xFF
+	 * @returns {number} crc
+	 */
+	#calc_crc(crc, data)
+	{
+		for (let i = 0; i < 8; i++) {
+			/*
+			msb = (crc >> 15) ^ (data >> 7);
+			crc = (crc << 1) & 0xffff;
+			data = (data << 1) & 0xff;
+			*/
+			let msb = (crc >> 15) & 0x1;
+			crc = ((crc << 1) | (data >> 7)) & 0xffff;
+			data = (data << 1) & 0xff;
+			if (msb) {
+				crc ^= 0x1021;
+			}
+		}
+		return crc;
+	}				
+
+	/**
 	 * メモリ内容を表示する
 	 * 
 	 * @param {TaskContext} ctx 
@@ -160,11 +187,16 @@ class TaskPlatformMonitor {
 		dumpAddress = (dumpAddress + ((width <= 40) ? 0x80 : 0x100)) & 0xFFFF;
 		let endAddress = startAddress + ((width <= 40) ? 0x80 : 0x100);
 		let address = startAddress & 0xFFF0;
+		let crc = 0x0000;
+		let colSum = [0,0,0,0, 0,0,0,0];
 		while(address < endAddress) {
-			ctx.printNativeMsg((address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + ":");
+			let lineSum = 0;
+			ctx.printNativeMsg((address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + " ");
 			for(let i = 0; i < ((width <= 40) ? 8 : 16); ++i) {
+				const memValue = ctx.z80Emu.memReadU8(address & 0xFFFF);
 				if(startAddress <= address && address < endAddress) {
-					ctx.printNativeMsg((ctx.z80Emu.memReadU8(address & 0xFFFF)).toString(16).padStart(2, 0).toUpperCase());
+					lineSum += memValue;
+					ctx.printNativeMsg(memValue.toString(16).padStart(2, 0).toUpperCase());
 				} else {
 					ctx.printNativeMsg("  ");
 				}
@@ -173,8 +205,21 @@ class TaskPlatformMonitor {
 				} else {
 					ctx.printNativeMsg(" ");
 				}
+				colSum[i & 7] += memValue;
+				crc = this.#calc_crc(crc, memValue);
 				address++;
 			}
+			if(width <= 40) {
+				ctx.printNativeMsg(": " + (lineSum & 0xFF).toString(16).padStart(2, 0).toUpperCase());
+			}
+			ctx.PRINT(0x0D);
+		}
+		if(width <= 40) {
+			ctx.printNativeMsg("---------------------------------\nSUM ");
+			for(let i = 0; i < 8; ++i) {
+				ctx.printNativeMsg(" " + (colSum[i] & 0xFF).toString(16).padStart(2, 0).toUpperCase());
+			}
+			ctx.printNativeMsg(" " + (crc & 0xFFFF).toString(16).padStart(4, 0).toUpperCase());
 			ctx.PRINT(0x0D);
 		}
 		return dumpAddress;

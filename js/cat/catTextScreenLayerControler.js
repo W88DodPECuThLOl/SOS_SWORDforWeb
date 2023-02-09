@@ -564,4 +564,13 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 	{
 		this.#target.setHalf(half);
 	}
+
+	/**
+	 * 文字を描画する関数を設定する
+	 * @param {*} drawLetter 
+	 */
+	setCustomDrawLetter(drawLetter)
+	{
+		this.#target.setCustomDrawLetter(drawLetter);
+	}
 }

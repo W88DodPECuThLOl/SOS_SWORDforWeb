@@ -45,6 +45,11 @@
 #include <vector>
 #endif // BUILD_WASM
 
+WASM_IMPORT("log", "logHex02")
+extern "C" void jslogHex02(int operandNumber);
+WASM_IMPORT("log", "logHex04")
+extern "C" void jslogHex04(int operandNumber);
+
 //using ReadFuncType = std::function<unsigned char(void*, unsigned short)>;
 //using WriteFuncType = std::function<void(void*, unsigned short, unsigned char)>;
 using ReadFuncType = unsigned char(*)(void*, unsigned short);
@@ -610,6 +615,11 @@ class Z80
             char buf[80];
             snprintf(buf, sizeof(buf), "detect an unknown operand (ED,%02X)", operandNumber);
             throw std::runtime_error(buf);
+#else
+            jslogHex04(ctx->getPCL() | ((u16)ctx->getPCH() << 8));
+            jslogHex02(operandNumber);
+
+            // ED 00 IN0 B,(n) ; *Z380*eZ80*HD64180
 #endif 
         }
         ctx->checkBreakOperandED(operandNumber);
@@ -4987,6 +4997,11 @@ class Z80
         ctx->reg.pair.A = i;
     }
 
+    static inline void IN0_B_N(Z80* ctx) { ctx->IN0_B_N_(); }
+    inline void IN0_B_N_()
+    {
+    }
+
     // Input a byte form device (C) to register.
     static inline void IN_B_C(Z80* ctx) { ctx->IN_R_C(0b000); }
     static inline void IN_C_C(Z80* ctx) { ctx->IN_R_C(0b001); }
@@ -5293,7 +5308,7 @@ class Z80
         SET_B_6, SET_C_6, SET_D_6, SET_E_6, SET_H_6, SET_L_6, SET_HL_6, SET_A_6,
         SET_B_7, SET_C_7, SET_D_7, SET_E_7, SET_H_7, SET_L_7, SET_HL_7, SET_A_7};
     void (*opSetED[256])(Z80* ctx) = {
-        nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+        IN0_B_N, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
         nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,

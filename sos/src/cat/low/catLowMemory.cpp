@@ -121,11 +121,19 @@ struct catLowBlockAllocator {
 	}
 };
 
-using SmallMemoryBlock1 = catLowBlockAllocator<  256*1024, 32>;
-using SmallMemoryBlock2 = catLowBlockAllocator< 1024*1024, 64>;
-using SmallMemoryBlock3 = catLowBlockAllocator<   64*1024,128>;
-using SmallMemoryBlock4 = catLowBlockAllocator<   32*1024,256>;
-using SmallMemoryBlock5 = catLowBlockAllocator<   16*1024,512>;
+
+//using SmallMemoryBlock1 = catLowBlockAllocator<  256*1024, 32>;
+//using SmallMemoryBlock2 = catLowBlockAllocator< 1024*1024, 64>;
+//using SmallMemoryBlock3 = catLowBlockAllocator<   64*1024,128>;
+//using SmallMemoryBlock4 = catLowBlockAllocator<   32*1024,256>;
+//using SmallMemoryBlock5 = catLowBlockAllocator<   16*1024,512>;
+
+//16MB版
+using SmallMemoryBlock1 = catLowBlockAllocator<   16*1024, 32>;
+using SmallMemoryBlock2 = catLowBlockAllocator<   32*1024, 64>;
+using SmallMemoryBlock3 = catLowBlockAllocator<    4*1024,128>;
+using SmallMemoryBlock4 = catLowBlockAllocator<    4*1024,256>;
+using SmallMemoryBlock5 = catLowBlockAllocator<    4*1024,512>;
 
 template<u64 BlockSize>
 struct catLowAllocator {
@@ -380,13 +388,15 @@ struct HeapManager {
 	/**
 	 * @brief 可変長のメモリブロック
 	 */
-	catLowAllocator<128*1024*1024> blockMemory;
+	//catLowAllocator<128*1024*1024> blockMemory;
+	catLowAllocator<4*1024*1024> blockMemory;
 };
 
 #if DEBUG_MEM_LEAK
 static_assert(sizeof(HeapManager) <= 512*1024*1024);
 #else
-static_assert(sizeof(HeapManager) <= 256*1024*1024);
+//static_assert(sizeof(HeapManager) <= 256*1024*1024);
+static_assert(sizeof(HeapManager) <= 16*1024*1024);
 #endif
 
 #if !BUILD_WASM

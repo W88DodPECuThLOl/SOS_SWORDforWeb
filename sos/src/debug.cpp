@@ -13,6 +13,14 @@
 #define WRITE_U8( addr, value) ram[addr    ] = value & 0xFF;
 #define READ_U16(addr) (u16)ram[addr] | ((u16)ram[addr + 1] << 8);
 
+void jslogHex02(int operandNumber)
+{
+}
+
+void jslogHex04(int operandNumber)
+{
+}
+
 void sos_putchar(int ch)
 {
 	putchar(ch);

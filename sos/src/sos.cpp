@@ -9,7 +9,16 @@ void setupHeap(void* heapBase, size_t heapSize);
 
 class SOS_Context {
 	static unsigned char readByte(void* arg, unsigned short addr) { return ((SOS_Context*)arg)->RAM[addr]; }
-	static void writeByte(void* arg, unsigned short addr, unsigned char value) { ((SOS_Context*)arg)->RAM[addr] = value; }
+	static void writeByte(void* arg, unsigned short addr, unsigned char value) {
+		// S-OSのフック部分が書き換えられたら、フックを全部削除する
+		// 以降、S-OSは使えなくなり、完全なZ80ワールドになる。
+		if(ADDRESS_JUMPTABLE <= addr && addr <= ADDRESS_JUMPTABLE_END) {
+			if(((SOS_Context*)arg)->RAM[addr] != value) {
+				((SOS_Context*)arg)->z80.removeAllBreakPoints();
+			}
+		}
+		((SOS_Context*)arg)->RAM[addr] = value;
+	}
 	static unsigned char inPort(void* arg, unsigned short port) {
 		return platformInPort(((SOS_Context*)arg)->IO, port);
 	}
@@ -232,6 +241,8 @@ class SOS_Context {
 		for(const auto& it : subroutineTable) {
 			z80.addBreakPointFP(dst - RAM, it.function);
 			if(it.js) {
+				// jsで処理が完了するまでループさせておく
+				// メモ）jsの処理が完了したら、PCを無理やり書き換えて次の命令を実行するようにしている。
 				WRITE_JP(dst, dst - RAM);
 			}
 			WRITE_RET(dst);
@@ -550,6 +561,13 @@ getVRAMImage()
 	ctx->resetVRAMDirty();
 	return getPlatformVRAMImage();
 }
+
+void
+writeIO(u16 port, u8 value)
+{
+	platformOutPort(ctx->getIO(), port, value);
+}
+
 
 s32
 getExecutedClock()

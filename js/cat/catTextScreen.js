@@ -306,9 +306,32 @@ export default class {
 		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
 		this.#textLayerControler[layer].setSpaceFull(spaceFull);
 	}
+	/**
+	 * 
+	 * @param {*} half 
+	 * @param {number} layer	レイヤ番号
+	 */
 	setHalf(half, layer)
 	{
 		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
 		this.#textLayerControler[layer].setHalf(half);
+	}
+
+	/**
+	 * 文字を描画する関数を設定する
+	 * 
+	 * function drawLetter(codePoint: number, color: number, attr: number, cursor: boolean) : string １文字文描画するテキスト  
+	 * codePoint 文字(UTF-32)  
+	 * color 色 32bit  
+	 * attr 属性  
+	 * cursor カーソルを描画するかどうか  
+	 * 
+	 * @param {*} drawLetter 
+	 * @param {number} layer	レイヤ番号
+	 */
+	setCustomDrawLetter(drawLetter, layer)
+	{
+		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
+		this.#textLayerControler[layer].setCustomDrawLetter(drawLetter);
 	}
 }
