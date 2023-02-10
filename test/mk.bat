@@ -17,12 +17,16 @@ AILZ80ASM.exe --input test8255.z80 --output test8255.lst -lst -f
 AILZ80ASM.exe --input testASCII.z80 --output testASCII.bin -f
 AILZ80ASM.exe --input testASCII.z80 --output testASCII.lst -lst -f
 
+AILZ80ASM.exe --input testPad.z80 --output testPad.bin -f
+AILZ80ASM.exe --input testPad.z80 --output testPad.lst -lst -f
+
 REM hudisk https://github.com/BouKiCHi/HuDisk
 hudisk.exe -a SOS_TEST.d88 testPause.bin --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testWopen.bin --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testRopen.bin --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testCTC.bin   --read 8000 --go 8000
 hudisk.exe -a SOS_TEST.d88 test8255.bin  --read 3000 --go 3000
+hudisk.exe -a SOS_TEST.d88 testPad.bin   --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testASCII.bin --read 3000 --go 3000
 
 pause
