@@ -187,6 +187,7 @@ CatPlatformX1::CatPlatformX1()
 	, imageMemory(new u8[640*200*4])
 	, ctc(new CatCTC())
 	, pcg(new CatPCG())
+	, crtc(new CatCRTC())
 {
 }
 
@@ -194,6 +195,10 @@ CatPlatformX1::~CatPlatformX1()
 {
 	terminate();
 
+	if(crtc) {
+		delete crtc;
+		crtc = nullptr;
+	}
 	if(pcg) {
 		delete pcg;
 		pcg = nullptr;
