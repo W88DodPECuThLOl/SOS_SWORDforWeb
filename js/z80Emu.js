@@ -147,10 +147,10 @@ class Z80Emu {
 				readGamePad:(index)=>{
 					// 負論理
 					if(index == 0) {
-						return(this.#gamePad.buttons[this.#gamePad.BUTTON_UP_INDEX].current ? 0 : 0x01)
-						| (this.#gamePad.buttons[this.#gamePad.BUTTON_DOWN_INDEX].current ? 0 : 0x02)
-						| (this.#gamePad.buttons[this.#gamePad.BUTTON_LEFT_INDEX].current ? 0 : 0x04)
-						| (this.#gamePad.buttons[this.#gamePad.BUTTON_RIGHT_INDEX].current ? 0 : 0x08)
+						return(this.#gamePad.buttons[this.#gamePad.BUTTON_VUP_INDEX].current ? 0 : 0x01)
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_VDOWN_INDEX].current ? 0 : 0x02)
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_VLEFT_INDEX].current ? 0 : 0x04)
+						| (this.#gamePad.buttons[this.#gamePad.BUTTON_VRIGHT_INDEX].current ? 0 : 0x08)
 						| 0x10
 						  // トリガー１と２ @todo 位置関係が不明
 						| (this.#gamePad.buttons[this.#gamePad.BUTTON_B_INDEX].current ? 0 : 0x20) // トリガー1
@@ -307,6 +307,21 @@ class Z80Emu {
 		if(this.#IO8) {
 			this.wasm.writeIO(addr, value);
 		}
+	}
+	ioRead(addr) { 
+		if(this.#IO8) {
+			return this.wasm.readIO(addr);
+		}
+		return 0;
+	}
+	setPCG(codePoint, data)
+	{
+		const scratchMemory   = this.wasm.getScratchMemory();
+		const pcgMemory = new Uint8Array(this.#memory.buffer, scratchMemory, 24);
+		for(let i = 0; i < 24; ++i) {
+			pcgMemory[i] = data[i];
+		}
+		this.wasm.writePlatformPCG(codePoint + 0x100, scratchMemory);
 	}
 	
 	// -------------------------------------------------------------------------------------------------

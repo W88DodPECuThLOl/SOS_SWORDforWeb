@@ -42,3 +42,8 @@ void progressPlatformTick(s32 targetTick);
  * @param[in,out]	clock	クロック
  */
 void adjustPlatformClock(s32& clock);
+
+WASM_EXPORT
+extern "C" void writePlatformPCG(u16 ch, u8* data);
+WASM_EXPORT
+extern "C" void readPlatformPCG(u16 ch, u8* data);

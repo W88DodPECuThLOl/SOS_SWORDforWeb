@@ -449,31 +449,6 @@ initialize(void* heapBase, size_t heapSize)
 	delete ctx;
 	ctx = new SOS_Context();
 	initPlatform();
-/*
-       31FE                     VSYNC_CHECK:
-0001FE 31FE 3E1A             7   LD A,1AH
-000200 3200 DB01            11   IN A,(01H)
-	u8* mem = ctx->getRAM() + 0x0000;
-	*mem++ = 0x3E; *mem++ = 0x1A;
-	*mem++ = 0xDB; *mem++ = 0x01;
-
-//00005B 305B 01A01F          10   LD BC,01FA0H
-//0000DE 30DE 11FA07          10   LD DE,007FAH
-//0000E1 30E1 ED51            12   OUT    (C),D
-//0000E3 30E3 ED59            12   OUT    (C),E
-//0000E5 30E5 ED78            12   IN A,(C)
-	*mem++ = 0x01; *mem++ = 0xA0; *mem++ = 0x1F;
-	*mem++ = 0x11; *mem++ = 0xFA; *mem++ = 0x07;
-	*mem++ = 0xED; *mem++ = 0x51;
-	*mem++ = 0xED; *mem++ = 0x59;
-	*mem++ = 0xED; *mem++ = 0x78;
-//0000E9 30E9 ED51            12   OUT    (C),D
-//0000EB 30EB ED51            12   OUT    (C),D
-//0000ED 30ED ED78            12   IN A,(C)
-	*mem++ = 0xED; *mem++ = 0x51;
-	*mem++ = 0xED; *mem++ = 0x51;
-	*mem++ = 0xED; *mem++ = 0x78;
-*/
 }
 
 /**
@@ -568,6 +543,11 @@ writeIO(u16 port, u8 value)
 	platformOutPort(ctx->getIO(), port, value);
 }
 
+u8
+readIO(u16 port)
+{
+	return platformInPort(ctx->getIO(), port);
+}
 
 s32
 getExecutedClock()
@@ -579,4 +559,18 @@ void
 generateIRQ(const u8 vector)
 {
 	ctx->generateIRQ(vector);
+}
+
+u8 scratchMemory[256];
+
+void*
+getScratchMemory()
+{
+	return scratchMemory;
+}
+
+size_t
+getScratchMemorySize()
+{
+	return 256;
 }

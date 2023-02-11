@@ -85,18 +85,37 @@ export default class {
 	 */
 	#keyDown;
 
+	#ctrlKey;
+	#shiftKey;
+	#capsLock;
+	#altKey;
+
 	/**
 	 * 最後に押下されたキーコード
 	 * @type {number|string}
 	 */
 	#lastKeyCode;
 
+	#updateCapsLockState(e)
+    {
+        if(e.getModifierState("CapsLock") === false) {
+            this.#capsLock = false;
+        }
+        else
+		{
+            this.#capsLock = true;
+        }
+    }
+	
 	/**
 	 * キー押下時に呼び出される
 	 * @param {CatKey} self CatKey
 	 * @param {KeyEvent} e キーイベント
 	 */
 	#keyDownHandler(self, e) {
+		this.#shiftKey = !!e.shiftKey;
+		this.#ctrlKey = !!e.ctrlKey;
+		this.#altKey = !!e.altKey;
 		// キー入力
 		const keyCode = self.#keyCodeConverter(e);
 		if(keyCode) {
@@ -141,6 +160,9 @@ export default class {
 		this.#keyBuffer = [];
 		this.#keyBufferSize = 16;
 		this.#lastKeyCode = '';
+		this.#shiftKey = false;
+		this.#ctrlKey = false;
+		this.#capsLock = false;
 		document.addEventListener('keydown', (e)=>this.#keyDownHandler(this, e), false);
 		document.addEventListener('keyup', (e)=>this.#keyUpHandler(this, e), false);
 	}
@@ -182,6 +204,10 @@ export default class {
 		this.#keyBuffer.length = 0;
 		this.#keyDown = new Map();
 		this.#lastKeyCode = 0;
+
+		this.#shiftKey = false;
+		this.#ctrlKey = false;
+		this.#capsLock = false;
 	}
 
 	/**
@@ -208,5 +234,11 @@ export default class {
 			return this.#lastKeyCode;
 		}
 		return 0;
+	}
+
+	getGameKey()
+	{
+		return (this.#ctrlKey ? 0x01 : 0)
+			| (this.#shiftKey ? 0x02 : 0);
 	}
 }

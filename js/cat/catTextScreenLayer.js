@@ -169,7 +169,7 @@ export default class {
 	 * @param {boolean} cursor カーソルを描画するかどうか
 	 * @returns {string} １文字文描画するテキスト
 	 */
-	#defaultDrawLetter(codePoint, color, attr, cursor)
+	#defaultDrawLetter(x, y, width, codePoint, color, attr, cursor)
 	{
 		if(codePoint != 10) {
 			if(codePoint == 32 || codePoint == 0) {
@@ -252,14 +252,14 @@ export default class {
 	 * @param {boolean} cursor カーソルを描画するかどうか
 	 * @returns {string} １文字文描画するテキスト
 	 */
-	#drawLetter(codePoint, color, attr, cursor)
+	#drawLetter(x, y, width, codePoint, color, attr, cursor)
 	{
 		if(this.#customDrawLetter) {
 			// カスタム文字描画
-			return this.#customDrawLetter(codePoint, color, attr, cursor);
+			return this.#customDrawLetter(x, y, width, codePoint, color, attr, cursor);
 		} else {
 			// デフォルトの文字描画
-			return this.#defaultDrawLetter(codePoint, color, attr, cursor);
+			return this.#defaultDrawLetter(x, y, width, codePoint, color, attr, cursor);
 		}
 	}
 
@@ -393,7 +393,7 @@ export default class {
 			//text += '<nobr>';
 			for(let x = 0; x < this.#width; ++x) {
 				const cursor = this.getDisplayCursor() && (x == this.#cursor.x) && (y == this.#cursor.y);
-				text += this.#drawLetter(this.#tram[addr], this.#tram[addr + 1], this.#tram[addr + 2], cursor);
+				text += this.#drawLetter(x, y, this.#width, this.#tram[addr], this.#tram[addr + 1], this.#tram[addr + 2], cursor);
 				addr += this.#letterSize;
 			}
 			//text += "</nobr><br>";

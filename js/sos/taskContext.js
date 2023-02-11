@@ -488,7 +488,23 @@ class TaskContext {
 	 * @param {boolean} cursor カーソルを描画するかどうか
 	 * @returns {string} １文字文描画するテキスト
 	 */
-	#customDrawLetter_RetoroPC_X1(codePoint, color, attr, cursor) {
+	#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, attr, cursor) {
+		// test
+		/*
+		{
+			// Z80側から取得して描画する
+			attr = this.z80Emu.ioRead(0x2000 + x + y * width);
+			const isPCG = ((attr & 0x20) != 0);
+			if(isPCG) {
+				//this.z80Emu.ioWrite(0x3000 + x + y * width, codePoint);
+			} else {
+				const ch = this.z80Emu.ioRead(0x3000 + x + y * width);
+				if(ch) {
+					codePoint = ch;
+					color = ((attr & 0x7) == 0) ? 0xFF0000FF : 0xFFFFFF00;
+				}
+			}
+		}*/
 		const paletteIndex = attr & 0x07;
 		const isPCG = ((attr & 0x20) != 0);
 
@@ -556,7 +572,7 @@ class TaskContext {
 	};
 
 	/**
-	 * レトロPCフォント用の文字描画 X1
+	 * レトロPCフォント用の文字描画
 	 * 
 	 * @param {number} codePoint 文字(UTF-32)
 	 * @param {number} color 色 
@@ -564,7 +580,7 @@ class TaskContext {
 	 * @param {boolean} cursor カーソルを描画するかどうか
 	 * @returns {string} １文字文描画するテキスト
 	 */
-	#customDrawLetter_RetoroPC(codePoint, color, attr, cursor) {
+	#customDrawLetter_RetoroPC(x, y, width, codePoint, color, attr, cursor) {
 		if(codePoint >= 0x100) {
 			// 0x0100～は、半分のサイズにして描画
 			const moji = String.fromCodePoint(codePoint);
@@ -645,13 +661,13 @@ class TaskContext {
 			this.tblMojiEncode = this.tblMojiEncode_X1;
 			fontUrls = ["./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setCustomDrawLetter( (codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(codePoint, color, attr, cursor ); });
+			this.catTextScreen.setCustomDrawLetter( (x, y, width, codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, attr, cursor ); });
 		} else if(this.strcmp(fontName, "X1p") == 0) {
 			// X1風
 			this.tblMojiEncode = this.tblMojiEncode_Unit;
 			fontUrls = ["./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setCustomDrawLetter( (codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(codePoint, color, attr, cursor ); });
+			this.catTextScreen.setCustomDrawLetter( (x, y, width, codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, attr, cursor ); });
 		} else if(this.strcmp(fontName, "PC8001") == 0 || this.strcmp(fontName, "PC8") == 0) {
 			// PC8001風(Original) S-OS
 			this.tblMojiEncode = this.tblMojiEncode_PC8001;
@@ -693,6 +709,14 @@ class TaskContext {
 				loadedFace.then(function(loadedFace){
 					// フォント読み込み成功
 					document.fonts.add(loadedFace);
+					if(this && this.z80Emu) {
+						const cnv = new CatFont2Img();
+						const canvas = document.getElementById('canvasFont');
+						for(let ch = 0x00; ch <= 0xFF; ++ch) {
+							let pcgData = cnv.cnv(canvas, fontFamily, ch + 0xF000);
+							this.z80Emu.setPCG(ch, pcgData);
+						}
+					}
 				}).catch(function(e){
 					// フォント読み込み失敗
 					console.error('フォントの読み込みに失敗しました');

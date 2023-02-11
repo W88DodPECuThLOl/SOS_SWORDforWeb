@@ -42,6 +42,12 @@ extern "C" void z80Reset();
 WASM_EXPORT
 extern "C" int exeute(int clock);
 
+
+WASM_EXPORT
+extern "C" void* getScratchMemory();
+WASM_EXPORT
+extern "C" size_t getScratchMemorySize();
+
 /**
  * @brief 状態を取得する
  * @return 状態
@@ -103,6 +109,9 @@ extern "C" void* getVRAMImage();
 
 WASM_EXPORT
 extern "C" void writeIO(u16 port, u8 value);
+
+WASM_EXPORT
+extern "C" u8 readIO(u16 port);
 
 /**
  * @brief PSGへ書き込みがされた時に呼び出される関数

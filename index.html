@@ -15,6 +15,7 @@
 		<script src="./js/cat/catAudio.js"></script>
 		<script src="./js/jszip/jszip.min.js"></script>
 		<script src="./js/jszip/jszip-utils.min.js"></script>
+		<script src="./js/cat/catFont2Img.js"></script>
 		<link rel="stylesheet" href="./css/catVolume.css">
 		<link rel="stylesheet" href="./css/catTextScreen.css">
 		<link rel="stylesheet" href="./css/sosLogo.css">
@@ -26,18 +27,22 @@
 	</head>
 	<body>
 		<div>
+			<!-- フォントをイメージに変換するときに使うキャンバス -->
+			<canvas id="canvasFont" style="display: none;"></canvas>
+			<!-- S-OSの画面 -->
 			<div id="fs-target">
 				<div id="fs-inner" class="canvas-wrapper">
 					<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
 					<div id="sos_output" class="console"></div>
 				</div>
 			</div>
+			<!-- 画面下部のメニューバー -->
 			<div class="cat-bar">
 				<div class="cat-bar-inner">
 					<div id="cat-bar-media" class="cat-bar-media">
 						<ul>
 							<li><div id="drive0" class="cat-media-icon-fd"></div>
-								<ul id="aaa0">
+								<ul>
 									<li><div class="media-menu-item-header">Drive A</div></li>
 									<li>
 										<div id="mnt0">Insert disk image</div>
@@ -140,7 +145,7 @@
 			import CatTextScreen from './js/cat/catTextScreen.js';
 			import CatGamePad from './js/cat/catGamePad.js';
 			import CatFullScreen from './js/cat/catFullScreen.js';
-			
+
 			// URL Param
 			// ?fnt=PC8001でPC8001風のフォントマップに
 			// ?exec=実行したいファイルのURL
@@ -781,6 +786,15 @@
 					(emu)=> {
 						// SOS
 						ctx.reset();
+						//
+						{
+							const cnv = new CatFont2Img();
+							const canvas = document.getElementById('canvasFont');
+							for(let ch = 0x00; ch <= 0xFF; ++ch) {
+								let pcgData = cnv.cnv(canvas, "CatTextScreenFont0", ch + 0xF000);
+								ctx.z80Emu.setPCG(ch, pcgData);
+							}
+						}
 						// auto staart
 						if(cfg.execFile != null) {
 							autoStart(cfg.execFile) ;
