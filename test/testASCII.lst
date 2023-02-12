@@ -47,5 +47,6 @@
 000114 3114 462F3F4F5F6F7F8F        DB "F", $2F, $3F, $4F, $5F, $6F, $7F, $8F, $9F, $AF, $BF, $CF, $DF, $EF, $FF, 13
             9FAFBFCFDFEFFF0D    
 000124 3124 00                      DB 0
-000125 3125 C9              10      RET
+000125 3125 B7               4      OR A ; CYをクリアして終了する
+000126 3126 C9              10      RET
 [EOF:testASCII.z80:UTF_8]

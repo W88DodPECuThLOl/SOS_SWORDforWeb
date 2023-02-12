@@ -28,4 +28,5 @@ MPRINT  EQU	$1FE2 ; CALL命令後、0の前まで文字を出力する
     DB "E", $2E, $3E, $4E, $5E, $6E, $7E, $8E, $9E, $AE, $BE, $CE, $DE, $EE, $FE, 13
     DB "F", $2F, $3F, $4F, $5F, $6F, $7F, $8F, $9F, $AF, $BF, $CF, $DF, $EF, $FF, 13
     DB 0
+    OR A ; CYをクリアして終了する
     RET

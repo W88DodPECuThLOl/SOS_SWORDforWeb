@@ -39,8 +39,8 @@
 000018 3018 CDE21F          17      CALL MPRINT
 00001B 301B 532D4F532046494C        DB "S-OS FILE", 13, 0
             450D00              
-000026 3026 3A8930          13      LD A,(FILE_ATTR)  ; ファイル属性
-000029 3029 118A30          10      LD DE,FILE_NAME   ; ファイル名のアドレス
+000026 3026 3A8A30          13      LD A,(FILE_ATTR)  ; ファイル属性
+000029 3029 118B30          10      LD DE,FILE_NAME   ; ファイル名のアドレス
 00002C 302C CDA31F          17      CALL FILE         ; IB(InfomationBlock)に設定
 00002F 302F DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
                                 
@@ -84,15 +84,17 @@
 00007F 307F CDE21F          17      CALL MPRINT
 000082 3082 45584954                DB "EXIT"
 000086 3086 0D00                    DB 13, 0
-000088 3088 C9              10      RET
+                                
+000088 3088 B7               4      OR A ; CYをクリアして終了する
+000089 3089 C9              10      RET
                                 
                                 ; ファイルの属性(ファイルモード)
                                 ; $1 : バイナリファイル
                                 ; $4 : アスキーファイル
-       3089                     FILE_ATTR:
-000089 3089 04                      DB $4
+       308A                     FILE_ATTR:
+00008A 308A 04                      DB $4
                                 ; ファイル名は、13文字+"."+3文字
-       308A                     FILE_NAME:
-00008A 308A 413A534F535F5445        DB "A:SOS_TEST.BAT", 0
+       308B                     FILE_NAME:
+00008B 308B 413A534F535F5445        DB "A:SOS_TEST.BAT", 0
             53542E42415400      
 [EOF:testRopen.z80:UTF_8]

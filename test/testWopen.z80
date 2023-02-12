@@ -62,6 +62,7 @@ EXADR   EQU $1F6E
 	CALL MPRINT
 	DB "EXIT"
 	DB 13, 0
+    OR A ; CYをクリアして終了する
 	RET
 
 ; ファイルの属性(ファイルモード)

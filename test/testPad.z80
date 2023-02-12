@@ -1,62 +1,62 @@
 ;
 ; JOY STICK #1の状態の取得と表示
 ;
-    org $3000
+	org $3000
 
-MPRINT  EQU	$1FE2 ; CALL命令後、0の前まで文字を出力する
-PRINT   EQU	$1FF4 ; Ａﾚｼﾞｽﾀをｱｽｷｰｺｰﾄﾞとみなし表示する（１文字表示）
-LOC     EQU $201E ; カーソル位置設定
+MPRINT  EQU $1FE2	; CALL命令後、0の前まで文字を出力する
+PRINT   EQU $1FF4	; Ａﾚｼﾞｽﾀをｱｽｷｰｺｰﾄﾞとみなし表示する（１文字表示）
+LOC     EQU $201E	; カーソル位置設定
 
-    CALL MPRINT
-    DB 12 ; 画面クリア
+	CALL MPRINT
+	DB 12 ; 画面クリア
 	DB "JOY STICK TEST"
 	DB 13, 0
 
 LOOP:
-    ; 表示位置設定
+	; 表示位置設定
 	LD HL,$0101
 	CALL LOC
-    ; 取得
-    CALL READ_JOY1
-    ; 内容表示
-    CALL PRNT_8
-    JR LOOP
+	; 取得
+	CALL READ_JOY1
+	; 内容表示
+	CALL PRNT_8
+	JR LOOP
 
 ;
 ; 2進数8桁で表示
 ;
 PRNT_8:
-    LD H,A
-    LD DE,$0008
+	LD H,A
+	LD L,$08
 LOOP0:
-    RL H
-    LD A,$18 ; CY ? $30 : $31
-    ADC A,A
-    CALL PRINT
-    DEC E
-    JR NZ,LOOP0
-    RET
+	RL H
+	LD A,$18 ; CY ? $30 : $31
+	ADC A,A
+	CALL PRINT
+	DEC L
+	JR NZ,LOOP0
+	RET
 
 ;
 ; JOY STICK #1の状態の取得
 ;
 READ_JOY1:
-    LD BC,$1C0E
-    DI ; 割り込みが入ってレジスタに設定した値が変更されるのを防ぐ為に割り込むを無効にしている
-    OUT (C),C ; $1Cxx R14指定
-    DEC B
-    IN A,(C) ; $1Bxx
-    EI
-    RET
+	LD BC,$1C0E
+	DI ; 割り込みが入ってレジスタに設定した値が変更されるのを防ぐ為に割り込みを無効にしている
+	OUT (C),C ; $1Cxx R14指定
+	DEC B
+	IN A,(C) ; $1Bxx
+	EI
+	RET
 
 ;
 ; JOY STICK #2の状態の取得
 ;
 READ_JOY2:
-    LD BC,$1C0F
-    DI ; 割り込みが入ってレジスタに設定した値が変更されるのを防ぐ為に割り込むを無効にしている
-    OUT (C),C ; $1Cxx R15指定
-    DEC B
-    IN A,(C) ; $1Bxx
-    EI
-    RET
+	LD BC,$1C0F
+	DI ; 割り込みが入ってレジスタに設定した値が変更されるのを防ぐ為に割り込みを無効にしている
+	OUT (C),C ; $1Cxx R15指定
+	DEC B
+	IN A,(C) ; $1Bxx
+	EI
+	RET
