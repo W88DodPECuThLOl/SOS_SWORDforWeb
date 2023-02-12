@@ -27,6 +27,7 @@ BRKJOB:
 	CALL MPRINT
 	DB "EXIT"
 	DB 13, 0
+    OR A ; CYをクリアして終了する
 	RET
 COUNT:
 	DW 0

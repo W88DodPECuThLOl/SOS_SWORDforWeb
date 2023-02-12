@@ -14,9 +14,9 @@
             53452054455354      
 000012 3012 0D00                    DB 13, 0
        3014                     LOOP:
-000014 3014 2A3330          16      LD HL,(COUNT)
+000014 3014 2A3430          16      LD HL,(COUNT)
 000017 3017 23               6      INC HL
-000018 3018 223330          16      LD (COUNT),HL
+000018 3018 223430          16      LD (COUNT),HL
 00001B 301B CDBE1F          17      CALL PRTHL
 00001E 301E CDEE1F          17      CALL LTNL
                                 
@@ -29,7 +29,8 @@
 000029 3029 CDE21F          17      CALL MPRINT
 00002C 302C 45584954                DB "EXIT"
 000030 3030 0D00                    DB 13, 0
-000032 3032 C9              10      RET
-       3033                     COUNT:
-000033 3033 0000                    DW 0
+000032 3032 B7               4      OR A ; CYをクリアして終了する
+000033 3033 C9              10      RET
+       3034                     COUNT:
+000034 3034 0000                    DW 0
 [EOF:testPause.z80:UTF_8]
