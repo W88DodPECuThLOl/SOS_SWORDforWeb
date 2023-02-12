@@ -1,0 +1,23 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; S-OS BATCH ERROR TEST
+                                ;
+                                ; ・Aレジスタにエラーコードを設定し、キャリフラグを立てて終了する
+                                ; ・セットしているエラーコードは、11 Reserved Feature
+                                ; ・RUNコマンドで実行したとき、Reserved Featureのエラーが表示される
+                                ;
+                                
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 532D4F5320424154        DB "S-OS BATCH ERROR TEST"
+            4348204552524F52    
+            2054455354          
+000018 3018 0D00                    DB 13, 0
+                                
+00001A 301A 3E0B             7      LD A, 11 ; エラーコード　Reserved Feature
+00001C 301C 37               4      SCF ; キャリフラグを立てる
+00001D 301D C9              10      RET
+[EOF:testBatErr.z80:UTF_8]

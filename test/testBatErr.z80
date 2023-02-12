@@ -1,0 +1,19 @@
+;
+; S-OS BATCH ERROR TEST
+;
+; ・Aレジスタにエラーコードを設定し、キャリフラグを立てて終了する
+; ・セットしているエラーコードは、11 Reserved Feature
+; ・RUNコマンドで実行したとき、Reserved Featureのエラーが表示される
+;
+
+	org $3000
+
+MPRINT	EQU	$1FE2
+
+	CALL MPRINT
+	DB "S-OS BATCH ERROR TEST"
+	DB 13, 0
+
+	LD A, 11 ; エラーコード　Reserved Feature
+	SCF ; キャリフラグを立てる
+	RET
