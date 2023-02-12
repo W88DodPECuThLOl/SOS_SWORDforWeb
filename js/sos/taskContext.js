@@ -1,3 +1,5 @@
+// import { ToStringHex4 } from './util.mjs';
+
 "use strict";
 
 class TaskContext {
@@ -54,6 +56,12 @@ class TaskContext {
 	 */
 	gamePad;
 
+	/**
+	 * バッチ管理
+	 * @type {BatchManager}
+	 */
+	batchManager;
+
 	#keyCodeCLS = 0x0C; // CLS
 	#keyCodeCR = 0x0D; // Enterキー
 	#keyCodeBRK = 0x1B; // Breakキー
@@ -82,6 +90,7 @@ class TaskContext {
 		this.diskManager = diskManager;
 		this.sndMan = sndMan;
 		this.gamePad = gamePad;
+		this.batchManager = new BatchManager();
 
 		// PCGの初期化
 		this.#initializeSvgPCG();
@@ -267,7 +276,7 @@ class TaskContext {
 			"Syntax Error ",
 			"Bad Data"
 		];
-		if(errorCode <= 0 || errorCode > 14) {
+		if(errorCode < 0 || errorCode > 14) {
 			errorCode = SOSErrorCode.BadData;
 		}
 		this.printNativeMsg(errorMsg[errorCode]);
@@ -820,7 +829,7 @@ class TaskContext {
 	PrintFiles(result)
 	{
 		// 空きクラスタサイズ
-		this.printNativeMsg("$" + (result.freeClusters).toString(16).toUpperCase() + " Clusters Free\n");
+		this.printNativeMsg("$" + ToStringHex2(result.freeClusters) + " Clusters Free\n");
 		for(let entry of result.entries) {
 			// 属性とライトプロテクト
 			this.PrintFileAttribute(entry.attribute);
@@ -833,18 +842,15 @@ class TaskContext {
 			this.PRINT(0x2E); // "."
 			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) { this.PRINT(entry.extension[i]); }
 			// 読み込みアドレス
-			text = ":" + this.ToStringHex4(entry.loadAddress);
+			text = ":" + ToStringHex4(entry.loadAddress);
 			// 終了アドレス
-			text += ":" + this.ToStringHex4(entry.loadAddress + entry.size - 1);
+			text += ":" + ToStringHex4(entry.loadAddress + entry.size - 1);
 			// 実行アドレス
-			text += ":" + this.ToStringHex4(entry.executeAddress);
+			text += ":" + ToStringHex4(entry.executeAddress);
 			this.printNativeMsg(text + "\n");
 		}
 	}
-	ToStringHex4(value)
-	{
-		return (value).toString(16).padStart(4, 0).toUpperCase();
-	}
+
 	PrintFileAttribute(attribute)
 	{
 		let text;

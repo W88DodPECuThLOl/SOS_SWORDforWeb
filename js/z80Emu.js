@@ -164,10 +164,10 @@ class Z80Emu {
 			},
 			log: {
 				logHex02: (value)=> {
-					console.log(value.toString(16).padStart(2, 0).toUpperCase());
+					console.log(ToStringHex2(value));
 				},
 				logHex04: (value)=> {
-					console.log(value.toString(16).padStart(4, 0).toUpperCase());
+					console.log(ToStringHex4(value));
 				}
 			}
 		};
@@ -336,6 +336,7 @@ class Z80Emu {
 	setZ() { this.#Z80Regs[1] |= 0x40; }
 	clearZ() { this.#Z80Regs[1] &= ~0x40; }
 	getF() { return this.#Z80Regs[1]; }
+	getCY() { return (this.#Z80Regs[1] & 1) ? true : false; }
 	setB(B) { this.#Z80Regs[2] = B; }
 	getB() { return this.#Z80Regs[2]; }
 	setC(C) { this.#Z80Regs[3] = C; }

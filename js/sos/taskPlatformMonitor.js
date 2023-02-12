@@ -191,12 +191,12 @@ class TaskPlatformMonitor {
 		let colSum = [0,0,0,0, 0,0,0,0];
 		while(address < endAddress) {
 			let lineSum = 0;
-			ctx.printNativeMsg((address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + " ");
+			ctx.printNativeMsg(ToStringHex4(address) + " ");
 			for(let i = 0; i < ((width <= 40) ? 8 : 16); ++i) {
 				const memValue = ctx.z80Emu.memReadU8(address & 0xFFFF);
 				if(startAddress <= address && address < endAddress) {
 					lineSum += memValue;
-					ctx.printNativeMsg(memValue.toString(16).padStart(2, 0).toUpperCase());
+					ctx.printNativeMsg(ToStringHex2(memValue));
 				} else {
 					ctx.printNativeMsg("  ");
 				}
@@ -210,16 +210,16 @@ class TaskPlatformMonitor {
 				address++;
 			}
 			if(width <= 40) {
-				ctx.printNativeMsg(": " + (lineSum & 0xFF).toString(16).padStart(2, 0).toUpperCase());
+				ctx.printNativeMsg(": " + ToStringHex2(lineSum));
 			}
 			ctx.PRINT(0x0D);
 		}
 		if(width <= 40) {
 			ctx.printNativeMsg("---------------------------------\nSUM ");
 			for(let i = 0; i < 8; ++i) {
-				ctx.printNativeMsg(" " + (colSum[i] & 0xFF).toString(16).padStart(2, 0).toUpperCase());
+				ctx.printNativeMsg(" " + ToStringHex2(colSum[i]));
 			}
-			ctx.printNativeMsg(" " + (crc & 0xFFFF).toString(16).padStart(4, 0).toUpperCase());
+			ctx.printNativeMsg(" " + ToStringHex4(crc));
 			ctx.PRINT(0x0D);
 		}
 		return dumpAddress;
@@ -228,9 +228,7 @@ class TaskPlatformMonitor {
 	#writeMemory(ctx, address)
 	{
 		const mem = ctx.z80Emu.memReadU8(address & 0xFFFF);
-		ctx.printNativeMsg(
-			"+" + (address & 0xFFFF).toString(16).padStart(4, 0).toUpperCase() + ":"
-			 + (mem).toString(16).padStart(2, 0).toUpperCase() + " -> ");
+		ctx.printNativeMsg("+" + ToStringHex4(address) + ":" + ToStringHex2(mem) + " -> ");
 		// ライン入力開始へ
 		ctx.startLineInput();
 		this.#dumpAddress = mem;

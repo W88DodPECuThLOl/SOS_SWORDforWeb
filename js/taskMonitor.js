@@ -1,6 +1,86 @@
 "use strict";
 
 /**
+ * バッチ管理
+ */
+class BatchManager {
+	/**
+	 * バッチファイル実行中かどうか
+	 * @type {boolean}
+	 */
+	#runningBatch;
+
+	/**
+	 * バッチファイルの中身
+	 * @type {Array}
+	 */
+	#batchBuffer;
+
+	#keyCodeCR = 0x0D; // Enterキー
+	
+	constructor()
+	{
+		this.#runningBatch = false;
+		this.#batchBuffer = new Array();
+	}
+
+	getLine()
+	{
+		const line = new Array();
+		if(this.isActive()) {
+			if(this.#batchBuffer.length > 0) {
+				// バッチから１行取得
+				while(this.#batchBuffer.length > 0) {
+					let ch = this.#batchBuffer.shift();
+					if(ch == 0x00 || ch == this.#keyCodeCR) {
+						break;
+					}
+					line.push(ch);
+				}
+			} else {
+				// バッチが終わった
+				this.#runningBatch = false;
+			}
+		}
+		line.push(0);
+		return line;
+	}
+
+	/**
+	 * 開始する
+	 * @param {array} batchText
+	 */
+	start(batchText) {
+		// 読み込んだデータをバッチバッファへ
+		this.#batchBuffer.length = 0;
+		for(let i = 0; i < batchText.length; ++i) {
+			this.#batchBuffer.push(batchText[i]);
+		}
+		if(this.#batchBuffer.length > 0) {
+			// バッチ開始
+			this.#runningBatch = true;
+		}
+	}
+
+	/**
+	 * 停止する
+	 */
+	stop()
+	{
+		this.#batchBuffer.length = 0;
+		this.#runningBatch = false;
+	}
+
+	/**
+	 * 動作中かどうか
+	 * @returns {boolean} 動作中なら true を返す
+	 */
+	isActive() { return this.#runningBatch; }
+};
+
+
+
+/**
  * S-OS標準モニタのタスク
  */
 class TaskMonitor {
@@ -67,6 +147,15 @@ class TaskMonitor {
 	 * @type {number}
 	 */
 	#state_end = 6;
+
+	/**
+	 * RUNコマンドで実行されたかどうかのフラグ
+	 * 
+	 * RUNコマンド(スペース)で、バイナリファイルを実行した場合に、trueに設定。  
+	 * S-OS #HOTで実行が完了したときに、このフラグをみて、戻り値でエラーを表示するかどうかを判定している。
+	 * @type {boolean}
+	 */
+	#isRunCommand = false; 
 
 	#keyCodeBRK = 0x1B; // Breakキー
 	#keyCodeCR = 0x0D; // Enterキー
@@ -257,6 +346,41 @@ class TaskMonitor {
 		this.#state = new Array();
 		this.#state[this.#state_idle] = (ctx)=>{};
 		this.#state[this.#state_start] = (ctx)=>{
+			if(ctx.getScreenLocate().x != 0) { ctx.PRINT(0x0D); } // カーソルが先頭になければ改行
+			// RUNコマンドで実行されていたコマンドから戻ってきたときのエラー処理
+			if(this.#isRunCommand) {
+				this.#isRunCommand = false;
+				if(ctx.z80Emu.getCY()) {
+					// キャリーフラグが立ってたらエラー
+					ctx.ERROR(ctx.z80Emu.getA());
+					ctx.PRINT(0x0D);
+					// エラーが発生したのでバッチ処理を停止する
+					ctx.batchManager.stop();
+				}
+			}
+			if(ctx.batchManager.isActive()) {
+				// バッチ処理中
+				const command = ctx.batchManager.getLine();
+				if(ctx.batchManager.isActive()) {
+					this.#commandBuffer.length = 0
+					this.#commandBuffer.push(0x23); // #
+					for(let ch of command) {
+						this.#commandBuffer.push(ch);
+					}
+					for(let ch of this.#commandBuffer) {
+						if(ch == 0) {
+							ctx.PRINT(this.#keyCodeCR);
+							break;
+						}
+						ctx.PRINT(ch);
+					}
+					// コマンド処理へ
+					this.changeState(this.#state_command);
+					return;
+				}
+			}
+
+
 			if(this.#runningBatch) {
 				// バッチ実行中
 				if(this.#batchBuffer.length > 0) {
@@ -632,11 +756,13 @@ class TaskMonitor {
 								ctx.z80Emu.memWriteU8(commandAddress + i, 0);
 							}
 							ctx.z80Emu.setDE(commandAddress);
+							this.#isRunCommand = true;
 							// モニタ終了
 							this.changeState(this.#state_end);
 						} else if(SOSInfomationBlock.isAsciiFile(result.attribute)) {
 							// アスキーファイル
 							if(!this.#runningBatch) {
+								/*
 								// 読み込んだデータをバッチバッファへ
 								this.#batchBuffer.length = 0;
 								for(let i = 0; i < result.value.length; ++i) {
@@ -644,6 +770,10 @@ class TaskMonitor {
 								}
 								// バッチ開始
 								this.#runningBatch = true;
+								*/
+								// バッチ開始
+								ctx.batchManager.start(result.value);
+
 								this.changeState(this.#state_start);
 							} else {
 								// バッチ中に、読み込んだ

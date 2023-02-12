@@ -1,5 +1,17 @@
 "use strict";
 
+// @todo キーコード、まとめること
+const KeyCode_BackSpace = 0x0008; // BS
+const KeyCode_CR = 0x000D; // Enterキー
+const KeyCode_BRK = 0x001B; // Breakキー
+const KeyCode_DEL = 'Delete'; // DELキー
+const KeyCode_Home = 'Home'; // Homeキー
+const KeyCode_End = 'End'; // Endキー
+const KeyCode_ArrowLeft = 'ArrowLeft'; // 左カーソルキー
+const KeyCode_ArrowRight = 'ArrowRight'; // 右カーソルキー
+const KeyCode_ArrowUp = 'ArrowUp'; // 上カーソルキー
+const KeyCode_ArrowDown = 'ArrowDown'; // 下カーソルキー
+
 /**
  * 一行入力をするタスク
  */
@@ -25,19 +37,6 @@ class TaskLineInput {
 	 */
 	inputBuffer;
 
-	// @todo キーコード、まとめること
-
-	#keyCodeBackSpace = 0x0008; // BS
-	#keyCodeCR = 0x000D; // Enterキー
-	#keyCodeBRK = 0x001B; // Breakキー
-	#keyCodeDEL = 'Delete'; // DELキー
-	#keyCodeHome = 'Home'; // Homeキー
-	#keyCodeEnd = 'End'; // Endキー
-	#keyCodeArrowLeft = 'ArrowLeft'; // 左カーソルキー
-	#keyCodeArrowRight = 'ArrowRight'; // 右カーソルキー
-	#keyCodeArrowUp = 'ArrowUp'; // 上カーソルキー
-	#keyCodeArrowDown = 'ArrowDown'; // 下カーソルキー
-
 	/**
 	 * 何もしてない状態
 	 * @type {number}
@@ -59,6 +58,23 @@ class TaskLineInput {
 	 */
 	#state_end = 3;
 
+	#lineCommit(ctx)
+	{
+		// カーソルのある行の文字列を取得して、バッファへ積む
+		this.inputBuffer = [];
+		for(let ch of ctx.catTextScreen.getLineWithDecode()) {
+			if(this.inputBuffer.length >= this.#maxInput) { break; }
+			this.inputBuffer.push(ch);
+		}
+		this.inputBuffer.push(0);
+		// 改行しておく
+		ctx.catTextScreen.putch32(KeyCode_CR);
+		// 終了状態へ
+		this.changeState(this.#state_end);
+		// カーソル非表示
+		ctx.setDisplayCursor(false);
+	}
+
 	/**
 	 * コンストラクタ
 	 */
@@ -78,44 +94,49 @@ class TaskLineInput {
 			ctx.setDisplayCursor(true);
 		};
 		this.#state[this.#state_wait] = (ctx)=>{
+			if(ctx.batchManager.isActive()) {
+				// バッチ処理中
+				const command = ctx.batchManager.getLine();
+				if(ctx.batchManager.isActive()) {
+					for(let ch of command) {
+						if(ch == 0) {
+							// Enterキー、入力完了
+							this.#lineCommit(ctx);
+							return;
+						}
+						// 画面に表示
+						ctx.catTextScreen.putch32(ch);
+					}
+					return;
+				}
+			}
+
 			const keyCode = ctx.keyMan.dequeueKeyBuffer();
 			if(keyCode > 0) {
-				if(keyCode == this.#keyCodeBRK) {
+				if(keyCode == KeyCode_BRK) {
 					// Breakキーが押された
-					this.inputBuffer = [this.#keyCodeBRK, 0];
+					this.inputBuffer = [KeyCode_BRK, 0];
 					this.changeState(this.#state_end);
 					// カーソル非表示
 					ctx.setDisplayCursor(false);
 					return;
-				} else if(keyCode == this.#keyCodeBackSpace) {
+				} else if(keyCode == KeyCode_BackSpace) {
 					// 1文字削除
 					ctx.catTextScreen.putch32(0x0008); // BS
 					return;
-				} else if(keyCode == this.#keyCodeCR) {
+				} else if(keyCode == KeyCode_CR) {
 					// Enterキー、入力完了
-					// カーソルのある行の文字列を取得して、バッファへ積む
-					this.inputBuffer = [];
-					for(let ch of ctx.catTextScreen.getLineWithDecode()) {
-						if(this.inputBuffer.length >= this.#maxInput) { break; }
-						this.inputBuffer.push(ch);
-					}
-					this.inputBuffer.push(0);
-					// 改行しておく
-					ctx.catTextScreen.putch32(this.#keyCodeCR);
-					// 終了状態へ
-					this.changeState(this.#state_end);
-					// カーソル非表示
-					ctx.setDisplayCursor(false);
+					this.#lineCommit(ctx);
 					return;
 				}
 				ctx.catTextScreen.putch32(keyCode);
-			} else if(keyCode == this.#keyCodeDEL
-					|| keyCode == this.#keyCodeHome
-					|| keyCode == this.#keyCodeEnd
-					|| keyCode == this.#keyCodeArrowLeft
-					|| keyCode == this.#keyCodeArrowRight
-					|| keyCode == this.#keyCodeArrowUp
-					|| keyCode == this.#keyCodeArrowDown) {
+			} else if(keyCode == KeyCode_DEL
+					|| keyCode == KeyCode_Home
+					|| keyCode == KeyCode_End
+					|| keyCode == KeyCode_ArrowLeft
+					|| keyCode == KeyCode_ArrowRight
+					|| keyCode == KeyCode_ArrowUp
+					|| keyCode == KeyCode_ArrowDown) {
 				// 制御キー
 				// 行頭へ、行末へ、カーソル移動、DELキー
 				ctx.catTextScreen.putch32(keyCode);

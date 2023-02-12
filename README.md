@@ -53,10 +53,9 @@ graph LR;
 
 このヘッダの後に、バイナリ本体が続く。
 
-### Sndのチェックボックス
+### サウンドを再生有効に
 
-チェックすると、PSGのI/Oポートに書き込むことで音でるようになる……はずです。  
-(Chromeブラウザの仕様でユーザの入力で音の初期化しないと音を出せないみたいなので、チェックするという形でやっています。)
+サウンドを再生有効にするには、右下にある音量のアイコンをクリックします。
 
 # 内部的なこと
 
@@ -93,6 +92,8 @@ graph LR;
 | 10xxh b<br>11xxh r<br>12xxh g | X1のグラフィックパレット |
 | 1Bxxh data<br>1Cxxh reg. | AY-3-8910<br>R14レジスタ : GamePad<br>　0bit : Up<br>　1bit: Down<br>　2bit: Left<br>　3bit: Right<br>　5bit: Trigger1<br>　6bit: Trigger2<br>※注意）負論理（0で押下されている）<br>@todo Trigger1と2が物理的に左右どっちのボタンなのかがわからないので、調べること |
 | 1FA0h<br>1FA1h<br>1FA2h<br>1FA3h | Z80 CTC |
+| 2000h~2800h | X1のテキスト属性VRAM<br>PCG属性のみ対応 |
+| 3000h~3800h | X1のテキストVRAM |
 | 4000h~FFFFh | X1のグラフィックVRAM |
 
 - AY-3-8910 入力2MHz
@@ -104,7 +105,7 @@ graph LR;
 # S-OS モニタ
 
 S-OS標準のモニタです。  
-起動時、S-OS #HOTの呼び出しで起動されます。
+起動時、もしくは、S-OS #HOTの呼び出しで起動されます。
 
 ## コマンド
 

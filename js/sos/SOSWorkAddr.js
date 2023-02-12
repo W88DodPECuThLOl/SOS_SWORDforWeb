@@ -175,4 +175,11 @@ class SOSWorkAddr {
 	 * 画面に表示できる最大行数が入っている。
 	 */
 	static MAXLIN = 0x1F5B;
+
+	/**
+	 * #ETRK(20FFH,1ﾊﾞｲﾄ)
+	 * 
+	 * Eドライブの未フォーマット時のクラスタ数
+	 */
+	static ETRK = 0x20FF;
 };

@@ -371,6 +371,8 @@ class SOS_Context {
 		WRITE_U8(  WorkAddress::DSK,    0x41 );
 		WRITE_U8(  WorkAddress::WIDTH,  80 );
 		WRITE_U8(  WorkAddress::MAXLIN, 25 );
+		// 変身セット
+		WRITE_U8(  WorkAddress::ETRK,   80 ); // RAMディスクのクラスタ数
 	}
 public:
 	/**

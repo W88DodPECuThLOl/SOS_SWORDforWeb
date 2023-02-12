@@ -435,6 +435,7 @@ class SOS {
 		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.DIRPS,  0x0010 );
 		this.#memWriteU16( this.#SOSWorkBaseAddress + SOSWorkAddr.FATPOS, 0x000E );
 		this.wrkWriteDSK( 0x41 );
+		this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.ETRK,   80 );
 
 		//this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.WIDTH,  80 );
 		//this.#memWriteU8(  this.#SOSWorkBaseAddress + SOSWorkAddr.MAXLIN, 25 );
@@ -463,11 +464,6 @@ class SOS {
 		this.#memWriteU8(0x1F80, 0xE1); // POP HL
 		// S-OS #[HL]
 		this.#memWriteU8(0x1F81, 0xE9); // JP (HL)
-
-		// メモリクリア
-//		for(let i = 0x3000; i <= 0xFFFF; ++i) { this.#memWriteU8(i, 0); }
-		// IOクリア
-//		for(let i = 0x4000; i <= 0xFFFF; ++i) { this.#ioWrite(i, 0); }
 
 		// 各種ローカルの設定を初期化
 		this.#isCpuOccupation = false;
@@ -2433,7 +2429,7 @@ class SOS {
 		// 空き容量
 		this.#beginCursor(ctx); // S-OSのワークからカーソル位置を設定する
 		const freeClusters = this.#dos_freclu();
-		ctx.printNativeMsg("$" + (freeClusters).toString(16).toUpperCase().padStart(2, "0") + " Clusters Free\n");
+		ctx.printNativeMsg("$" + ToStringHex2(freeClusters) + " Clusters Free\n");
 		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
 
 		// ディレクトリのレコード
@@ -2843,9 +2839,9 @@ class SOS {
 			ret
 		*/
 
-		// メモ）A～Dのみ対応にしとく
+		// メモ）A～Eのみ対応にしとく
 		// テープ等未対応
-		if(0x41 <= device && device <= 0x44) {
+		if(0x41 <= device && device <= 0x45) {
 			this.#clearCY();
 			return true;
 		}
@@ -3579,10 +3575,10 @@ class SOS {
 					return { result: 0, found: true, dir: dir, ib_ptr: ib_ptr };
 				}
 			}
-			// 見つからなかった
-			// Z
-			return { result: 0, found: false, dir: 0, ib_ptr: 0 };
 		}
+		// 見つからなかった
+		// Z
+		return { result: 0, found: false, dir: 0, ib_ptr: 0 };
 	}
 
 	/**

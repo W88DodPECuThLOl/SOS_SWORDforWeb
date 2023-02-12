@@ -182,6 +182,13 @@ enum WorkAddress : u16 {
 	WIDTH  = 0x1F5C,
 	MAXLIN = 0x1F5B,
 
+	// 変身セット
+
+	/**
+	 * @brief Eドライブの未フォーマット時のクラスタ数
+	 */
+	ETRK    = 0x20FF,
+
 	// DOSモジュール ワーク
 	OPNFG   = 0x291e, 
 	FTYPE   = 0x291f,
