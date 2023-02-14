@@ -1075,6 +1075,7 @@ class SOS {
 		const maxDirNo = this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.MXTRK);
 		let dirNo = this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO);
 		let cacheRecord = -1;
+		let data;
 		while(true) {
 			if(dirNo >= maxDirNo) {
 				// オーバーしているので駄目
@@ -2593,7 +2594,7 @@ class SOS {
 	#dos_phex(ctx, value)
 	{
 		this.#beginCursor(ctx); // S-OSのワークからカーソル位置を設定する
-		ctx.printNativeMsg(":" + ctx.ToStringHex4(value));
+		ctx.printNativeMsg(":" + ToStringHex4(value));
 		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
 		/*
 		PHEX
@@ -3047,8 +3048,8 @@ class SOS {
 				// コピー
 				if(dataSize > 0x100) {
 					// 最後の１セクタなのに、残りサイズが大きい
-					this.setA(SOSErrorCode.BadAllocationTable);
-					this.setCY();
+					this.#setA(SOSErrorCode.BadAllocationTable);
+					this.#setCY();
 					return false;
 				}
 				for(let i = 0; i < dataSize; ++i) {
