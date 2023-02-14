@@ -7,6 +7,10 @@
 void
 CatPlatformX1::initializeGraphicPalette() noexcept
 {
+	u8* io = (u8*)getIO();
+	io[0x1000] = 0xAA;
+	io[0x1100] = 0xCC;
+	io[0x1200] = 0xF0;
 	for(s32 i = 0; i < 8; i++) {
 		paletteB[i] = (i & 0x1) ? 0xFF : 0x00;
 		paletteR[i] = (i & 0x2) ? 0xFF : 0x00;
@@ -55,10 +59,20 @@ CatPlatformX1::renderGraphic()
 {
 	const u8 CTRCWidth = crtc->readRegister(CatCRTC::RegisterNo::Width);
 	if(CTRCWidth <= 40) {
-		// @todo
-		s8* vramR = (s8*)getIO() + 0x8000;
-		s8* vramG = (s8*)getIO() + 0xC000;
-		s8* vramB = (s8*)getIO() + 0x4000;
+		s8* vramR;
+		s8* vramG;
+		s8* vramB;
+		if(((u8*)getIO())[0x1FD0] & 0x08) {
+			// バンク1 表示
+			vramB = (s8*)getIO() + 0x14000;
+			vramR = (s8*)getIO() + 0x18000;
+			vramG = (s8*)getIO() + 0x1C000;
+		} else {
+			// バンク0 表示
+			vramB = (s8*)getIO() + 0x04000;
+			vramR = (s8*)getIO() + 0x08000;
+			vramG = (s8*)getIO() + 0x0C000;
+		}
 		for(s32 yy = 0; yy < 8; ++yy) {
 			s8* dst = (s8*)&imageMemory[yy * 640*4];
 			for(s32 y = 0; y < 25; ++y) {
@@ -84,9 +98,20 @@ CatPlatformX1::renderGraphic()
 			vramB += 0x30;
 		}
 	} else {
-		s8* vramR = (s8*)getIO() + 0x8000;
-		s8* vramG = (s8*)getIO() + 0xC000;
-		s8* vramB = (s8*)getIO() + 0x4000;
+		s8* vramR;
+		s8* vramG;
+		s8* vramB;
+		if(((u8*)getIO())[0x1FD0] & 0x08) {
+			// バンク1 表示
+			vramB = (s8*)getIO() + 0x14000;
+			vramR = (s8*)getIO() + 0x18000;
+			vramG = (s8*)getIO() + 0x1C000;
+		} else {
+			// バンク0 表示
+			vramB = (s8*)getIO() + 0x04000;
+			vramR = (s8*)getIO() + 0x08000;
+			vramG = (s8*)getIO() + 0x0C000;
+		}
 		for(s32 yy = 0; yy < 8; ++yy) {
 			s8* dst = (s8*)&imageMemory[yy * 640*4];
 			for(s32 y = 0; y < 25; ++y) {
@@ -243,6 +268,7 @@ CatPlatformX1::initialize(void* config)
 
 	// 同時アクセスモード OFF
 	isGRAMSyncAccessMode = false;
+	((u8*)getIO())[0x1FD0] = 0x00;
 
 	setVRAMDirty();
 
@@ -296,6 +322,9 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 {
 	if(isGRAMSyncAccessMode) {
 		// 同時アクセスモード
+		if(((u8*)getIO())[0x1FD0] & 0x10) {
+			io +=  0x1'0000; // バンク1 アクセス
+		}
 		if(port < 0x4000) [[likely]] {
 			if(io[port + 0x4000] != value) { setVRAMDirty(); io[port + 0x4000] = value; } // B
 			if(io[port + 0x8000] != value) { setVRAMDirty(); io[port + 0x8000] = value; } // R
@@ -338,6 +367,9 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		}
 	} else if(0x4000 <= port) [[likely]]{
 		// VRAM
+		if(((u8*)getIO())[0x1FD0] & 0x10) {
+			io +=  0x1'0000; // バンク1 アクセス
+		}
 		if(io[port] != value) {
 			setVRAMDirty();
 			io[port] = value;
@@ -426,6 +458,11 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 	} else if((port & 0xFF00) == 0x1700) {
 		// PCG G
 		pcg->writeG(value);
+	} else if(port == 0x1FD0) {
+		if((io[0x1FD0] & 0x9B) != (value & 0x9B)) {
+			setVRAMDirty();
+		}
+		io[0x1FD0] = value;
 	}
 }
 

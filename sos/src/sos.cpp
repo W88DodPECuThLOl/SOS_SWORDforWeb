@@ -41,7 +41,7 @@ class SOS_Context {
 	/**
 	 * @brief IO
 	 */
-	u8 IO[0x10000]; // 64KiB port
+	u8 IO[0x10000 * 2]; // 64KiB port x バンク２個
 
 	/**
 	 * @brief 状態
