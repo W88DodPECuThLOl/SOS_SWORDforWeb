@@ -1,0 +1,59 @@
+;
+; X1 MODE GRAPHICS TEST
+;
+; ・同時アクセスモードをテスト
+; 　・白色の四角を同時アクセスモードを使って描画
+; ・青色の四角を通常モードで描画
+;
+
+	org $8000
+
+MPRINT	EQU	$1FE2
+PRTHL   EQU $1FBE
+LTNL    EQU $1FEE
+
+; (Y AND 7) * 2^11 + (Y/8)*80
+; 800
+
+
+	CALL MPRINT
+	DB "X1 MODE GRAPHICS TEST"
+	DB 13, 0
+
+    ; 同時アクセスモードへ
+    LD BC,$1A03
+    LD A, $8B
+    DI
+    OUT (C),A
+    DEC A
+    OUT (C),A
+
+    ; B,R,Gへ書き込み
+    ; 白 四角
+    LD BC,$0020
+    LD A,$FF
+    OUT (C),A
+    LD BC,$0820
+    OUT (C),A
+    LD BC,$1020
+    OUT (C),A
+    LD BC,$1820
+    OUT (C),A
+
+    ; 同時アクセスモード解除
+    IN A,(C)
+    EI
+
+    ; 通常モードで 青 四角
+    LD BC,$4021
+    LD A,$FF
+    OUT (C),A
+    LD BC,$4821
+    OUT (C),A
+    LD BC,$5021
+    OUT (C),A
+    LD BC,$5821
+    OUT (C),A
+
+    OR A
+    RET
