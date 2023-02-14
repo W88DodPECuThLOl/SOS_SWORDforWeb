@@ -348,7 +348,7 @@ class TaskMonitor {
 		this.#state[this.#state_start] = (ctx)=>{
 			if(ctx.getScreenLocate().x != 0) { ctx.PRINT(0x0D); } // カーソルが先頭になければ改行
 			// RUNコマンドで実行されていたコマンドから戻ってきたときのエラー処理
-			if(this.#isRunCommand) {
+			if(ctx.batchManager.isActive() && this.#isRunCommand) {
 				this.#isRunCommand = false;
 				if(ctx.z80Emu.getCY()) {
 					// キャリーフラグが立ってたらエラー

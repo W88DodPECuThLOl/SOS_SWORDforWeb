@@ -379,6 +379,20 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 			isGRAMSyncAccessMode = true;
 		}
 		io[0x1A02] = value;
+	} else if((port & 0xFF0F) == 0x1A03) {
+		// 
+		if(value & 0x80) {
+			// bit
+			const u8 bitNo = (value >> 1) & 0x7;
+			if(value & 1) {
+				// set
+				platformOutPort(io, 0x1A02, io[0x1A02] | (1 << bitNo));
+			} else {
+				// reset
+				platformOutPort(io, 0x1A02, io[0x1A02] & ~(1 << bitNo));
+			}
+		}
+		io[0x1A03] = value;
 	} else if((port & 0xFF00) == 0x1B00) {
 		// PSG Data write
 		io[0x1B00] = value;
