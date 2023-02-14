@@ -20,6 +20,23 @@ LTNL    EQU $1FEE
 	DB "X1 MODE GRAPHICS TEST"
 	DB 13, 0
 
+    ; GVRAM バンク0 表示
+    ; GVRAM バンク0 アクセス
+    LD BC,$1FD0
+    XOR A
+    OUT (C),A
+
+    ; グラフィックパレットの初期化
+    LD BC,$1000
+    LD A,$AA
+    OUT (C),A
+    LD BC,$1100
+    LD A,$CC
+    OUT (C),A
+    LD BC,$1200
+    LD A,$F0
+    OUT (C),A
+
     ; 同時アクセスモードへ
     LD BC,$1A03
     LD A, $8B
