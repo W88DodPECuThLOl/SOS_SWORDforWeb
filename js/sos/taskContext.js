@@ -101,6 +101,8 @@ class TaskContext {
 	 */
 	reset() { this.z80Emu.reset(); }
 
+	debugLayer = 0;
+
 	/**
 	 * 起動時のメッセージを表示する
 	 */
@@ -109,6 +111,10 @@ class TaskContext {
 		this.catTextScreen.clearScreen();
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
 		this.printNativeMsg("Version 0.00.02 猫大名 ねこ猫\n");
+
+		// デバッグレイヤ
+		//this.catTextScreen.clearScreen(this.debugLayer);
+		//this.catTextScreen.setDisplayCursor(false, this.debugLayer);
 	}
 
 	/**
@@ -237,6 +243,10 @@ class TaskContext {
 			this.catTextScreen.putch32(code);
 		}
 	}
+	DEBUG_PRINT(code)
+	{
+		this.catTextScreen.putch32(code, 0);
+	}
 
 	/**
 	 * ネイティブな文字列を出力する
@@ -249,6 +259,16 @@ class TaskContext {
 				this.PRINT(ch.codePointAt(0));
 			} else {
 				this.PRINT(0x0D); // 改行コード
+			}
+		}
+	}
+	debugNativeMsg(text)
+	{
+		for(let ch of text) {
+			if(ch != '\n') {
+				this.DEBUG_PRINT(ch.codePointAt(0));
+			} else {
+				this.DEBUG_PRINT(0x0D); // 改行コード
 			}
 		}
 	}

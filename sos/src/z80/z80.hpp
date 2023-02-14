@@ -511,11 +511,12 @@ class Z80
         return hz;
     }
 
-    inline unsigned short getPort16(unsigned char c) { return make16BitsFromLE(c, reg.pair.B); }
+    inline unsigned short getPort16WithB(unsigned char c) { return make16BitsFromLE(c, reg.pair.B); }
+    inline unsigned short getPort16WithA(unsigned char c) { return make16BitsFromLE(c, reg.pair.A); }
 
-    inline unsigned char inPort(unsigned char port, int clock = 4)
+    inline unsigned char inPortWithB(unsigned char port, int clock = 4)
     {
-        unsigned char byte = CB.in(CB.arg, CB.returnPortAs16Bits ? getPort16(port) : port);
+        unsigned char byte = CB.in(CB.arg, CB.returnPortAs16Bits ? getPort16WithB(port) : port);
         consumeClock(clock);
         return byte;
     }
@@ -526,9 +527,22 @@ class Z80
         return byte;
     }
 
-    inline void outPort(unsigned char port, unsigned char value, int clock = 4)
+    inline unsigned char inPortWithA(unsigned char port, int clock = 4)
     {
-        CB.out(CB.arg, CB.returnPortAs16Bits ? getPort16(port) : port, value);
+        unsigned char byte = CB.in(CB.arg, CB.returnPortAs16Bits ? getPort16WithA(port) : port);
+        consumeClock(clock);
+        return byte;
+    }
+
+    inline void outPortWithB(unsigned char port, unsigned char value, int clock = 4)
+    {
+        CB.out(CB.arg, CB.returnPortAs16Bits ? getPort16WithB(port) : port, value);
+        consumeClock(clock);
+    }
+
+    inline void outPortWithA(unsigned char port, unsigned char value, int clock = 4)
+    {
+        CB.out(CB.arg, CB.returnPortAs16Bits ? getPort16WithA(port) : port, value);
         consumeClock(clock);
     }
 
@@ -4991,8 +5005,8 @@ class Z80
     // Input a byte form device n to accu.
     static inline void IN_A_N(Z80* ctx)
     {
-        unsigned short n = ctx->fetch(3) | (ctx->reg.pair.A << 8);
-        unsigned char i = ctx->inPort16(n);
+        unsigned char n = ctx->fetch(3);
+        unsigned char i = ctx->inPortWithA(n);
         if (ctx->isDebug()) ctx->log("[%04X] IN %s, ($%02X) = $%02X", ctx->reg.PC - 2, ctx->registerDump(0b111), n, i);
         ctx->reg.pair.A = i;
     }
@@ -5014,7 +5028,7 @@ class Z80
     inline void IN_R_C(unsigned char r, bool setRegister = true)
     {
         unsigned char* rp = setRegister ? getRegisterPointer(r) : nullptr;
-        unsigned char i = inPort(reg.pair.C);
+        unsigned char i = inPortWithB(reg.pair.C);
         if (rp) {
             if (isDebug()) log("[%04X] IN %s, (%s) = $%02X", reg.PC - 2, registerDump(r), registerDump(0b001), i);
             *rp = i;
@@ -5046,7 +5060,8 @@ class Z80
     inline void repeatIN(bool isIncHL, bool isRepeat)
     {
         reg.WZ = (unsigned short)(getBC() + (isIncHL ? 1 : -1));
-        unsigned char i = inPort(reg.pair.C);
+        unsigned char i = inPortWithB(reg.pair.C);
+        decrementB_forRepeatIO();
         unsigned short hl = getHL();
         if (isDebug()) {
             if (isIncHL) {
@@ -5056,7 +5071,6 @@ class Z80
             }
         }
         writeByte(hl, i);
-        decrementB_forRepeatIO();
         hl += isIncHL ? 1 : -1;
         setHL(hl);
         setFlagZ(reg.pair.B == 0);
@@ -5079,7 +5093,7 @@ class Z80
     {
         unsigned char n = ctx->fetch(3);
         if (ctx->isDebug()) ctx->log("[%04X] OUT ($%02X), %s", ctx->reg.PC - 2, n, ctx->registerDump(0b111));
-        ctx->outPort(n, ctx->reg.pair.A);
+        ctx->outPortWithA(n, ctx->reg.pair.A);
     }
 
     // Output a byte to device (C) form register.
@@ -5095,17 +5109,16 @@ class Z80
     {
         if (zero) {
             if (isDebug()) log("[%04X] OUT (%s), 0", reg.PC - 2, registerDump(0b001));
-            outPort(reg.pair.C, 0);
+            outPortWithB(reg.pair.C, 0);
         } else {
             if (isDebug()) log("[%04X] OUT (%s), %s", reg.PC - 2, registerDump(0b001), registerDump(r));
-            outPort(reg.pair.C, getRegister(r));
+            outPortWithB(reg.pair.C, getRegister(r));
         }
     }
 
     // Load Output port (C) with location (HL), increment/decrement HL and decrement B
     inline void repeatOUT(bool isIncHL, bool isRepeat)
     {
-        decrementB_forRepeatIO(); // メモ 初めに引く
         unsigned char o = readByte(getHL());
         if (isDebug()) {
             if (isIncHL) {
@@ -5114,8 +5127,8 @@ class Z80
                 log("[%04X] %s ... p(%s) <- (%s) <$%02x> [%s]", reg.PC - 2, isRepeat ? "OUTDR" : "OUTD", registerDump(0b001), registerPairDump(0b10), o, registerDump(0b000));
             }
         }
-        outPort(reg.pair.C, o);
-//      decrementB_forRepeatIO();
+        decrementB_forRepeatIO();
+        outPortWithB(reg.pair.C, o);
         reg.WZ = (unsigned short)(getBC() + (isIncHL ? 1 : -1));
         setHL((unsigned short)(getHL() + (isIncHL ? 1 : -1)));
         setFlagZ(reg.pair.B == 0);

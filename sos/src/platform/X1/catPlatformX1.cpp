@@ -17,7 +17,7 @@ CatPlatformX1::initializeGraphicPalette() noexcept
 void
 CatPlatformX1::initializeScreenImage() noexcept
 {
-	for(s32 i = 0; i < sizeof(imageMemory); ++i) {
+	for(s32 i = 0; i < CatPlatformX1::GVRAM_SIZE; ++i) {
 		imageMemory[i] = 0;
 	}
 }
@@ -180,14 +180,13 @@ CatPlatformX1::renderText()
 
 
 
-
-
 CatPlatformX1::CatPlatformX1()
 	: currentTick()
-	, imageMemory(new u8[640*200*4])
+	, imageMemory(new u8[CatPlatformX1::GVRAM_SIZE])
 	, ctc(new CatCTC())
 	, pcg(new CatPCG())
 	, crtc(new CatCRTC())
+	, isGRAMSyncAccessMode(false) // 同時アクセスモード OFF
 {
 }
 
@@ -242,6 +241,9 @@ CatPlatformX1::initialize(void* config)
 	}
 	*/
 
+	// 同時アクセスモード OFF
+	isGRAMSyncAccessMode = false;
+
 	setVRAMDirty();
 
 	return 0;
@@ -292,6 +294,32 @@ CatPlatformX1::tick(s32 tick)
 void
 CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 {
+	if(isGRAMSyncAccessMode) {
+		// 同時アクセスモード
+		if(port < 0x4000) [[likely]] {
+			if(io[port + 0x4000] != value) { setVRAMDirty(); io[port + 0x4000] = value; } // B
+			if(io[port + 0x8000] != value) { setVRAMDirty(); io[port + 0x8000] = value; } // R
+			if(io[port + 0xC000] != value) { setVRAMDirty(); io[port + 0xC000] = value; } // G
+		} else if(port < 0x8000) {
+			// 0x4000～0x7FFF RG
+			port -= 0x4000;
+			if(io[port + 0x8000] != value) { setVRAMDirty(); io[port + 0x8000] = value; } // R
+			if(io[port + 0xC000] != value) { setVRAMDirty(); io[port + 0xC000] = value; } // G
+		} else if(port < 0xC000) {
+			// 0x8000～0xBFFF BG
+			port -= 0x8000;
+			if(io[port + 0x4000] != value) { setVRAMDirty(); io[port + 0x4000] = value; } // B
+			if(io[port + 0xC000] != value) { setVRAMDirty(); io[port + 0xC000] = value; } // G
+		} else {
+			// 0xC000～0xFFFF BR
+			port -= 0xC000;
+			if(io[port + 0x4000] != value) { setVRAMDirty(); io[port + 0x4000] = value; } // B
+			if(io[port + 0x8000] != value) { setVRAMDirty(); io[port + 0x8000] = value; } // R
+		}
+		return;
+	}
+
+
 	if(0x2000 <= port && port <= 0x3FFF) {
 		// TEXT ATTR
 		// TEXT
@@ -312,6 +340,7 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		// VRAM
 		if(io[port] != value) {
 			setVRAMDirty();
+			io[port] = value;
 		}
 	} else if((port & 0xFF00) == 0x1000) {
 		// PALETTE B
@@ -343,6 +372,13 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 	} else if(port == 0x1801) {
 		// CTRC レジスタに書き込む
 		crtc->writeRegister(value);
+	} else if((port & 0xFF0F) == 0x1A02) {
+		// 8255 C
+		if((io[0x1A02] & 0x20) && ((value & 0x20) == 0)) {
+			// 立ち下げ - 同時アクセスモード
+			isGRAMSyncAccessMode = true;
+		}
+		io[0x1A02] = value;
 	} else if((port & 0xFF00) == 0x1B00) {
 		// PSG Data write
 		io[0x1B00] = value;
@@ -382,6 +418,12 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 u8
 CatPlatformX1::platformInPort(u8* io, u16 port)
 {
+	if(isGRAMSyncAccessMode) {
+		// 同時アクセスモードの解除
+		isGRAMSyncAccessMode = false;
+		// return 0;
+	}
+
 	if(0x2000 <= port && port <= 0x3FFF) {
 		// TEXT ATTR
 		// TEXT
@@ -424,6 +466,9 @@ CatPlatformX1::platformInPort(u8* io, u16 port)
 		constexpr auto v = (4000000 / 60) * 24 / (200+24); // @todo VSYNC期間のタイミング
 		bool vsync = tick > (4000000 / 60 - v);
 		return (vsync ? 0x00 : 0x80);
+	} else if((port & 0xFF0F) == 0x1A02) {
+		// 8255 C
+		return io[0x1A02];
 	} else if((port & 0xFF00) == 0x1B00) {
 		// PSG Data Read
 		if(io[0x1C00] == 14) {

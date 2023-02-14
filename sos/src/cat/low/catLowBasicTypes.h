@@ -32,6 +32,14 @@ static_assert(false) // 未対応
 // エクスポート(watの関数)
 #define WASM_EXPORT              __attribute__((visibility("default")))
 
+// 可変長引数用のマクロ等
+typedef __builtin_va_list   va_list;
+#define va_start(v,l)       __builtin_va_start(v,l)
+#define va_end(v)           __builtin_va_end(v)
+#define va_arg(v,l)         __builtin_va_arg(v,l)
+#define va_copy(dest, src)  __builtin_va_copy(dest, src)
+
+int vsnprintf(char *buffer, size_t count, const char *format, va_list argptr);
 #else
 
 // VC++
@@ -39,6 +47,7 @@ static_assert(false) // 未対応
 #include <cstdint>
 #include <cstdlib>
 #include <cstdio>
+#include <cstdarg>
 
 // 基本的な型
 typedef std::int8_t   s8;

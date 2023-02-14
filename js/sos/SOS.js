@@ -883,9 +883,10 @@ class SOS {
 		ctx.BELL(0);
 	}
 	/**
-	 * #PRTHX(1FC1H)
+	 * #PRTHX(1FC1H)  
+	 * 破壊: AF  
 	 * 
-	 * Ａﾚｼﾞｽﾀの内容を16進数２桁で表示する。
+	 * Aレジスタの内容を16進数2桁で表示する。
 	 * @param {TaskContext} ctx 
 	 */
 	sos_prthx(ctx){

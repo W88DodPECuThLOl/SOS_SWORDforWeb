@@ -9,7 +9,7 @@ class CatPlatformX1 : public CatPlatformBase {
 	s32 currentTick;
 
 	/**
-	 * @brief VRAMのイメージ
+	 * @brief グラフィックVRAMのイメージ
 	 */
 	u8* imageMemory;
 
@@ -34,6 +34,18 @@ class CatPlatformX1 : public CatPlatformBase {
 	 * @brief CTRC
 	 */
 	class CatCRTC* crtc;
+
+	/**
+	 * @brief 同時アクセスモードかどうか
+	 */
+	bool isGRAMSyncAccessMode;
+public:
+	/**
+	 * @brief グラフィックのVRAMのサイズ
+	 * 
+	 *　640x200
+	 */
+	static constexpr size_t GVRAM_SIZE = (640*200*4);
 private:
 	/**
 	 * @brief グラフィックパレットを初期化する

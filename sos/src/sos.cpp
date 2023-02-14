@@ -392,6 +392,16 @@ public:
 		z80.reg.IFF |= 0b00000101;
 		z80.reg.execEI = 1;
 		z80.reg.I = 0;
+		// 
+		//z80.setDebugMessage(callbackZ80DebugMessage);
+	}
+	static void callbackZ80DebugMessage(void* arg, const char* msg)
+	{
+		((SOS_Context*)arg)->z80DebugMessage(msg);
+	}
+	void z80DebugMessage(const char* msg)
+	{
+		//printf("%s\n", msg);
 	}
 
 	/**

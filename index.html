@@ -34,7 +34,8 @@
 			<div id="fs-target">
 				<div id="fs-inner" class="canvas-wrapper">
 					<canvas id="graphicCanvas" class="graphicsLayer"></canvas>
-					<div id="sos_output" class="console"></div>
+					<div id="sos_output"  class="console"></div>
+					<div id="sos_output1" class="console"></div>
 				</div>
 			</div>
 			<!-- 画面下部のメニューバー -->
@@ -225,8 +226,8 @@
 			var taskMonitor = new TaskMonitor();
 			var taskPlatformMonitor = new TaskPlatformMonitor();
 			var catKey = new CatKey(document);
-			var catTextScreen = new CatTextScreen(80,25);
-			
+			var catTextScreen = new CatTextScreen(80,25); // 2つのテキストレイヤ 0:Debug 1:S-OS OUTPUT
+
 			// BELL(BEEP)音
 			var sound = new Audio(cfg.beepfile); // BEEPで再生する音声ファイル
 			var catSnd = {
@@ -732,8 +733,10 @@
 				taskMonitor.update(ctx);
 				taskPlatformMonitor.update(ctx);
 				// テキスト描画
+				//if(catTextScreen.isModified(0)) { document.getElementById("sos_output1").innerHTML = catTextScreen.draw(0); }
+				//if(catTextScreen.isModified(1)) { document.getElementById("sos_output").innerHTML  = catTextScreen.draw(1); }
 				if(catTextScreen.isModified()) {
-					document.getElementById("sos_output").innerHTML = catTextScreen.draw();
+					document.getElementById("sos_output").innerHTML  = catTextScreen.draw();
 				}
 				// グラフィック描画
 				z80Emu.getVRAMImage(graphicCanvasCtx);
