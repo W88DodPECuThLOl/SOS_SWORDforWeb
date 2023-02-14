@@ -384,15 +384,9 @@ public:
 	{
 		init();
 		initWork();
+		initInterrupt();
 		setVRAMDirty();
-		// 割り込みモードを2に
-		z80.reg.interrupt &= 0b11111100;
-		z80.reg.interrupt |= 2; // モード2に
-		// 割り込み有効に
-		z80.reg.IFF |= 0b00000101;
-		z80.reg.execEI = 1;
-		z80.reg.I = 0;
-		// 
+
 		//z80.setDebugMessage(callbackZ80DebugMessage);
 	}
 	static void callbackZ80DebugMessage(void* arg, const char* msg)
@@ -410,13 +404,26 @@ public:
 	void reset()
 	{
 		z80.initialize();
+		initInterrupt();
 		setVRAMDirty();
+	}
+
+	/**
+	 * @brief 割り込み初期化
+	 * 
+	 * 割り込みモード:2  
+	 * 割り込み:有効  
+	 * Iレジスタ:$00に設定  
+	 */
+	void initInterrupt()
+	{
 		// 割り込みモードを2に
 		z80.reg.interrupt &= 0b11111100;
 		z80.reg.interrupt |= 2; // モード2に
 		// 割り込み有効に
 		z80.reg.IFF |= 0b00000101;
 		z80.reg.execEI = 1;
+		// Iレジスタ$00に設定
 		z80.reg.I = 0;
 	}
 

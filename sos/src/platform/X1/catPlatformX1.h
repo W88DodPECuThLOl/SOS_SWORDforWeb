@@ -39,6 +39,15 @@ class CatPlatformX1 : public CatPlatformBase {
 	 * @brief 同時アクセスモードかどうか
 	 */
 	bool isGRAMSyncAccessMode;
+
+	bool vBlank = false;
+	static constexpr auto frameTick = (4000000 / 60);
+	static constexpr auto lineTick  = frameTick / (200 + 24);
+	static constexpr auto diskTick  = frameTick * 200 / (200 + 24);
+	static constexpr auto vBlankTick  = frameTick - diskTick;
+	u64 counter = 0;
+	u64 counterNextVSync = diskTick;
+	u64 counterNextVSyncEnd = diskTick + vBlankTick;
 public:
 	/**
 	 * @brief グラフィックのVRAMのサイズ

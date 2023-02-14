@@ -2798,6 +2798,16 @@ class SOS {
 		// Z
 		return true;
 	}
+
+	/**
+	 * 
+	 */
+	sos_tpchk(ctx)
+	{
+		this.#dos_tpchk(ctx.getA());
+		return;
+	}
+
 	/**
 	 * テープデバイスかどうか
 	 * @param {number} device デバイス名

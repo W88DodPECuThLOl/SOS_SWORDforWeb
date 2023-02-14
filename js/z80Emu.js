@@ -253,10 +253,10 @@ class Z80Emu {
 	 * 
 	 * Z80側でのcallするアドレスを書き換えている
 	 * 
-	 * jp   #COLD   ; COLDにジャンプ  
-	 * call xxxx    ; USRを呼び出す  
-	 * call yyyy    ; Jコマンドの飛び先を呼び出す  
-	 * jp   3
+	 * 0000 c3 cold jp   #COLD   ; COLDにジャンプ  
+	 * 0003 cd xxxx call xxxx    ; USRを呼び出す  
+	 * 0006 cd yyyy call yyyy    ; Jコマンドの飛び先を呼び出す  
+	 * 0009 c3 0003 jp   3
 	 * @param {number} address ジャンプするアドレス
 	 */
 	monitorCommandJump(address)

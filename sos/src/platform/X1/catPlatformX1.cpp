@@ -300,6 +300,10 @@ CatPlatformX1::adjustTick(s32& tick)
 {
 	// CTC
 	ctc->adjustClock(tick);
+
+	if(tick > lineTick) {
+		tick = lineTick;
+	}
 }
 
 void
@@ -312,6 +316,19 @@ CatPlatformX1::tick(s32 tick)
 		if(s32 irq = ctc->execute(diff); irq >= 0) {
 			// 必要ならIRQの割り込みを発生させる
 			generateIRQ(irq);
+		}
+
+		// 
+		counter += diff;
+		// VSYNC
+		vBlank = false;
+		if(counterNextVSync <= counter) {
+			if(counter <= counterNextVSyncEnd) {
+				vBlank = true;
+			} else {
+				counterNextVSync    = counter + diskTick;
+				counterNextVSyncEnd = counterNextVSync + vBlankTick;
+			}
 		}
 	}
 }
@@ -512,14 +529,20 @@ CatPlatformX1::platformInPort(u8* io, u16 port)
 		return ctc->read8(3);
 	} else if((port & 0xFF0F) == 0x1A01) {
 		// 8255 B
+#if false
 		const auto tick = getExecutedClock();
 		this->tick(tick);
 		constexpr auto v = (4000000 / 60) * 24 / (200+24); // @todo VSYNC期間のタイミング
 		bool vsync = tick > (4000000 / 60 - v);
 		return (vsync ? 0x00 : 0x80);
+#else
+		return (vBlank ? 0x00 : 0x80);
+#endif
 	} else if((port & 0xFF0F) == 0x1A02) {
 		// 8255 C
 		return io[0x1A02];
+	} else if((port & 0xFF0F) == 0x1A03) {
+		return io[0x1A03];
 	} else if((port & 0xFF00) == 0x1B00) {
 		// PSG Data Read
 		if(io[0x1C00] == 14) {
@@ -544,6 +567,8 @@ CatPlatformX1::platformInPort(u8* io, u16 port)
 	} else if((port & 0xFF00) == 0x1700) {
 		// PCG G
 		return pcg->readG();
+	} else if(port == 0x1FD0) {
+		return io[0x1FD0];
 	}
 	return 0xFF;
 }
