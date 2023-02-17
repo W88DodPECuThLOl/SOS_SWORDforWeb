@@ -1,0 +1,8 @@
+﻿# 変更点
+
+- 文字コードを変更しました
+  - SJISからBOM付きのUTF-8へ
+- WebAssemblerで動くように変更しました
+  - マクロの追加
+  - includeの整理など
+- 「#pragma once」を使うように修正しました

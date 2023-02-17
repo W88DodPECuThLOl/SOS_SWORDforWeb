@@ -1,13 +1,38 @@
 ﻿#include "catCRTC.h"
 
-CatCRTC::CatCRTC()
-	: accessRegisterNo()
+CatCRTC::CatCRTC(const u16 baseAddress)
+	: baseAddress(baseAddress)
+	, accessRegisterNo()
 {
+}
+
+s32
+CatCRTC::initialize()
+{
+	accessRegisterNo = 0;
+	return 0;
 }
 
 void
 CatCRTC::terminate()
 {
+}
+
+bool
+CatCRTC::checkAddress(const u16 address) noexcept
+{
+	return  baseAddress == address
+		|| (baseAddress + 1) == address;
+}
+
+void
+CatCRTC::write(const u16 address, u8 value)
+{
+	if(baseAddress == address) {
+		setAccessRegisterNo(value);
+	} else {
+		writeRegister(accessRegisterNo, value);
+	}
 }
 
 void

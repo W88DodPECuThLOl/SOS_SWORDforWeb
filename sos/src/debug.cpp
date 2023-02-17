@@ -30,6 +30,14 @@ void
 writePSG(s32 clock, u8 reg, u8 value)
 {
 }
+void
+writeOPM1(s32 clock, u8 reg, u8 value)
+{
+}
+void
+writeOPM2(s32 clock, u8 reg, u8 value)
+{
+}
 
 u8
 readGamePad(u8 index)

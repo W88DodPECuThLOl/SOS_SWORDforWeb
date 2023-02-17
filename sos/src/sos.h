@@ -124,6 +124,10 @@ extern "C" u8 readIO(u16 port);
  */
 WASM_IMPORT("io", "writePSG")
 extern "C" void writePSG(s32 clock, u8 reg, u8 value);
+WASM_IMPORT("io", "writeOPM1")
+extern "C" void writeOPM1(s32 clock, u8 reg, u8 value);
+WASM_IMPORT("io", "writeOPM2")
+extern "C" void writeOPM2(s32 clock, u8 reg, u8 value);
 
 /**
  * @brief ゲームパッドの読み込み

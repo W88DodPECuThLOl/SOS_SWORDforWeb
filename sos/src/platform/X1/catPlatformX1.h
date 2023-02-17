@@ -24,6 +24,8 @@ class CatPlatformX1 : public CatPlatformBase {
 	 * @brief CTC
 	 */
 	class CatCTC* ctc;
+	class CatCTC* ctc_0704;
+	class CatCTC* ctc_070C;
 
 	/**
 	 * @brief PCG

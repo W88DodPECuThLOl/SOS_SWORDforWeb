@@ -40,6 +40,18 @@ typedef __builtin_va_list   va_list;
 #define va_copy(dest, src)  __builtin_va_copy(dest, src)
 
 int vsnprintf(char *buffer, size_t count, const char *format, va_list argptr);
+
+WASM_IMPORT("js", "sin")
+extern "C" double sin(double);
+WASM_IMPORT("js", "pow")
+extern "C" double pow(double, double);
+WASM_IMPORT("js", "log")
+extern "C" double log(double);
+WASM_IMPORT("js", "floor")
+extern "C" double floor(double);
+WASM_IMPORT("js", "rand")
+extern "C" int rand();
+
 #else
 
 // VC++

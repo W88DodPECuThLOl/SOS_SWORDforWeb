@@ -34,6 +34,49 @@ CatPCG::terminate()
 {
 }
 
+bool
+CatPCG::checkAddress(const u16 address) noexcept
+{
+	return (0x1400 <= address) && (address <= 0x17FF);
+}
+
+void
+CatPCG::write(const u16 address, const u8 value)
+{
+	const auto adr = address >> 8;
+	if(adr == 0x15) {
+		// PCG B
+		writeB(value);
+	} else if(adr == 0x16) {
+		// PCG R
+		writeR(value);
+	} else if(adr == 0x17) {
+		// PCG G
+		writeG(value);
+	}
+}
+
+u8
+CatPCG::read(const u16 address)
+{
+	const auto adr = address >> 8;
+	if(adr == 0x14) {
+		// CG ROM
+		return readROM();
+	} else if(adr == 0x15) {
+		// PCG B
+		return readB();
+	} else if(adr == 0x16) {
+		// PCG R
+		return readR();
+	} else if(adr == 0x17) {
+		// PCG G
+		return readG();
+	} else {
+		return 0xFF;
+	}
+}
+
 void
 CatPCG::setChar(u16 value)
 {

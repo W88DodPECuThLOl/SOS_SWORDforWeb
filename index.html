@@ -719,29 +719,45 @@
 				return !!localStorage.getItem(key);
 			}
 
-			function update()
+			let timeStampBase;
+			/**
+			 * @param {number} timestamp ミリ秒単位
+			 */
+			function update(timestamp)
 			{
-				// ゲームパッドの更新
-				gamePad.update();
-				// ゲームパッドのキー割り当て処理
-				gamePadToKey(cfg.gamePadConfig);
-				// Z80えみゅ
-				z80Emu.update(ctx);
-				// ライン入力
-				taskLineInput.update(ctx);
-				// モニタ
-				taskMonitor.update(ctx);
-				taskPlatformMonitor.update(ctx);
-				// テキスト描画
-				//if(catTextScreen.isModified(0)) { document.getElementById("sos_output1").innerHTML = catTextScreen.draw(0); }
-				//if(catTextScreen.isModified(1)) { document.getElementById("sos_output").innerHTML  = catTextScreen.draw(1); }
-				if(catTextScreen.isModified()) {
-					document.getElementById("sos_output").innerHTML  = catTextScreen.draw();
+				if (timeStampBase === undefined) {
+					timeStampBase = timestamp;
 				}
-				// グラフィック描画
-				z80Emu.getVRAMImage(graphicCanvasCtx);
+				const elapsed = timestamp - timeStampBase;
+				if(elapsed >= 1000/60) {
+					if(elapsed >= 1000) {
+						// 1秒経過してたらさすがになので、スキップする
+						timeStampBase = timestamp;
+					}
+					timeStampBase += 1000/60;
+
+					// ゲームパッドの更新
+					gamePad.update();
+					// ゲームパッドのキー割り当て処理
+					gamePadToKey(cfg.gamePadConfig);
+					// Z80えみゅ
+					z80Emu.update(ctx);
+					// ライン入力
+					taskLineInput.update(ctx);
+					// モニタ
+					taskMonitor.update(ctx);
+					taskPlatformMonitor.update(ctx);
+					// テキスト描画
+					//if(catTextScreen.isModified(0)) { document.getElementById("sos_output1").innerHTML = catTextScreen.draw(0); }
+					//if(catTextScreen.isModified(1)) { document.getElementById("sos_output").innerHTML  = catTextScreen.draw(1); }
+					if(catTextScreen.isModified()) {
+						document.getElementById("sos_output").innerHTML  = catTextScreen.draw();
+					}
+					// グラフィック描画
+					z80Emu.getVRAMImage(graphicCanvasCtx);
+				}
 				// VSync待ち
-				requestAnimationFrame(()=>update());
+				requestAnimationFrame((timestamp)=>update(timestamp));
 			}
 
 			/**
@@ -804,7 +820,7 @@
 							autoStart(cfg.execFile) ;
 						}
 						// 開始
-						update();
+						update(0);
 					}
 				);
 			}

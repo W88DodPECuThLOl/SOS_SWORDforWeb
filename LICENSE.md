@@ -107,6 +107,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ---
+## FM音源部分のライセンス
+
+FM音源部分にcisc様が作成されたfmgenを使用しています。  
+変更点は「fmgen/変更点.txt」をご参照ください。
+
+    FM Sound Generator with OPN/OPM interface
+    Copyright (C) by cisc 1998, 2003.
+
+---
 ## ZIPファイルの展開にJSZipを使用しています。
 https://github.com/Stuk/jszip/blob/main/LICENSE.markdown
 

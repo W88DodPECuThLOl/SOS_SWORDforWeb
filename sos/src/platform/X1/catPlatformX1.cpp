@@ -4,6 +4,9 @@
 #include "../X1/catPCG.h"
 #include "../X1/catCRTC.h"
 
+#define CTC_0704 (1)
+#define CTC_070C (1)
+
 void
 CatPlatformX1::initializeGraphicPalette() noexcept
 {
@@ -29,6 +32,7 @@ CatPlatformX1::initializeScreenImage() noexcept
 void
 CatPlatformX1::initializeCRTC(const s32 width) noexcept
 {
+	crtc->initialize();
 	crtc->writeRegister(CatCRTC::RegisterNo::Width,  width);
 	crtc->writeRegister(CatCRTC::RegisterNo::Height, 25);
 	crtc->writeRegister(CatCRTC::RegisterNo::StartAddressHigh, 0);
@@ -209,8 +213,10 @@ CatPlatformX1::CatPlatformX1()
 	: currentTick()
 	, imageMemory(new u8[CatPlatformX1::GVRAM_SIZE])
 	, ctc(new CatCTC())
+	, ctc_0704(new CatCTC())
+	, ctc_070C(new CatCTC())
 	, pcg(new CatPCG())
-	, crtc(new CatCRTC())
+	, crtc(new CatCRTC(0x1800))
 	, isGRAMSyncAccessMode(false) // 同時アクセスモード OFF
 {
 }
@@ -226,6 +232,14 @@ CatPlatformX1::~CatPlatformX1()
 	if(pcg) {
 		delete pcg;
 		pcg = nullptr;
+	}
+	if(ctc_0704) {
+		delete ctc_0704;
+		ctc_0704 = nullptr;
+	}
+	if(ctc_070C) {
+		delete ctc_070C;
+		ctc_070C = nullptr;
 	}
 	if(ctc) {
 		delete ctc;
@@ -252,6 +266,8 @@ CatPlatformX1::initialize(void* config)
 	initializeCRTC(80);
 
 	ctc->initialize();
+	ctc_0704->initialize();
+	ctc_070C->initialize();
 	pcg->initialize();
 
 	clearTextAndAttribute(0x20, 0x07);
@@ -281,6 +297,12 @@ CatPlatformX1::terminate()
 	if(pcg) {
 		pcg->terminate();
 	}
+	if(ctc_070C) {
+		ctc_070C->terminate();
+	}
+	if(ctc_0704) {
+		ctc_0704->terminate();
+	}
 	if(ctc) {
 		ctc->terminate();
 	}
@@ -300,6 +322,8 @@ CatPlatformX1::adjustTick(s32& tick)
 {
 	// CTC
 	ctc->adjustClock(tick);
+	ctc_0704->adjustClock(tick);
+	ctc_070C->adjustClock(tick);
 
 	if(tick > lineTick) {
 		tick = lineTick;
@@ -314,6 +338,14 @@ CatPlatformX1::tick(s32 tick)
 		currentTick += diff;
 		// CTC
 		if(s32 irq = ctc->execute(diff); irq >= 0) {
+			// 必要ならIRQの割り込みを発生させる
+			generateIRQ(irq);
+		}
+		if(s32 irq = ctc_0704->execute(diff); irq >= 0) {
+			// 必要ならIRQの割り込みを発生させる
+			generateIRQ(irq);
+		}
+		if(s32 irq = ctc_070C->execute(diff); irq >= 0) {
 			// 必要ならIRQの割り込みを発生させる
 			generateIRQ(irq);
 		}
@@ -377,11 +409,18 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 			io[port] = value;
 		}
 		if(0x3000 <= port) {
-			const u16 characterPortAddress = queryPCGCharacterPortAddress(); // PCGのキャラ定義に使われているポートアドレス
-			if(port == characterPortAddress) {
-				pcg->setChar(value); // PCGで設定するキャラクタ
+			if(((u8*)getIO())[0x1FD0] & 0x20) {
+				if(0x37FF == port) {
+					pcg->setChar(value); // PCGで設定するキャラクタ
+				}
+			} else {
+				const u16 characterPortAddress = queryPCGCharacterPortAddress(); // PCGのキャラ定義に使われているポートアドレス
+				if(port == characterPortAddress) {
+					pcg->setChar(value); // PCGで設定するキャラクタ
+				}
 			}
 		}
+
 	} else if(0x4000 <= port) [[likely]]{
 		// VRAM
 		if(((u8*)getIO())[0x1FD0] & 0x10) {
@@ -415,12 +454,9 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 			for(s32 i = 0; i < 8; ++i) { paletteG[i] = (tmp & 0x1) ? 0xFF : 0x00; tmp >>= 1; }
 			io[0x1200] = value;
 		}
-	} else if(port == 0x1800) {
-		// CTRC 読み書きのレジスタを設定する
-		crtc->setAccessRegisterNo(value);
-	} else if(port == 0x1801) {
-		// CTRC レジスタに書き込む
-		crtc->writeRegister(value);
+	} else if(crtc->checkAddress(port)) {
+		// CTRC
+		crtc->write(port, value);
 	} else if((port & 0xFF0F) == 0x1A02) {
 		// 8255 C
 		if((io[0x1A02] & 0x20) && ((value & 0x20) == 0)) {
@@ -451,30 +487,56 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		// PSG Register address set
 		io[0x1C00] = value;
 	} else if(port == 0x1FA0) {
-		// CTC0
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		ctc->write8(0, value);
 	} else if(port == 0x1FA1) {
-		// CTC1
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		ctc->write8(1, value);
 	} else if(port == 0x1FA2) {
-		// CTC2
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		ctc->write8(2, value);
 	} else if(port == 0x1FA3) {
-		// CTC3
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		ctc->write8(3, value);
-	} else if((port & 0xFF00) == 0x1500) {
-		// PCG B
-		pcg->writeB(value);
-	} else if((port & 0xFF00) == 0x1600) {
-		// PCG R
-		pcg->writeR(value);
-	} else if((port & 0xFF00) == 0x1700) {
-		// PCG G
-		pcg->writeG(value);
+#if CTC_0704
+	} else if(port == 0x0704) {
+		ctc_0704->write8(0, value);
+	} else if(port == 0x0705) {
+		ctc_0704->write8(1, value);
+	} else if(port == 0x0706) {
+		ctc_0704->write8(2, value);
+	} else if(port == 0x0707) {
+		ctc_0704->write8(3, value);
+#endif
+#if CTC_070C
+	} else if(port == 0x070C) {
+		ctc_070C->write8(0, value);
+	} else if(port == 0x070D) {
+		ctc_070C->write8(1, value);
+	} else if(port == 0x070E) {
+		ctc_070C->write8(2, value);
+	} else if(port == 0x070F) {
+		ctc_070C->write8(3, value);
+#endif
+	} else if(pcg->checkAddress(port)) {
+		// PCG
+		pcg->write(port, value);
+	} else if(port == 0x0700) {
+		// OPM1
+		io[0x0700] = value;
+	} else if(port == 0x0701) {
+		// OPM1
+		io[0x0701] = 3;
+		const u16 reg = io[0x0700];
+		writeOPM1(getExecutedClock(), reg, value);
+	} else if(port == 0x0708) {
+		// OPM2
+		io[0x0708] = value;
+	} else if(port == 0x0709) {
+		// OPM1
+		io[0x0709] = 3;
+		const u16 reg = io[0x0708];
+		writeOPM2(getExecutedClock(), reg, value);
 	} else if(port == 0x1FD0) {
 		if((io[0x1FD0] & 0x9B) != (value & 0x9B)) {
 			setVRAMDirty();
@@ -513,31 +575,59 @@ CatPlatformX1::platformInPort(u8* io, u16 port)
 		return io[0x1200];
 	} else if(port == 0x1FA0) {
 		// CTC0
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		return ctc->read8(0);
 	} else if(port == 0x1FA1) {
 		// CTC1
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		return ctc->read8(1);
 	} else if(port == 0x1FA2) {
 		// CTC2
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		return ctc->read8(2);
 	} else if(port == 0x1FA3) {
 		// CTC3
-		tick(getExecutedClock());
+		//tick(getExecutedClock());
 		return ctc->read8(3);
+#if CTC_0704
+	} else if(port == 0x0704) {
+		// CTC0
+		//tick(getExecutedClock());
+		return ctc_0704->read8(0);
+	} else if(port == 0x0705) {
+		// CTC1
+		//tick(getExecutedClock());
+		return ctc_0704->read8(1);
+	} else if(port == 0x0706) {
+		// CTC2
+		//tick(getExecutedClock());
+		return ctc_0704->read8(2);
+	} else if(port == 0x0707) {
+		// CTC3
+		//tick(getExecutedClock());
+		return ctc_0704->read8(3);
+#endif
+#if CTC_070C
+	} else if(port == 0x070C) {
+		// CTC0
+		//tick(getExecutedClock());
+		return ctc_070C->read8(0);
+	} else if(port == 0x070D) {
+		// CTC1
+		//tick(getExecutedClock());
+		return ctc_070C->read8(1);
+	} else if(port == 0x070E) {
+		// CTC2
+		//tick(getExecutedClock());
+		return ctc_070C->read8(2);
+	} else if(port == 0x070F) {
+		// CTC3
+		//tick(getExecutedClock());
+		return ctc_070C->read8(3);
+#endif
 	} else if((port & 0xFF0F) == 0x1A01) {
 		// 8255 B
-#if false
-		const auto tick = getExecutedClock();
-		this->tick(tick);
-		constexpr auto v = (4000000 / 60) * 24 / (200+24); // @todo VSYNC期間のタイミング
-		bool vsync = tick > (4000000 / 60 - v);
-		return (vsync ? 0x00 : 0x80);
-#else
 		return (vBlank ? 0x00 : 0x80);
-#endif
 	} else if((port & 0xFF0F) == 0x1A02) {
 		// 8255 C
 		return io[0x1A02];
@@ -555,18 +645,20 @@ CatPlatformX1::platformInPort(u8* io, u16 port)
 	} else if((port & 0xFF00) == 0x1C00) {
 		// PSG Register address set
 		return io[0x1C00];
-	} else if((port & 0xFF00) == 0x1400) {
-		// CHAR ROM Read
-		return pcg->readROM();
-	} else if((port & 0xFF00) == 0x1500) {
-		// PCG B
-		return pcg->readB();
-	} else if((port & 0xFF00) == 0x1600) {
-		// PCG R
-		return pcg->readR();
-	} else if((port & 0xFF00) == 0x1700) {
-		// PCG G
-		return pcg->readG();
+	} else if(pcg->checkAddress(port)) {
+		// PCG
+		return pcg->read(port);
+	} else if(port == 0x0700) {
+		return io[0x0700];
+	} else if(port == 0x0701) {
+		// OPM1
+		return 0;
+	} else if(port == 0x0708) {
+		// OPM2
+		return io[0x0708];
+	} else if(port == 0x0709) {
+		// OPM2
+		return 0;
 	} else if(port == 0x1FD0) {
 		return io[0x1FD0];
 	}

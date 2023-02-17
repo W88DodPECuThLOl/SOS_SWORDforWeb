@@ -51,5 +51,32 @@ class CatAudio {
 			);
 		}
 	}
+	writeOPM1Reg(executedClock, reg, value)
+	{
+		if(this.#audioCtx && this.gainWorkletNode) {
+			this.gainWorkletNode.port.postMessage(
+				{
+					message: 'writeOPM1Reg',
+					executedClock: executedClock,
+					reg: reg,
+					value: value
+				}
+			);
+		}
+	}
+	writeOPM2Reg(executedClock, reg, value)
+	{
+		if(this.#audioCtx && this.gainWorkletNode) {
+			this.gainWorkletNode.port.postMessage(
+				{
+					message: 'writeOPM2Reg',
+					executedClock: executedClock,
+					reg: reg,
+					value: value
+				}
+			);
+		}
+	}
+	
 }
 

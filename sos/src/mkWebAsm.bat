@@ -10,10 +10,15 @@ clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c platform/X1
 clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c platform/X1/catPlatformX1.cpp -o ./catPlatformX1.o
 
 clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c emu2413/emu2149.cpp -o ./emu2149.o
-clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c platform/device/psg.cpp -o ./psg.o
+clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c platform/device/catPsg.cpp -o ./catPsg.o
+clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c fmgen/fmgen.cpp -o ./fmgen.o
+clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c fmgen/fmtimer.cpp -o ./fmtimer.o
+clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c fmgen/opm.cpp -o ./opm.o
+clang -DBUILD_WASM=32 -std=c++20 -O3 -fno-builtin --target=wasm32 -c platform/device/catOPM.cpp -o ./catOPM.o
 
 clang "-Wl,--no-entry" "-Wl,--export-all" "-Wl,--import-memory" -fno-builtin -nostdlib --target=wasm32 -o sos.wasm sos.o catLowMemory.o clang.o platform.o catPlatformFactory.o catCtc.o catCRTC.o catPCG.o catPlatformX1.o
-clang "-Wl,--no-entry" "-Wl,--export-all" "-Wl,--import-memory" -fno-builtin -nostdlib --target=wasm32 -o psg.wasm psg.o emu2149.o catLowMemory.o clang.o
+clang "-Wl,--no-entry" "-Wl,--export-all" "-Wl,--import-memory" -fno-builtin -nostdlib --target=wasm32 -o psg.wasm catPsg.o emu2149.o catLowMemory.o clang.o fmgen.o fmtimer.o opm.o catOPM.o
+
 copy sos.wasm ..\..\sos.wasm
 copy psg.wasm ..\..\psg.wasm
 

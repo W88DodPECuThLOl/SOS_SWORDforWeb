@@ -144,6 +144,8 @@ class Z80Emu {
 			// IO
 			io: {
 				writePSG:(executedClock, reg, value)=>{ this.#audio.writeReg(executedClock, reg, value); },
+				writeOPM1:(executedClock, reg, value)=>{ this.#audio.writeOPM1Reg(executedClock, reg, value); },
+				writeOPM2:(executedClock, reg, value)=>{ this.#audio.writeOPM2Reg(executedClock, reg, value); },
 				readGamePad:(index)=>{
 					// 負論理
 					if(index == 0) {

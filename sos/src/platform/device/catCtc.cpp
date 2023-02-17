@@ -237,8 +237,11 @@ CatCTC::write8(u8 no, u8 value)
 void
 CatCTC::adjustClock(s32& clock)
 {
-	for(s32 i = 0; i < 4; ++i) {
-		ctc[i]->adjustClock(clock);
+//	for(s32 i = 0; i < 4; ++i) {
+//		ctc[i]->adjustClock(clock);
+//	}
+	if(clock > 16) {
+		clock = 16;
 	}
 }
 
