@@ -114,20 +114,35 @@ WASM_EXPORT
 extern "C" u8 readIO(u16 port);
 
 /**
- * @brief PSGへ書き込みがされた時に呼び出される関数
+ * @brief サウンドデバイスの番号
+ */
+enum SoundDeviceNo : s32 {
+	/**
+	 * @brief PSG
+	 */
+	PSG,
+	/**
+	 * @brief OPM #1
+	 */
+	OPM1,
+	/**
+	 * @brief OPM #2
+	 */
+	OPM2,
+};
+
+/**
+ * @brief サウンドチップへ書き込みがされた時に呼び出される関数
  * 
  * @note	clockは、execute()開始時に0で、Z80の命令が実行されるごとに増える。
- *			これを使って音声を上手く生成する……予定
+ *			これを使って音声を上手く生成する
+ * @oaram[in]	no		サウンドデバイスの番号
  * @oaram[in]	clock	書き込みが発生したときのクロック
- * @param[in]	reg		書き込まれたPSGのレジスタ番号
- * @param[in]	value	PSGへ書き込まれた値
+ * @param[in]	reg		書き込まれたレジスタ番号
+ * @param[in]	value	書き込まれた値
  */
-WASM_IMPORT("io", "writePSG")
-extern "C" void writePSG(s32 clock, u8 reg, u8 value);
-WASM_IMPORT("io", "writeOPM1")
-extern "C" void writeOPM1(s32 clock, u8 reg, u8 value);
-WASM_IMPORT("io", "writeOPM2")
-extern "C" void writeOPM2(s32 clock, u8 reg, u8 value);
+WASM_IMPORT("io", "writeSoundRegister")
+extern "C" void writeSoundRegister(s32 clock, s32 no, u8 reg, u8 value);
 
 /**
  * @brief ゲームパッドの読み込み
@@ -155,6 +170,7 @@ extern "C" u8 readGamePad(u8 index);
  * @return 実行されたクロック数
  */
 s32 getExecutedClock();
+u64 getGlobalTick();
 
 void generateIRQ(const u8 vector);
 

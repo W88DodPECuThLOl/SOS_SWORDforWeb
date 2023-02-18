@@ -36,9 +36,8 @@ WASM_EXPORT
 extern "C" uint32_t PSG_toggleMask (PSG *, uint32_t mask);
 
 
-
 WASM_EXPORT
-extern "C" void PSG_initialize(void* heapBase, size_t heapSize);
+extern "C" void PSG_initialize();
 WASM_EXPORT
 extern "C" void PSG_terminate();
 WASM_EXPORT
@@ -50,11 +49,8 @@ void setupHeap(void* heapBase, size_t heapSize);
 float* PSG_Buffer = nullptr;
 
 void
-PSG_initialize(void* heapBase, size_t heapSize)
+PSG_initialize()
 {
-#ifdef BUILD_WASM
-	setupHeap(heapBase, heapSize);
-#endif
 	PSG_terminate();
 	PSG_Buffer = new float[1024*64];
 }
@@ -75,4 +71,24 @@ PSG_generate(PSG* psg, uint32_t sampl)
 		PSG_Buffer[i] = PSG_calc(psg) * (1.0f / 32768.0f);
 	}
 	return PSG_Buffer;
+}
+
+
+
+WASM_EXPORT
+extern "C" void soundSystemInitialize(void* heapBase, size_t heapSize);
+WASM_EXPORT
+extern "C" void soundSystemTerminate();
+
+void
+soundSystemInitialize(void* heapBase, size_t heapSize)
+{
+#ifdef BUILD_WASM
+	setupHeap(heapBase, heapSize);
+#endif
+}
+
+void
+soundSystemTerminate()
+{
 }

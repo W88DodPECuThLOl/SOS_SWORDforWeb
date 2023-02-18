@@ -482,7 +482,7 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		// PSG Data write
 		io[0x1B00] = value;
 		const u16 reg = io[0x1C00];
-		writePSG(getExecutedClock(), reg, value);
+		writeSoundRegister(getGlobalTick(), SoundDeviceNo::PSG, reg, value);
 	} else if((port & 0xFF00) == 0x1C00) {
 		// PSG Register address set
 		io[0x1C00] = value;
@@ -528,7 +528,7 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		// OPM1
 		io[0x0701] = 3;
 		const u16 reg = io[0x0700];
-		writeOPM1(getExecutedClock(), reg, value);
+		writeSoundRegister(getGlobalTick(), SoundDeviceNo::OPM1, reg, value);
 	} else if(port == 0x0708) {
 		// OPM2
 		io[0x0708] = value;
@@ -536,7 +536,7 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		// OPM1
 		io[0x0709] = 3;
 		const u16 reg = io[0x0708];
-		writeOPM2(getExecutedClock(), reg, value);
+		writeSoundRegister(getGlobalTick(), SoundDeviceNo::OPM2, reg, value);
 	} else if(port == 0x1FD0) {
 		if((io[0x1FD0] & 0x9B) != (value & 0x9B)) {
 			setVRAMDirty();

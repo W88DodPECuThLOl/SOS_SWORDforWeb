@@ -719,43 +719,57 @@
 				return !!localStorage.getItem(key);
 			}
 
-			let timeStampBase;
+			let previousRenderTimestamp;
+			let previousTimestamp;
 			/**
 			 * @param {number} timestamp ミリ秒単位
 			 */
 			function update(timestamp)
 			{
-				if (timeStampBase === undefined) {
-					timeStampBase = timestamp;
+				if (previousRenderTimestamp === undefined) {
+					previousRenderTimestamp = timestamp;
+					previousTimestamp = timestamp;
 				}
-				const elapsed = timestamp - timeStampBase;
-				if(elapsed >= 1000/60) {
-					if(elapsed >= 1000) {
-						// 1秒経過してたらさすがになので、スキップする
-						timeStampBase = timestamp;
-					}
-					timeStampBase += 1000/60;
+				// 前回のフレームからの経過時間(ms)
+				const elapsed = timestamp - previousTimestamp;
+				previousTimestamp = timestamp;
+				// 前回の描画してからの経過時間(ms)
+				const renderElapsed = timestamp - previousRenderTimestamp;
 
-					// ゲームパッドの更新
-					gamePad.update();
-					// ゲームパッドのキー割り当て処理
-					gamePadToKey(cfg.gamePadConfig);
-					// Z80えみゅ
-					z80Emu.update(ctx);
-					// ライン入力
-					taskLineInput.update(ctx);
-					// モニタ
-					taskMonitor.update(ctx);
-					taskPlatformMonitor.update(ctx);
-					// テキスト描画
+				// ゲームパッドの更新
+				gamePad.update();
+				// ゲームパッドのキー割り当て処理
+				gamePadToKey(cfg.gamePadConfig);
+
+				// Z80えみゅ（経過時間進める）
+				const CPUClock = 4*1000000; // 4MHz
+				const clock = CPUClock * elapsed / 1000; // 1000 : CPUClock = elapsed : clock
+				z80Emu.update(ctx, clock);
+
+				// ライン入力
+				taskLineInput.update(ctx);
+				// モニタ
+				taskMonitor.update(ctx);
+				taskPlatformMonitor.update(ctx);
+
+				// 画面描画
+				if(renderElapsed >= 1000/60) {
+					if(renderElapsed >= 1000) {
+						// 1秒経過してたらさすがになので、リセットする
+						previousRenderTimestamp = timestamp;
+						audio.clearBuffer(); // 溜まっているサウンドデータをクリア
+					}
+					previousRenderTimestamp += 1000/60;
+					// テキスト
 					//if(catTextScreen.isModified(0)) { document.getElementById("sos_output1").innerHTML = catTextScreen.draw(0); }
 					//if(catTextScreen.isModified(1)) { document.getElementById("sos_output").innerHTML  = catTextScreen.draw(1); }
 					if(catTextScreen.isModified()) {
 						document.getElementById("sos_output").innerHTML  = catTextScreen.draw();
 					}
-					// グラフィック描画
+					// グラフィック
 					z80Emu.getVRAMImage(graphicCanvasCtx);
 				}
+
 				// VSync待ち
 				requestAnimationFrame((timestamp)=>update(timestamp));
 			}
@@ -799,6 +813,9 @@
 					soundOn.style.display = 'none';
 					volume.style.display = 'inline';
 					volumeBar.style.display = 'inline';
+					// 音の同期をリセット
+					audio.reset();
+					z80Emu.update(ctx, -1);
 				});
 
 				// Z80エミュのセットアップ

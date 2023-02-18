@@ -143,9 +143,7 @@ class Z80Emu {
 			},
 			// IO
 			io: {
-				writePSG:(executedClock, reg, value)=>{ this.#audio.writeReg(executedClock, reg, value); },
-				writeOPM1:(executedClock, reg, value)=>{ this.#audio.writeOPM1Reg(executedClock, reg, value); },
-				writeOPM2:(executedClock, reg, value)=>{ this.#audio.writeOPM2Reg(executedClock, reg, value); },
+				writeSoundRegister:(executedClock, no, reg, value)=>{ this.#audio.writeRegister(executedClock, no, reg, value); },
 				readGamePad:(index)=>{
 					// 負論理
 					if(index == 0) {
@@ -221,28 +219,30 @@ class Z80Emu {
 	/**
 	 * 更新処理
 	 * @param {*} ctx 
+	 * @param {number} clock 実行するクロック数
 	 * @returns {number} 実際に実行されたクロック数
 	 */
-	update(ctx) {
+	update(ctx, clock) {
 		this.#ctx = ctx;
-		return this.wasm.exeute(4000000 / 60 | 0); // 4Mzの60FPS
+		this.#audio.reset(); // 音の生成側と同期
+		this.wasm.exeute(-1);
+		return this.wasm.exeute(clock | 0);
 	}
 
 	/**
-	 * X1形式のVRAMをcanvasに描画
+	 * VRAMをcanvasに描画
 	 * 
-	 * IOの0x4000～0xFFFFをX1形式のVRAMとして変換し、キャンバスへ描画している。  
-	 * メモ）canvasのイメージデータはrgbaの順番で、各0x00～0xFFの値
+	 * canvasのイメージデータはrgbaの順番で、各0x00～0xFFの値
 	 * @param {*} canvasCtx 
 	 */
 	getVRAMImage(canvasCtx) {
 		if(this.wasm.isVRAMDirty()) {
 			// 変換されたイメージを取得して
 			const imagePtr = this.wasm.getVRAMImage(); // メモ）内部で、VRAMDirtyフラグリセットしている
-			let src = new Uint8Array(this.#memory.buffer, imagePtr, 640*200*4);
+			const src = new Uint8Array(this.#memory.buffer, imagePtr, 640*200*4);
 			// キャンバスのイメージデータを作成し
 			const dstImageData = canvasCtx.createImageData(640, 200);
-			let dst = dstImageData.data;
+			const dst = dstImageData.data;
 			// コピー
 			for(let i = 0; i < 640*200*4; ++i) { dst[i] = src[i]; }
 			// 描画

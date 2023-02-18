@@ -408,7 +408,12 @@ void Operator::Prepare()
 		// SSG-EG
 		if (ssg_type_ && (eg_phase_ != release))
 		{
-			int m = ar_ >= ((ssg_type_ == 8 || ssg_type_ == 12) ? 56 : 60);
+			int m;
+			if (ssg_type_ == 8 || ssg_type_ == 12) {
+				m = (ar_ >= 56) ? 1 : 0;
+			} else {
+				m = (ar_ >= 60) ? 1 : 0;
+			}
 
 			//assert(0 <= ssg_phase_ && ssg_phase_ <= 2);
 			const int* table = ssgenvtable[ssg_type_ & 7][m][ssg_phase_];
@@ -436,7 +441,12 @@ void Operator::ShiftPhase(EGPhase nextphase)
 			if (ssg_phase_ > 2)
 				ssg_phase_ = 1;
 			
-			int m = ar_ >= ((ssg_type_ == 8 || ssg_type_ == 12) ? 56 : 60);
+			int m;
+			if (ssg_type_ == 8 || ssg_type_ == 12) {
+				m = (ar_ >= 56) ? 1 : 0;
+			} else {
+				m = (ar_ >= 60) ? 1 : 0;
+			}
 
 			//assert(0 <= ssg_phase_ && ssg_phase_ <= 2);
 			const int* table = ssgenvtable[ssg_type_ & 7][m][ssg_phase_];
@@ -881,8 +891,7 @@ ISample Channel4::CalcL()
 	chip_->SetPMV(pms[chip_->GetPML()]);
 
 	int r = 0;
-	switch (algo_)
-	{
+	switch (algo_) {
 	case 0:
 		op[2].CalcL(op[1].Out());
 		op[1].CalcL(op[0].Out());

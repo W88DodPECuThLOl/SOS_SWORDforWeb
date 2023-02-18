@@ -27,15 +27,7 @@ void sos_putchar(int ch)
 }
 
 void
-writePSG(s32 clock, u8 reg, u8 value)
-{
-}
-void
-writeOPM1(s32 clock, u8 reg, u8 value)
-{
-}
-void
-writeOPM2(s32 clock, u8 reg, u8 value)
+writeSoundRegister(s32 clock, s32 no, u8 reg, u8 value)
 {
 }
 

@@ -31,6 +31,11 @@ class SOS_Context {
 	inline void WRITE_RET(u8*& dst) { *dst++ = 0xC9; }
 
 	/**
+	 * @brief グローバルTick
+	 */
+	u64 globalTick;
+
+	/**
 	 * @brief Z80エミュレータ
 	 */
 	Z80 z80;
@@ -53,6 +58,7 @@ class SOS_Context {
 	 */
 	bool bVRAMDirty;
 
+private:
 	/**
 	 * @brief S-OSのサブルーチンアドレス
 	 */
@@ -379,7 +385,8 @@ public:
 	 * @brief コンストラクタ
 	 */
 	SOS_Context()
-		: z80(SOS_Context::readByte, SOS_Context::writeByte, SOS_Context::inPort, SOS_Context::outPort, (void*)this, true)
+		: globalTick(0)
+		, z80(SOS_Context::readByte, SOS_Context::writeByte, SOS_Context::inPort, SOS_Context::outPort, (void*)this, true)
 		, status(0)
 	{
 		init();
@@ -387,15 +394,25 @@ public:
 		initInterrupt();
 		setVRAMDirty();
 
+		z80.setConsumeClockCallback(callbackConsumeClock);
 		//z80.setDebugMessage(callbackZ80DebugMessage);
+	}
+	static void callbackConsumeClock(void* arg, int clocks)
+	{
+		((SOS_Context*)arg)->consumeClock(clocks);
 	}
 	static void callbackZ80DebugMessage(void* arg, const char* msg)
 	{
 		((SOS_Context*)arg)->z80DebugMessage(msg);
 	}
+
 	void z80DebugMessage(const char* msg)
 	{
 		//printf("%s\n", msg);
+	}
+	void consumeClock(int clocks)
+	{
+		globalTick += clocks;
 	}
 
 	/**
@@ -406,6 +423,7 @@ public:
 		z80.initialize();
 		initInterrupt();
 		setVRAMDirty();
+		globalTick = 0;
 	}
 
 	/**
@@ -447,6 +465,8 @@ public:
 	void resetVRAMDirty() noexcept { bVRAMDirty = false; }
 
 	s32 getExecutedClock() const noexcept {return z80.getExecutedClock(); }
+	u64 getGlobalTick() const noexcept {return globalTick; }
+	void resetGlobalTick() { globalTick = 0; }
 
 	/**
 	 * @brief IRQ割り込み要求
@@ -488,9 +508,12 @@ z80Reset()
 int
 exeute(int clock)
 {
+	if(clock < 0) {
+		// 周辺機器のチックをリセット
+		resetPlatformTick();
+		ctx->resetGlobalTick();
+	}
 	s32 tick = 0;
-	// 周辺機器のチックをリセット
-	resetPlatformTick();
 	while(tick < clock) {
 		s32 remain = clock - tick;
 		// 実行するクロックを調整する
@@ -573,6 +596,13 @@ getExecutedClock()
 {
 	return ctx->getExecutedClock();
 }
+
+u64
+getGlobalTick()
+{
+	return ctx->getGlobalTick();
+}
+
 
 void
 generateIRQ(const u8 vector)
