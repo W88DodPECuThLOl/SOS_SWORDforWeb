@@ -390,14 +390,13 @@ export default class {
 		let text = "";
 		let addr = 0;
 		for(let y = 0; y < this.#height; ++y) {
-			//text += '<nobr>';
+			text += '<nobr>';
 			for(let x = 0; x < this.#width; ++x) {
 				const cursor = this.getDisplayCursor() && (x == this.#cursor.x) && (y == this.#cursor.y);
 				text += this.#drawLetter(x, y, this.#width, this.#tram[addr], this.#tram[addr + 1], this.#tram[addr + 2], cursor);
 				addr += this.#letterSize;
 			}
-			//text += "</nobr><br>";
-			text += "<br>";
+			text += "</nobr><br>";
 		}
 		return text;
 	}
