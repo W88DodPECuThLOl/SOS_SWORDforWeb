@@ -102,7 +102,7 @@ class SOSTransient {
 			}
 			this.#setFlag(ctx, true); // Z80側のメモリにも反映しておく
 		} else {
-			clear(ctx);
+			this.clear(ctx);
 		}
 	}
 
