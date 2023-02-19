@@ -55,9 +55,12 @@ class TaskPlatformMonitor {
 
 	#dumpAddress = 0x0000;
 
-	#keyCodeBRK = 0x1B; // Breakキー
-	#keyCodeCR = 0x0D; // Enterキー
-	
+	/**
+	 * プロンプトで表示する文字(アスキーコード)
+	 * @type {number}
+	 */
+	#PromptCharacter = 0x3E; // >
+
 	/**
 	 * エラーコードを表示して、コマンド入力状態に遷移する
 	 * @param {TaskContext} ctx 
@@ -68,7 +71,7 @@ class TaskPlatformMonitor {
 	{
 		// エラーコードを表示
 		ctx.ERROR(errorCode);
-		ctx.PRINT(this.#keyCodeCR);
+		ctx.PRINT(SOSKeyCode.CR);
 		// コマンド入力状態に遷移
 		this.changeState(this.#state_start);
 		// エラーなので常にfalseを返す
@@ -244,7 +247,7 @@ class TaskPlatformMonitor {
 		this.#state[this.#state_idle] = (ctx)=>{};
 		this.#state[this.#state_start] = (ctx)=>{
 			// プロンプト表示して
-			ctx.PRINT(0x3E); // >
+			ctx.PRINT(this.#PromptCharacter);
 			// ライン入力開始へ
 			ctx.startLineInput();
 			this.changeState(this.#state_input_wait);
@@ -265,14 +268,11 @@ class TaskPlatformMonitor {
 			this.changeState(this.#state_command);
 		};
 		this.#state[this.#state_command] = (ctx)=>{
-			if(this.#commandBuffer.length <= 0
-				|| this.#commandBuffer[0] == this.#keyCodeBRK
-				|| this.#commandBuffer[0] != 0x3E // >
-				|| this.#commandBuffer[0] == 0) {
+			if((this.#commandBuffer.length <= 0) || (this.#commandBuffer[0] != this.#PromptCharacter)) {
 				this.changeState(this.#state_start);
 				return;
 			}
-			this.#commandBuffer.shift(); // '>'
+			this.#commandBuffer.shift();
 			// コマンド
 			switch(this.#commandBuffer.shift()) {
 				case 0x00:
@@ -318,7 +318,7 @@ class TaskPlatformMonitor {
 				case 0x57: // W	桁数変更
 				case 0x77:
 					// スクリーンサイズ変更
-					ctx.taskMonitor.W_Command(ctx);
+					ctx.taskMonitor.Width_Command(ctx, this.#commandBuffer);
 					this.changeState(this.#state_start);
 					return;
 				case 0x46: // FNT フォント切り替え
@@ -335,7 +335,7 @@ class TaskPlatformMonitor {
 					return;
 			}
 			ctx.ERROR(SOSErrorCode.SyntaxError);
-			ctx.PRINT(this.#keyCodeCR);
+			ctx.PRINT(SOSKeyCode.CR);
 			this.changeState(this.#state_start);
 		};
 		this.#state[this.#state_end] = (ctx)=>{};
@@ -360,7 +360,7 @@ class TaskPlatformMonitor {
 				this.#writeMemory(ctx, address);
 				return;
 			}
-			if(this.#commandBuffer[0] == this.#keyCodeBRK) {
+			if(this.#commandBuffer[0] == SOSKeyCode.BRK) {
 				ctx.PRINT(0xD);
 				this.changeState(this.#state_start);
 				return;

@@ -58,13 +58,10 @@ class TaskContext {
 
 	/**
 	 * バッチ管理
-	 * @type {BatchManager}
+	 * @type {SOSBatchManager}
 	 */
 	batchManager;
 
-	#keyCodeCLS = 0x0C; // CLS
-	#keyCodeCR = 0x0D; // Enterキー
-	#keyCodeBRK = 0x1B; // Breakキー
 	#keyCodeBackSpace = 0x08; // BackSpaceキー
 	#keyCodeDelete = 'Delete'; // DELキー
 
@@ -90,7 +87,7 @@ class TaskContext {
 		this.diskManager = diskManager;
 		this.sndMan = sndMan;
 		this.gamePad = gamePad;
-		this.batchManager = new BatchManager();
+		this.batchManager = new SOSBatchManager();
 
 		// PCGの初期化
 		this.#initializeSvgPCG();
@@ -226,9 +223,9 @@ class TaskContext {
 			return;
 		}
 		if(code < 0x20) {
-			if(code == this.#keyCodeCLS) {
+			if(code == SOSKeyCode.CLS) {
 				this.catTextScreen.clearScreen();
-			} else if(code == this.#keyCodeCR) {
+			} else if(code == SOSKeyCode.CR) {
 				this.catTextScreen.putch32(0x0D);
 			} else if(code == 0x001C) {
 				this.catTextScreen.putch32('ArrowRight');
@@ -1133,4 +1130,11 @@ class TaskContext {
 		}
 	}
 
+	/**
+	 * カーソルが先頭になければ改行
+	 */
+	NL()
+	{
+		if(this.getScreenLocate().x != 0) { this.PRINT(SOSKeyCode.CR); }
+	}
 }

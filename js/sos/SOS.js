@@ -1,6 +1,10 @@
 "use strict";
 
 class DOSWorkAddr {
+ 	static NXCLST = 0x27DE; // DS 1
+	static DEBUF  = 0x27DF; // DS 2
+	static HLBUF  = 0x27E1; // DS 2
+
 	static OPNFG = 0x291e;
 	static FTYPE = 0x291f;
 /*
@@ -154,37 +158,6 @@ class SOS {
 			return false;
 		}
 	}
-	/**
-	 * 文字を16進数として扱い変換する
-	 * @param {number} value 文字
-	 * @returns {number}	変換された値(0～0xF)  
-	 * 						-1の時は失敗
-	 */
-	#hex(value){
-		if(0x30 <= value && value <= 0x39) { // 0～9
-			return value - 0x30;
-		} else if(0x41 <= value && value <= 0x46) { // A～F
-			return value - 0x41 + 10;
-		} else if(0x61 <= value && value <= 0x66) { // a～f
-			return value - 0x61 + 10;
-		} else {
-			return -1; // エラー
-		}
-	}
-	/**
-	 * 0x0～0xFの値を16進の文字に変換する
-	 * @param {number} value 値
-	 * @returns {number} 16進の文字
-	 */
-	#asc(value)
-	{
-		value &= 0xF;
-		if(value <= 9) {
-			return value + 0x30; // '0'～'9'
-		} else {
-			return value + 0x41 - 10; // 'A'～'F'
-		}
-	}
 
 	/**
 	 * 1文字出力する
@@ -291,7 +264,7 @@ class SOS {
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			const ch = this.#memReadU8(filenamePtr);
 			if(ch == 0 || ch == 0x2E || ch == 0x3A) { break; } // "." ":"
-			if(ch != 0x0D) {
+			if(ch != SOSKeyCode.CR) {
 				filename[i] = ch;
 			}
 			filenamePtr++;
@@ -310,7 +283,7 @@ class SOS {
 			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
 				const ch = this.#memReadU8(filenamePtr);
 				if(ch == 0 || ch == 0x3A) { break; } // ":"
-				if(ch != 0x0D) {
+				if(ch != SOSKeyCode.CR) {
 					extension[i] = ch;
 				}
 				filenamePtr++;
@@ -581,7 +554,7 @@ class SOS {
 	 */
 	sos_ltnl(ctx){
 		this.#Log("sos_ltnl");
-		this.#putch(ctx, 0x0D);
+		this.#putch(ctx, SOSKeyCode.CR);
 	}
 	/**
 	 * #NL(1FEBH)
@@ -595,7 +568,7 @@ class SOS {
 		this.#beginCursor(ctx);
 		if(ctx.getScreenLocate().x != 0) {
 			// 改行
-			ctx.PRINT(0x0D);
+			ctx.PRINT(SOSKeyCode.CR);
 			// カーソル位置をS-OSのワークに設定する
 			this.#endCursor(ctx);
 		}
@@ -887,6 +860,8 @@ class SOS {
 	 * 破壊: AF  
 	 * 
 	 * Aレジスタの内容を16進数2桁で表示する。
+	 * 
+	 * メモ）移植：済み テスト：未
 	 * @param {TaskContext} ctx 
 	 */
 	sos_prthx(ctx){
@@ -895,8 +870,8 @@ class SOS {
 		this.#beginCursor(ctx);
 		// 表示
 		const value = this.#getA();
-		ctx.PRINT(this.#asc((value >>  4) & 0x0F));
-		ctx.PRINT(this.#asc((value      ) & 0x0F));
+		ctx.PRINT(Asc(value >>  4));
+		ctx.PRINT(Asc(value      ));
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
 	}
@@ -904,6 +879,8 @@ class SOS {
 	 * #PRTHL(1FBEH)
 	 * 
 	 * HLﾚｼﾞｽﾀの内容を16進数４桁で表示する。
+	 * 
+	 * メモ）移植：済み テスト：未
 	 * @param {TaskContext} ctx 
 	 */
 	sos_prthl(ctx){
@@ -912,10 +889,10 @@ class SOS {
 		this.#beginCursor(ctx);
 		// 表示
 		const value = this.#getHL();
-		ctx.PRINT(this.#asc((value >> 12) & 0x0F));
-		ctx.PRINT(this.#asc((value >>  8) & 0x0F));
-		ctx.PRINT(this.#asc((value >>  4) & 0x0F));
-		ctx.PRINT(this.#asc((value      ) & 0x0F));
+		ctx.PRINT(Asc(value >> 12));
+		ctx.PRINT(Asc(value >>  8));
+		ctx.PRINT(Asc(value >>  4));
+		ctx.PRINT(Asc(value      ));
 		// カーソル位置をS-OSのワークに設定する
 		this.#endCursor(ctx);
 	}
@@ -923,23 +900,27 @@ class SOS {
 	 * #ASC(1FBBH)
 	 * 
 	 * Ａﾚｼﾞｽﾀの下位４ﾋﾞｯﾄの値を16進数を表すｱｽｷｰｺｰﾄﾞに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。
+	 * 
+	 * メモ）移植：済み テスト：未
 	 * @param {TaskContext} ctx 
 	 */
 	sos_asc(ctx){
 		this.#Log("sos_asc");
-		this.#setA(this.#asc(this.#getA()));
+		this.#setA(Asc(this.#getA()));
 	}
 	/**
 	 * #HEX(1FB8H)
 	 * 
 	 * Ａﾚｼﾞｽﾀの内容を16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。  
 	 * Ａﾚｼﾞｽﾀの内容が16進数を表すｱｽｷｰｺｰﾄﾞでない場合は、ｷｬﾘﾌﾗｸﾞをｾｯﾄしてﾘﾀｰﾝする。
+	 * 
+	 * メモ）移植：済み テスト：未
 	 * @param {TaskContext} ctx 
 	 */
 	sos_hex(ctx){
 		this.#Log("sos_hex");
 		if(this.#checkHex(this.#getA())) {
-			this.#setA(this.#hex(this.#getA()));
+			this.#setA(ParseHex(this.#getA()));
 			this.#clearCY();
 		} else {
 			// エラー
@@ -951,50 +932,87 @@ class SOS {
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから２ﾊﾞｲﾄの内容を、２桁の16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、Ａﾚｼﾞｽﾀにｾｯﾄする。  
 	 * ｴﾗｰがあった場合はｷｬﾘﾌﾗｸﾞがｾｯﾄされる。
+	 * 
+	 * メモ）移植：済み テスト：未
 	 * @param {TaskContext} ctx 
 	 */
 	sos__2hex (ctx){
 		this.#Log("sos_2hex");
 		const address = this.#getDE();
-		this.#setDE(address + 2);
+		// １文字目
 		const value1 = this.#memReadU8(address);
-		const value2 = this.#memReadU8(address + 1);
-		if(this.#checkHex(value1) && this.#checkHex(value2)) {
-			this.#setA((this.#hex(value1) << 4) | this.#hex(value2));
-			this.#clearCY();
-		} else {
+		if(!this.#checkHex(value1)) {
 			// エラー
-			this.#setA(SOSErrorCode.BadData);
+			this.#setA(SOSErrorCode.BadData); // オリジナルでは不定となるが、BadDataを設定してことにする
 			this.#setCY();
+			this.#setDE(address + 1); // ソースを見ると、DEの値は+1されている
+			return;
 		}
+		// ２文字目
+		const value2 = this.#memReadU8(address + 1);
+		this.#setDE(address + 2); // ソースを見ると、DEの値は+2されている
+		if(!this.#checkHex(value2)) {
+			// エラー
+			this.#setA(SOSErrorCode.BadData); // オリジナルでは不定となるが、BadDataを設定してことにする
+			this.#setCY();
+			return;
+		}
+		// 正常終了
+		this.#setA((ParseHex(value1) << 4) | ParseHex(value2));
+		this.#clearCY();
 	}
+
 	/**
 	 * #HLHEX(1FB2H)
 	 * 
 	 * DEﾚｼﾞｽﾀの示すｱﾄﾞﾚｽから４ﾊﾞｲﾄの内容を、４桁の16進数を表すｱｽｷｰｺｰﾄﾞとしてﾊﾞｲﾅﾘに変換し、HLﾚｼﾞｽﾀにｾｯﾄする。  
 	 * ｴﾗｰがあった場合は、ｷｬﾘﾌﾗｸﾞがｾｯﾄされる。
+	 * 
+	 * メモ）移植：済み テスト：未
 	 * @param {TaskContext} ctx 
 	 */
 	sos_hlhex(ctx){
 		this.#Log("sos_hlhex");
 		const address = this.#getDE();
-		this.#setDE(address + 4);
+		// １文字目
 		const value1 = this.#memReadU8(address);
-		const value2 = this.#memReadU8(address + 1);
-		const value3 = this.#memReadU8(address + 2);
-		const value4 = this.#memReadU8(address + 3);
-		if(this.#checkHex(value1) && this.#checkHex(value2) && this.#checkHex(value3) && this.#checkHex(value4)) {
-			this.#setHL(
-				  (this.#hex(value1) << 12)
-				| (this.#hex(value2) <<  8)
-				| (this.#hex(value3) <<  4)
-				|  this.#hex(value4)
-			);
-			this.#clearCY();
-		} else {
+		if(!this.#checkHex(value1)) {
 			// エラー
+			this.#setA(SOSErrorCode.BadData); // オリジナルでは不定となるが、BadDataを設定してことにする
 			this.#setCY();
+			this.#setDE(address + 1); // ソースを見ると、DEの値は+1されている
+			return;
 		}
+		// ２文字目
+		const value2 = this.#memReadU8(address + 1);
+		if(!this.#checkHex(value2)) {
+			// エラー
+			this.#setA(SOSErrorCode.BadData); // オリジナルでは不定となるが、BadDataを設定してことにする
+			this.#setCY();
+			this.#setDE(address + 2); // ソースを見ると、DEの値は+2されている
+			return;
+		}
+		this.#setH((ParseHex(value1) << 4) | ParseHex(value2));
+		// ３文字目
+		const value3 = this.#memReadU8(address + 2);
+		if(!this.#checkHex(value3)) {
+			// エラー
+			this.#setA(SOSErrorCode.BadData); // オリジナルでは不定となるが、BadDataを設定してことにする
+			this.#setCY();
+			this.#setDE(address + 3); // ソースを見ると、DEの値は+3されている
+			return;
+		}
+		// ４文字目
+		const value4 = this.#memReadU8(address + 3);
+		this.#setDE(address + 4);
+		if(!this.#checkHex(value4)) {
+			// エラー
+			this.#setA(SOSErrorCode.BadData); // オリジナルでは不定となるが、BadDataを設定してことにする
+			this.#setCY();
+			return;
+		}
+		this.#setL((ParseHex(value3) << 4) | ParseHex(value4));
+		this.#clearCY();
 	}
 	/**
 	 * #WOPEN●(旧#WRI)(1FAFH)
@@ -1126,7 +1144,7 @@ class SOS {
 				this.#setCY();
 				return;
 			}
-			if(ctx.keyMan.isKeyDown(0x0D)) {
+			if(ctx.keyMan.isKeyDown(SOSKeyCode.CR)) {
 				// リターンキー押下されている
 				this.#setA(SOSErrorCode.FileNotFound);
 				this.#setCY();
@@ -1980,14 +1998,15 @@ class SOS {
 
 	// 隠しサブルーチン？
 	/**
-	 * #COMMAND(211BH)
+	 * #MCOM(211BH)
 	 * 
 	 * DEレジスタに設定してあるアドレスのコマンドを実行する
 	 * @param {TaskContext} ctx 
 	 */
 	sos_command(ctx)
 	{
-		this.#Log("sos_command");
+		this.#Log("sos_mcom");
+		// コマンドをコピー
 		const command = [];
 		let address = this.#getDE();
 		while(true) {
@@ -1996,13 +2015,21 @@ class SOS {
 			if(ch == 0) { break; }
 		}
 		// コマンド実行
-		const result = ctx.taskMonitor.executeCommand(ctx, command);
-		if(result.result != 0) {
-			// エラー
-			this.#setA(result.result);
-			this.#setCY();
-		} else {
+		// @todo モニタを呼び出して、ちゃんとコマンド実行をさせること！
+		try {
+			ctx.taskMonitor.executeCommand(ctx, command);
 			this.#clearCY();
+		} catch(e) {
+			if(e instanceof SOSError) {
+				// S-OSのエラー
+				this.#setA(e.GetSOSErrorCode());
+				this.#setCY();
+			} else {
+				// その他のエラー
+				this.#Log(e.name + ': ' + e.message + '\n' + e.stack);
+				this.#setA(SOSErrorCode.BadData);
+				this.#setCY();
+			}
 		}
 	}
 
@@ -2010,10 +2037,16 @@ class SOS {
 	// DOS MODULE
 	// --------------------------------------------------------------------------------------------------------------------
 
+	// 次のクラスタ
+	#wrkWriteNXCLST(value) { this.#memWriteU8(DOSWorkAddr.NXCLST, value); }
+	//#wrkReadNXCLST(value) { return this.#memReadU8(DOSWorkAddr.NXCLST); }
+
 	// ディレクトリのセクタ
-	#dos_DEBUF;
+	#wrkWriteDEBUF(value) { this.#memWriteU16(DOSWorkAddr.DEBUF, value); }
+	#wrkReadDEBUF(value) { return this.#memReadU16(DOSWorkAddr.DEBUF); }
 	// IBのアドレス
-	#dos_HLBUF;
+	#wrkWriteHLBUF(value) { this.#memWriteU16(DOSWorkAddr.HLBUF, value); }
+	#wrkReadHLBUF(value) { return this.#memReadU16(DOSWorkAddr.HLBUF); }
 	// ?
 	#dos_RETPOI;
 
@@ -2116,8 +2149,8 @@ class SOS {
 
 		//ld	(DEBUF),de // ディレクトリのセクタ
 		//ld	(HLBUF),hl // IBのアドレス
-		this.#dos_DEBUF = res.dir;
-		this.#dos_HLBUF = res.ib_ptr; // メモ）DTBUF内のポインタ
+		this.#wrkWriteDEBUF(res.dir);
+		this.#wrkWriteHLBUF(res.ib_ptr); // メモ）DTBUF内のポインタ
 
 		// IB情報へコピー
 		this.#dos_parcs();
@@ -2676,7 +2709,7 @@ class SOS {
 			return false; // Reserved feature
 		}
 		this.#memWriteU8(DiskWorkAddr.UNITNO, dsk - 0x41);
-		return this.#disk_dread(ctx, buffer, sector, size);
+		return this.#js_disk_dread(ctx, buffer, sector, size);
 	}
 
 	/**
@@ -2713,7 +2746,7 @@ class SOS {
 			return false; // Reserved feature
 		}
 		this.#memWriteU8(DiskWorkAddr.UNITNO, dsk - 0x41);
-		return this.#disk_dwrite(ctx, buffer, sector, size);
+		return this.#js_disk_dwrite(ctx, buffer, sector, size);
 	}
 	
 	// -----------------------------
@@ -3025,9 +3058,11 @@ class SOS {
 		let   dataSize    = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE);
 		// 初めのクラスタ
 		let current = this.#memReadU8(ib_base + SOSInfomationBlock.ib_cluster);
+		this.#wrkWriteNXCLST(current);
 		while(dataSize > 0) {
 			// 読み込むサイズ
 			let next = this.#memReadU8(fatbf + current);
+			this.#wrkWriteNXCLST(next);
 			const readSectorSize = (next < 0x80) ? 0x10 : (next - 0x7F);
 			if(next >= 0x80) {
 				// 最後のクラスタ
@@ -3247,10 +3282,10 @@ class SOS {
 		// IB書き込み
 		// バッファへ書き戻して
 		for(let i = 0; i < SOSInfomationBlock.InfomationBlockSize; ++i) {
-			this.#memWriteU8( this.#dos_HLBUF + i, this.#memReadU8(ib_base + i));
+			this.#memWriteU8( this.#wrkReadHLBUF() + i, this.#memReadU8(ib_base + i));
 		}
 		// 書き込み
-		if(!this.#dos_dskwrt(ctx, this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF), this.#dos_DEBUF, 1)) {
+		if(!this.#dos_dskwrt(ctx, this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.DTBUF), this.#wrkReadDEBUF(), 1)) {
 			// 書き込みエラー
 			return false;
 		}
@@ -3307,6 +3342,12 @@ class SOS {
 		return this.#dos_dskwrt(ctx, fatbf, fatps, 1);
 	}
 
+	/**
+	 * #FRECLU(2721H) FREE CLUSTERS GET
+	 * 
+	 * #FATBFに読み込まれているFAT情報から空きクラスタ数を取得する。
+	 * @returns {number}	空きクラスタ数
+	 */
 	#dos_freclu()
 	{
 		/*
@@ -3315,26 +3356,26 @@ class SOS {
 		FRECLU
 			push	bc
 			push	hl
-			ld	b,80h
-			ld	c,0
-			ld	hl,(_FATBF)
+			ld		b,80h
+			ld		c,0
+			ld		hl,(_FATBF)
 		FRECL1
-			ld	a,(hl)
-			or	a
-			jr	nz,FRECL2
-			inc	c
+			ld		a,(hl)
+			or		a
+			jr		nz,FRECL2
+			inc		c
 		FRECL2
-			inc	hl
+			inc		hl
 			djnz	FRECL1
-			ld	a,c
-			pop	hl
-			pop	bc
+			ld		a,c
+			pop		hl
+			pop		bc
 			ret
 		*/
 		let freeClusters = 0;
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		for(let i = 0; i < 0x80; ++i) {
-			if(this.#memReadU16(fatbf + i) == 0) {
+			if(this.#memReadU8(fatbf + i) == 0) {
 				freeClusters++;
 			}
 		}
@@ -3342,8 +3383,12 @@ class SOS {
 	}
 
 	/**
+	 * #FCGET(2736H) FREE CLUSTER POSITION GET
 	 * 
-	 * @returns {number} 空きがない時は -1 を返す
+	 * #FATBFに読み込まれているFAT情報から空きクラスタ位置を取得する。
+	 * ・エラーが発生した場合は、キャリフラグが立つ
+	 * @returns {number}	空きクラスタ位置(0～0x7F)  
+	 * 						空きクラスタがない時は -1 を返す
 	 */
 	#dos_fcget()
 	{
@@ -3353,28 +3398,28 @@ class SOS {
 		FCGET
 			push	bc
 			push	hl
-			ld	b,80h
-			ld	hl,(_FATBF)
+			ld		b,80h
+			ld		hl,(_FATBF)
 		FCGET2
-			ld	a,(hl)
-			or	a
-			jr	z,FCGET3
-			inc	hl
+			ld		a,(hl)
+			or		a
+			jr		z,FCGET3
+			inc		hl
 			djnz	FCGET2
 			scf
-			jr	FCGET4
+			jr		FCGET4
 		FCGET3
-			ld	a,80h
-			sub	b
-			or	a
+			ld		a,80h
+			sub		b
+			or		a
 		FCGET4
-			pop	hl
-			pop	bc
+			pop		hl
+			pop		bc
 			ret
 		*/
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		for(let i = 0; i < 0x80; ++i) {
-			if(this.#memReadU16(fatbf + i) == 0) {
+			if(this.#memReadU8(fatbf + i) == 0) {
 				this.#clearCY();
 				return i;
 			}
@@ -3385,9 +3430,14 @@ class SOS {
 	}
 		
 	/**
+	 * #ERAFAT(274EH) FAT EERASE
 	 * 
-	 * @param {number} startCluster 
-	 * @returns {boolean}
+	 * #FATBFに読み込まれているFAT情報から連鎖しているクラスタを消す。
+	 * 
+	 * ・エラーが発生した場合は、キャリフラグが立つ
+	 * ・エラーが発生した場合は、Ａレジスタにエラーコードが設定される
+	 * @param {number} startCluster 開始クラスタ
+	 * @returns {boolean} 成功したら true を返す
 	 */
 	#dos_erafat(startCluster)
 	{
@@ -3397,23 +3447,23 @@ class SOS {
 		ERAFAT
 			push	de
 			push	hl
-			ld	de,(_FATBF)
+			ld		de,(_FATBF)
 		ERAFA1
-			ld	l,a
-			ld	h,0
-			add	hl,de
-			ld	a,(hl)
-			ld	(hl),0
-			cp	80h
-			jr	c,ERAFA1
-			pop	hl
-			pop	de
-			cp	90h
-			jr	nc,ERAFA2
-			xor	a
+			ld		l,a
+			ld		h,0
+			add		hl,de
+			ld		a,(hl)
+			ld		(hl),0
+			cp		80h
+			jr		c,ERAFA1
+			pop		hl
+			pop		de
+			cp		90h
+			jr		nc,ERAFA2
+			xor		a
 			ret
 			;
-		ERAFA2:	ld	a,7	; Bad allocation table
+		ERAFA2:	ld		a,7	; Bad allocation table
 			scf
 			ret
 		*/
@@ -3622,12 +3672,11 @@ class SOS {
 			ret
 		*/
 		// for デバッグ
-
-		let test = "lhs:";
-		for(let i = 1; i <= 16; ++i) { test += String.fromCodePoint(this.#memReadU8(lhs + i)); }
-		test += ",";
-		for(let i = 1; i <= 16; ++i) { test += String.fromCodePoint(this.#memReadU8(rhs + i)); }
-		this.#Log(test);
+		//let test = "lhs:";
+		//for(let i = 1; i <= 16; ++i) { test += String.fromCodePoint(this.#memReadU8(lhs + i)); }
+		//test += ",";
+		//for(let i = 1; i <= 16; ++i) { test += String.fromCodePoint(this.#memReadU8(rhs + i)); }
+		//this.#Log(test);
 
 		for(let i = 0; i < 16; ++i) {
 			if(this.#memReadU8(++lhs) != this.#memReadU8(++rhs)) {
@@ -3644,15 +3693,17 @@ class SOS {
 	// ===============================
 
 	/**
-	 * セクタリード
+	 * ディスクリード(JS用エントリ)
+	 * 
+	 * デバイス指定はUNITNO
 	 * @param {number} buffer	読み込み先(HL)
 	 * @param {number} sector	読み込むセクタ(DE)
 	 * @param {number} size		読み込むセクタ数(A)
 	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
 	 */
-	#disk_dread(ctx, buffer, sector, size)
+	#js_disk_dread(ctx, buffer, sector, size)
 	{
-		this.#Log("disk_dread");
+		this.#Log("js_disk_dread");
 		const deviceName = this.#memReadU8(DiskWorkAddr.UNITNO) + 0x41;
 		for(let i = 0; i < size; ++i) {
 			// 読み込み
@@ -3678,15 +3729,32 @@ class SOS {
 	}
 
 	/**
-	 * セクタライト
+	 * #DREAD(2B00H) ディスクリード
+	 * 
+	 * デバイス指定はUNITNO
+	 * @param {TaskContext} ctx 
+	 */
+	disk_dread(ctx)
+	{
+		this.#Log("disk_dread");
+		const buffer = this.getHL(); // 読み込み先
+		const sector = this.getDE(); // 読み込むセクタ
+		const size   = this.getA();  // 読み込むセクタ数
+		this.#js_disk_dread(ctx, buffer, sector, size);
+	}
+
+	/**
+	 * ディスクライト(JS用エントリ)
+	 * 
+	 * デバイス指定はUNITNO
 	 * @param {number} buffer	書き込むデータ(HL)
 	 * @param {number} sector	書き込むセクタ(DE)
 	 * @param {number} size		書き込むセクタ数(A)
 	 * @returns {boolean} 正常に読み込めたら trueを返す。エラーの場合はfalseを返し、Aにエラーコードが設定しキャリフラグが立つ。
 	 */
-	#disk_dwrite(ctx, buffer, sector, size)
+	#js_disk_dwrite(ctx, buffer, sector, size)
 	{
-		this.#Log("disk_dwrite");
+		this.#Log("js_disk_dwrite");
 		const deviceName = this.#memReadU8(DiskWorkAddr.UNITNO) + 0x41;
 		for(let i = 0; i < size; ++i) {
 			// コピー
@@ -3709,6 +3777,23 @@ class SOS {
 		this.#clearCY();
 		this.#setZ();
 		return true;
+	}
+
+	/**
+	 * #DWRITE(2B03H) ディスクライト
+	 * 
+	 * デバイス指定はUNITNO
+	 * @param {number} buffer	書き込むデータ(HL)
+	 * @param {number} sector	書き込むセクタ(DE)
+	 * @param {number} size		書き込むセクタ数(A)
+	 */
+	disk_dwrite(ctx)
+	{
+		this.#Log("disk_dwrite");
+		const buffer = this.getHL(); // 書き込むデータ
+		const sector = this.getDE(); // 書き込むセクタ
+		const size   = this.getA();  // 書き込むセクタ数
+		this.#js_disk_dwrite(ctx, buffer, sector, size);
 	}
 
 	#dos_parsc()

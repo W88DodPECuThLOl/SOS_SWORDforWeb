@@ -176,6 +176,15 @@ class SOSWorkAddr {
 	 */
 	static MAXLIN = 0x1F5B;
 
+
+	/**
+	 * #COMF(1F0EH,11ﾊﾞｲﾄ) Command flag
+	 * 
+	 * 0: トランジェントは空
+	 * 1: トランジェントに0x3000～0x4BFFを退避している
+	 */
+	static COMF = 0x1F0E;
+
 	/**
 	 * #ETRK(20FFH,1ﾊﾞｲﾄ)
 	 * 

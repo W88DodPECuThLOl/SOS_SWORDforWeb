@@ -138,8 +138,8 @@ class Z80Emu {
 				parsc :()=>{ this.#sos.sos_parsc (this.#ctx); },
 				parcs :()=>{ this.#sos.sos_parcs (this.#ctx); },
 				// ディスクI/O
-				dread :()=>{ this.#sos.sos_dread (this.#ctx); },
-				dwrite:()=>{ this.#sos.sos_dwrite(this.#ctx); },
+				dread :()=>{ this.#sos.disk_dread (this.#ctx); },
+				dwrite:()=>{ this.#sos.disk_dwrite(this.#ctx); },
 			},
 			// IO
 			io: {

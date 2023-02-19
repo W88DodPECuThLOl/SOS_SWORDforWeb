@@ -3,15 +3,18 @@
 	<head>
 		<meta charset=”UTF-8″>
 		<title>S-OS"SWORD"</title>
-		<script src="./js/sos/util.mjs"></script>
-		<script src="./js/sos/SOSWorkAddr.js"></script>
 		<script src="./js/sos/SOSErrorCode.js"></script>
+		<script src="./js/sos/SOSWorkAddr.js"></script>
+		<script src="./js/sos/SOSKeyCode.js"></script>
+		<script src="./js/sos/util.mjs"></script>
 		<script src="./js/sos/SOSInfomationBlock.js"></script>
 		<script src="./js/sos/SOS.js"></script>
 		<script src="./js/sos/taskLineInput.js"></script>
 		<script src="./js/sos/taskPlatformMonitor.js"></script>
 		<script src="./js/sos/taskContext.js"></script>
 		<script src="./js/z80Emu.js"></script>
+		<script src="./js/sos/SOSTransient.js"></script>
+		<script src="./js/sos/SOSBatchManager.js"></script>
 		<script src="./js/taskMonitor.js"></script>
 		<script src="./js/cat/catAudio.js"></script>
 		<script src="./js/jszip/jszip.min.js"></script>
@@ -743,7 +746,7 @@
 
 				// Z80えみゅ（経過時間進める）
 				const CPUClock = 4*1000000; // 4MHz
-				const clock = CPUClock * elapsed / 1000; // 1000 : CPUClock = elapsed : clock
+				const clock = CPUClock * Math.min(elapsed, 500) / 1000; // 1000 : CPUClock = elapsed : clock
 				z80Emu.update(ctx, clock);
 
 				// ライン入力

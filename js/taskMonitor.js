@@ -1,86 +1,6 @@
 "use strict";
 
 /**
- * バッチ管理
- */
-class BatchManager {
-	/**
-	 * バッチファイル実行中かどうか
-	 * @type {boolean}
-	 */
-	#runningBatch;
-
-	/**
-	 * バッチファイルの中身
-	 * @type {Array}
-	 */
-	#batchBuffer;
-
-	#keyCodeCR = 0x0D; // Enterキー
-	
-	constructor()
-	{
-		this.#runningBatch = false;
-		this.#batchBuffer = new Array();
-	}
-
-	getLine()
-	{
-		const line = new Array();
-		if(this.isActive()) {
-			if(this.#batchBuffer.length > 0) {
-				// バッチから１行取得
-				while(this.#batchBuffer.length > 0) {
-					let ch = this.#batchBuffer.shift();
-					if(ch == 0x00 || ch == this.#keyCodeCR) {
-						break;
-					}
-					line.push(ch);
-				}
-			} else {
-				// バッチが終わった
-				this.#runningBatch = false;
-			}
-		}
-		line.push(0);
-		return line;
-	}
-
-	/**
-	 * 開始する
-	 * @param {array} batchText
-	 */
-	start(batchText) {
-		// 読み込んだデータをバッチバッファへ
-		this.#batchBuffer.length = 0;
-		for(let i = 0; i < batchText.length; ++i) {
-			this.#batchBuffer.push(batchText[i]);
-		}
-		if(this.#batchBuffer.length > 0) {
-			// バッチ開始
-			this.#runningBatch = true;
-		}
-	}
-
-	/**
-	 * 停止する
-	 */
-	stop()
-	{
-		this.#batchBuffer.length = 0;
-		this.#runningBatch = false;
-	}
-
-	/**
-	 * 動作中かどうか
-	 * @returns {boolean} 動作中なら true を返す
-	 */
-	isActive() { return this.#runningBatch; }
-};
-
-
-
-/**
  * S-OS標準モニタのタスク
  */
 class TaskMonitor {
@@ -94,23 +14,6 @@ class TaskMonitor {
 	 * @type {number}
 	 */
 	#stateNo;
-
-	/**
-	 * コマンドで入力された１行
-	 * @type {Array}
-	 */
-	#commandBuffer;
-
-	/**
-	 * バッチファイル実行中かどうか
-	 * @type {boolean}
-	 */
-	#runningBatch = false;
-	/**
-	 * バッチファイルの中身
-	 * @type {Array}
-	 */
-	#batchBuffer = new Array();
 
 	/**
 	 * 何もしてない状態
@@ -149,6 +52,24 @@ class TaskMonitor {
 	#state_end = 6;
 
 	/**
+	 * トランジェント機能
+	 * @type {SOSTransient}
+	 */
+	#transient = new SOSTransient();
+
+	/**
+	 * コマンドで入力された１行
+	 * @type {Array}
+	 */
+	#commandBuffer;
+
+	/**
+	 * プロンプトで表示する文字(アスキーコード)
+	 * @type {number}
+	 */
+	#PromptCharacter = 0x23; // #
+
+	/**
 	 * RUNコマンドで実行されたかどうかのフラグ
 	 * 
 	 * RUNコマンド(スペース)で、バイナリファイルを実行した場合に、trueに設定。  
@@ -157,8 +78,18 @@ class TaskMonitor {
 	 */
 	#isRunCommand = false; 
 
-	#keyCodeBRK = 0x1B; // Breakキー
-	#keyCodeCR = 0x0D; // Enterキー
+	/**
+	 * Z80のメモリへデータを転送する
+	 * @param {TaskContext} ctx 
+	 * @param {number} z80DestinationAddress 転送先のアドレス
+	 * @param {number[]} source 転送するデータ
+	 */
+	#copyToZ80Memory(ctx, z80DestinationAddress, source)
+	{
+		for(let i = 0; i < source.length; ++i) {
+			ctx.z80Emu.memWriteU8(z80DestinationAddress + i, source[i]);
+		}
+	}
 
 	/**
 	 * エラーコードを表示して、コマンド入力状態に遷移する
@@ -170,10 +101,9 @@ class TaskMonitor {
 	{
 		// エラーコードを表示
 		ctx.ERROR(errorCode);
-		ctx.PRINT(this.#keyCodeCR);
+		ctx.PRINT(SOSKeyCode.CR);
 		// コマンド入力状態に遷移
 		//this.changeState(this.#state_start);
-		// エラーなので常にfalseを返す
 		return {result: errorCode, state: this.#state_start};
 	}
 	/**
@@ -206,8 +136,9 @@ class TaskMonitor {
 	/**
 	 * 桁数変更コマンド
 	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
 	 */
-	W_Command(ctx)
+	Width_Command(ctx, commandLine)
 	{
 		const width = ctx.z80Emu.memReadU8(SOSWorkAddr.WIDTH);
 		const maxlin = ctx.z80Emu.memReadU8(SOSWorkAddr.MAXLIN);
@@ -219,42 +150,427 @@ class TaskMonitor {
 	}
 
 	/**
-	 * 16進4桁を整数値に変換する
-	 * @param {Array} text 変換する値
-	 * @returns {{
-	 * 		result: number,	// エラーコード
-	 * 		value: number	// 変換された値
-	 * }}
+	 * ブートコマンド
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
 	 */
-	#parseHex4(text)
+	Boot_Command(ctx, commandLine)
 	{
-		if(text.length <= 0 || text[0] == 0 || text[0] == 0x20 || text[0] == 0x3A) {
-			return {result: SOSErrorCode.SyntaxError, value: 0};
-		}
-		let value = 0;
-		while(text.length > 0 && text[0] != 0 && text[0] != 0x20 && text[0] != 0x3A) {
-			let num = this.#parseHex1(text.shift());
-			if(num < 0) { return {result: SOSErrorCode.SyntaxError, value: 0}; }
-			value <<= 4;
-			value |= num; 
-		}
-		return {result: 0, value: value & 0xFFFF};
+		// 飛び先設定
+		ctx.monitorCommandJump(0x0000); // #COLD
 	}
+
 	/**
-	 * 16進1桁を整数値に変換する
-	 * @param {number} ch 変換する値
-	 * @returns {number} 変換された値。エラーなら-1を返す
+	 * ジャンプコマンド
+	 * 
+	 * J <アドレス>	指定アドレス (16進数4桁) のコール
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
+	 * @throws 変換に失敗した場合は、SOSErrorの例外を投げる。
 	 */
-	#parseHex1(ch)
+	Jump_Command(ctx, commandLine)
 	{
-		if(0x30 <= ch && ch <= 0x39) {
-			return ch - 0x30; // 0-9
-		} else if(0x41 <= ch && ch <= 0x46) {
-			return ch - 0x41 + 10 // A-F
-		} else if(0x61 <= ch && ch <= 0x66) {
-			return ch - 0x61 + 10 // a-f
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// ジャンプ先取得
+		try {
+			const address = ParseHex4(commandLine); // 16進数4桁読み込み。失敗したら例外投げる。
+			// 飛び先設定
+			ctx.monitorCommandJump(address);
+			// カーソル非表示にしてジャンプする
+			ctx.setDisplayCursor(false);
+		} catch(e) {
+			if(e instanceof SOSError) {
+				throw new SOSError(SOSErrorCode.SyntaxError);
+			} else {
+				throw e;
+			}
 		}
-		return -1;
+	}
+
+	/**
+	 * ロードコマンド
+	 * 
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
+	 * @throws 変換に失敗した場合は、SOSErrorの例外を投げる。
+	 */
+	Load_Command(ctx, commandLine)
+	{
+		/*
+		LOAD
+			ld	a,1
+			call	_FILE
+			ld	a,(de)
+			or	a
+			ld	(LDWORK+2),a
+			jr	z,LOAD1
+			inc	de
+			call	_HLHEX
+			jr	c,SNERR
+			ld	(LDWORK),hl
+		;
+		LOAD1
+			call	_ROPEN
+			ret	c
+			call	nz,SKPRT
+			jr	nz,LOAD1
+			call	_MPRNT
+			db	"Loading ",00h
+			call	_FPRNT
+			call	_NL
+
+			ld	a,(LDWORK+2)
+			or	a
+			jr	z,LOAD3
+			ld	hl,(LDWORK)
+			ld	(_DTADR),hl
+		LOAD3
+			jp	_RDD
+
+		LDWORK	ds	3
+
+		SKPRT
+			push	af
+			call	_MPRNT
+			db	"Found   ",00h
+			call	_FPRNT
+			call	_NL
+			pop	af
+			ret
+		*/
+		// ファイル名
+		const filename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		// ロードアドレス
+		let isSetLoadAddress = false;
+		let loadAddress;
+		if(commandLine[0] == 0x3A) { // ':'
+			commandLine.shift();
+			try {
+				loadAddress = ParseHex4(commandLine); // 16進数4桁読み込み。失敗したら例外投げる。
+			} catch(e) {
+				if(e instanceof SOSError) {
+					throw new SOSError(SOSErrorCode.SyntaxError);
+				} else {
+					throw e;
+				}
+			}
+			isSetLoadAddress = true;
+		}
+		// ディレクトリのレコード
+		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		// 読み込む
+		const data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
+		if(data.result != 0) {
+			throw new SOSError(data.result);
+		}
+		ctx.printNativeMsg("Loading ");
+		filename.filename.forEach(ch => ctx.PRINT(ch));
+		ctx.PRINT(0x2E); // "."
+		filename.extension.forEach(ch => ctx.PRINT(ch));
+		ctx.PRINT(SOSKeyCode.CR);
+		// メモリにコピー
+		const address = isSetLoadAddress ? loadAddress : data.loadAddress;
+		for(let i = 0; i < data.value.length; ++i) {
+			ctx.z80Emu.memWriteU8(address + i, data.value[i]);
+		}
+	}
+
+	/**
+	 * 削除コマンド
+	 * 
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
+	 * @throws 変換に失敗した場合は、SOSErrorの例外を投げる。
+	 */
+	Kill_Command(ctx, commandLine)
+	{
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// ファイル名
+		const filename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		// ディレクトリのレコード
+		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		// ファイル削除
+		const result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
+		if(result.result != 0) {
+			throw new SOSError(result.result);
+		}
+	}
+
+	Name_Command(ctx, commandLine)
+	{
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// ファイル名
+		const oldFilename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		// コロン
+		if(commandLine[0] != 0x3A) { // ':'
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+		commandLine.shift();
+		// 新しいファイル名
+		const newFilename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		// ディレクトリのレコード
+		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		// リネーム
+		const result = ctx.Rename(oldFilename.deviceName, dirRecord,
+			oldFilename.filename, oldFilename.extension,
+			newFilename.filename, newFilename.extension
+		);
+		if(result.result != 0) {
+			throw new SOSError(result.result);
+		}
+	}
+
+	/**
+	 * モニタコマンド
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
+	 */
+	Monitor_Command(ctx, commandLine)
+	{
+		// キーバッファをクリア
+		ctx.keyMan.keyBufferClear();
+		// プラットフォームモニタ開始
+		ctx.taskPlatformMonitor.start(ctx);
+	}
+
+	Set_Command(ctx, commandLine)
+	{
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// ファイル名
+		const filename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		if(commandLine[0] != 0x3A) { // ':'
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+		commandLine.shift();
+		// 空白スキップ
+		SpCut(commandLine);
+		if(commandLine[0] == 0x50) { // 'P'
+			// ディレクトリのレコード
+			const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+			// ライトプロテクト設定
+			const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
+			if(result.result != 0) {
+				throw new SOSError(result.result);
+			}
+		} else if(commandLine[0] == 0x52) { // 'R'
+			// ディレクトリのレコード
+			const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+			// ライトプロテクト解除
+			const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
+			if(result.result != 0) {
+				throw new SOSError(result.result);
+			}
+		} else {
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+	}
+
+	Save_Command(ctx, commandLine)
+	{
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// ファイル名
+		const filename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		// コロン
+		if(commandLine[0] != 0x3A) { // ':'
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+		commandLine.shift();
+		// 開始アドレス
+		let startAddress;
+		try {
+			startAddress = ParseHex4(commandLine); // 16進数4桁読み込み。失敗したら例外投げる。
+		} catch(e) {
+			if(e instanceof SOSError) {
+				throw new SOSError(SOSErrorCode.SyntaxError);
+			} else {
+				throw e;
+			}
+		}
+		let execAddress = startAddress;
+		if(commandLine[0] == 0) {
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+		commandLine.shift();
+		// 終了アドレス
+		let endAddress;
+		try {
+			endAddress = ParseHex4(commandLine);
+		} catch(e) {
+			if(e instanceof SOSError) {
+				throw new SOSError(SOSErrorCode.SyntaxError);
+			} else {
+				throw e;
+			}
+		}
+		// セーブ範囲のチェック
+		if(startAddress > endAddress) {
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+		const dataSize = endAddress - startAddress + 1;
+		if(dataSize > 0xFFFF) {
+			// @todo 64KiBのセーブができないのでエラーにしておく
+			throw new SOSError(SOSErrorCode.BadData);
+		}
+		if(commandLine[0] != 0) {
+			commandLine.shift();
+			try {
+				execAddress = ParseHex4(commandLine);
+			} catch(e) {
+				if(e instanceof SOSError) {
+					// ここのエラーは無視する
+				} else {
+					throw e;
+				}
+			}
+		}
+		// データを準備する
+		const data = new Uint8Array(dataSize);
+		for(let i = 0; i < dataSize; ++i) {
+			data[i] = ctx.z80Emu.memReadU8(startAddress + i);
+		}
+		// ディレクトリのレコード
+		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		// 属性
+		const fileMode = 0x01; // BIN
+		// セーブ
+		const result = ctx.WriteFile(filename.deviceName, dirRecord,
+			filename.filename, filename.extension, data,
+			startAddress, endAddress, execAddress,
+			fileMode
+		);
+		if(result.result != 0) {
+			throw new SOSError(result.result);
+		}
+		ctx.printNativeMsg("Complete !\n");
+	}
+
+	DevSet_Command(ctx, commandLine)
+	{
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// デバイス名
+		if(commandLine[0] == 0) {
+			throw new SOSError(SOSErrorCode.SyntaxError);
+		}
+		const deviceName = ToUpperCase(commandLine[0]);
+		commandLine.shift();
+		// デバイスチェック
+		this.#devchk(deviceName); // 駄目だった場合、SOSErrorの例外を投げる。
+		// 設定
+		ctx.z80Emu.memWriteU8(SOSWorkAddr.DSK, deviceName);
+	}
+
+	Dir_Command(ctx, commandLine)
+	{
+		// 先頭の空白を取り除く
+		SpCut(commandLine);
+		// デバイス取得
+		const deviceName = this.#getdev(ctx, commandLine);
+		// ディレクトリ
+		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		const result = ctx.Files(deviceName, dirRecord);
+		if(result.result != 0) {
+			throw new SOSError(result.result);
+		}
+		ctx.PrintFiles(result);
+	}
+
+	
+	Run_Command(ctx, commandLine, originalCommandLine)
+	{
+		SpCut(commandLine);	// 空白スキップ
+		// ファイル名
+		const filename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
+		// 入力バッファへコマンドラインを反映させる
+		this.#copyToKeyBuffer(ctx, originalCommandLine);
+		// DEレジスタに、ファイル名の後の「:」の次のアドレスを設定する
+		if(commandLine[0] != 0) { commandLine.shift(); }
+		const pos = originalCommandLine.length - commandLine.length; // 元々のから現在のを引いて、位置を出す
+		ctx.z80Emu.setDE(ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD) + pos);
+		// ファイルを読み込む
+		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS); // ディレクトリのレコード
+		const result = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
+		if(result.result != 0) {
+			throw new SOSError(result.result); // エラーなのでSOSErrorの例外を投げる。
+		}
+		// 読み込んだファイルの属性で処理をわける
+		if(SOSInfomationBlock.isBinaryFile(result.attribute)) {
+			// バイナリファイル
+			// トランジェントへ退避
+			this.#transient.save(ctx, result.loadAddress, result.value.length);
+			// 読み込んだデータをZ80のメモリにコピー
+			this.#copyToZ80Memory(ctx, result.loadAddress, result.value);
+			// 飛び先設定
+			ctx.monitorCommandJump(result.execAddress);
+			//
+			this.#isRunCommand = true;
+			return 0x1;
+		} else if(SOSInfomationBlock.isAsciiFile(result.attribute)) {
+			// アスキーファイル
+			ctx.batchManager.start(result.value);
+			return 0x4;
+		} else {
+			throw new SOSError(result.result); // エラーなのでSOSErrorの例外を投げる。
+		}
+	}
+
+
+
+	/**
+	 * ポーズコマンド
+	 * 
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
+	 * @throws 変換に失敗した場合は、SOSError(SOSErrorCode.BadData)の例外を投げる。
+	 */
+	Pause_Command(ctx, commandLine)
+	{
+		// 止まったよメッセージ表示
+		ctx.printNativeMsg("HIT KEY\n");
+		// キーバッファをクリア
+		ctx.keyMan.keyBufferClear();
+	}
+
+
+	#getdev(ctx, text)
+	{
+		// 空白をスキップ
+		SpCut(text);
+		// デバイス名
+		if((text.length >= 2) && (text[1] == 0x3A)) { // ":"
+			const deviceName = ToUpperCase(text[0]);
+			text.shift();
+			text.shift();
+			return deviceName;
+		} else {
+			return ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
+		}
+	}
+
+	/**
+	 * デバイス名をチェックする
+	 * @param {number} deviceName デバイス名の文字
+	 * @throws 駄目だった場合、SOSErrorの例外を投げる。
+	 */
+	#devchk(deviceName)
+	{
+		// デバイスチェック
+		if(0x41 <= deviceName && deviceName <= 0x45) { // A～E
+			// OK
+		} else if(0x46 <= deviceName && deviceName <= 0x4C) { // F～L
+			throw new SOSError(SOSErrorCode.ReservedFeature);
+		} else if(0x51 == deviceName || 0x53 == deviceName || 0x54 == deviceName) { // Q S T
+			// 未対応
+			throw new SOSError(SOSErrorCode.ReservedFeature);
+		} else {
+			// 不正
+			throw new SOSError(SOSErrorCode.BadAllocationTable);
+		}
 	}
 
 	/**
@@ -262,38 +578,24 @@ class TaskMonitor {
 	 * @param {TaskContext} ctx 
 	 * @param {Array} text ファイル名
 	 * @returns {{
-	 * 		result: number,			// エラーコード
 	 * 		deviceName: number,		// デバイス名
 	 * 		filename: Uint8Array,	// ファイル名
 	 * 		extension: Uint8Array,	// 拡張子
-	 *      text: Array				// ファイル名の後のテキスト位置。「:」または終端文字(0x00)の位置
 	 * }}
+	 * @throws 失敗した場合は、SOSErrorの例外を投げる。
 	 */
 	#parseFilename(ctx, text)
 	{
-		// デバイス名
-		let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
 		// ファイル名
 		const filename = new Uint8Array(SOSInfomationBlock.filename_size);
 		filename.fill(0x20);
 		// 拡張子
 		const extension = new Uint8Array(SOSInfomationBlock.extension_size);
 		extension.fill(0x20);
-		// 空白をスキップ
-		while(text[0] == 0x20) { text.shift(); }
-		// デバイス名（A～D）
-		if(text[1] == 0x3A) { // ":"
-			const device = text[0];
-			if(0x61 <= device && device <= 0x65) { // a～e
-				deviceName = device - 0x20;
-				text.shift();
-				text.shift();
-			} else if(0x41 <= device && device <= 0x45) { // A～E
-				deviceName = device;
-				text.shift();
-				text.shift();
-			}
-		}
+		// デバイス名
+		const deviceName = this.#getdev(ctx, text);
+		// デバイスチェック
+		this.#devchk(deviceName); // 駄目だった場合、SOSErrorの例外を投げる。
 		// ファイル名
 		for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
 			const ch = text[0];
@@ -327,7 +629,7 @@ class TaskMonitor {
 		while(text[0] != 0x3A && text[0] != 0) { // ":"
 			text.shift();
 		}
-		return {result: 0, deviceName: deviceName, filename: filename, extension: extension, text:text};
+		return {deviceName: deviceName, filename: filename, extension: extension};
 	}
 
 	/**
@@ -339,6 +641,17 @@ class TaskMonitor {
 	#min(a,b) { return (a < b) ? a : b; }
 
 	/**
+	 * キーボードバッファへ配列をコピーする
+	 * @param {Array} text コピーする配列
+	 */
+	#copyToKeyBuffer(ctx, text)
+	{
+		let commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
+		text.forEach(element => { ctx.z80Emu.memWriteU8(commandAddress++, element); });
+	}
+
+
+	/**
 	 * コンストラクタ
 	 */
 	constructor()
@@ -346,30 +659,43 @@ class TaskMonitor {
 		this.#state = new Array();
 		this.#state[this.#state_idle] = (ctx)=>{};
 		this.#state[this.#state_start] = (ctx)=>{
-			if(ctx.getScreenLocate().x != 0) { ctx.PRINT(0x0D); } // カーソルが先頭になければ改行
+			// =========================================================================
+			// トランジェント
+			// =========================================================================
+			this.#transient.load(ctx); // トランジェントで保存された物があれば復帰する
+			this.#transient.clear(ctx); // トランジェントをクリア
+
+			// =========================================================================
+			// RUNコマンド
+			// =========================================================================
+			ctx.NL(); // カーソルが先頭になければ改行
 			// RUNコマンドで実行されていたコマンドから戻ってきたときのエラー処理
 			if(ctx.batchManager.isActive() && this.#isRunCommand) {
-				this.#isRunCommand = false;
 				if(ctx.z80Emu.getCY()) {
 					// キャリーフラグが立ってたらエラー
 					ctx.ERROR(ctx.z80Emu.getA());
-					ctx.PRINT(0x0D);
+					ctx.PRINT(SOSKeyCode.CR);
 					// エラーが発生したのでバッチ処理を停止する
 					ctx.batchManager.stop();
 				}
 			}
+			this.#isRunCommand = false;
+
+			// =========================================================================
+			// バッチ処理
+			// =========================================================================
 			if(ctx.batchManager.isActive()) {
 				// バッチ処理中
-				const command = ctx.batchManager.getLine();
+				const command = ctx.batchManager.getLine(); // １行取得
 				if(ctx.batchManager.isActive()) {
+					// コマンドバッファへコピー
 					this.#commandBuffer.length = 0
-					this.#commandBuffer.push(0x23); // #
-					for(let ch of command) {
-						this.#commandBuffer.push(ch);
-					}
+					this.#commandBuffer.push(this.#PromptCharacter); // プロンプト
+					for(let ch of command) { this.#commandBuffer.push(ch); }
+					// 表示もしておく
 					for(let ch of this.#commandBuffer) {
 						if(ch == 0) {
-							ctx.PRINT(this.#keyCodeCR);
+							ctx.PRINT(SOSKeyCode.CR);
 							break;
 						}
 						ctx.PRINT(ch);
@@ -380,38 +706,18 @@ class TaskMonitor {
 				}
 			}
 
-
-			if(this.#runningBatch) {
-				// バッチ実行中
-				if(this.#batchBuffer.length > 0) {
-					// バッチから１行取得
-					this.#commandBuffer.length = 0
-					this.#commandBuffer.push(0x23); // #
-					while(this.#batchBuffer.length > 0) {
-						let ch = this.#batchBuffer.shift();
-						if(ch == 0x00 || ch == this.#keyCodeCR) {
-							break;
-						}
-						this.#commandBuffer.push(ch);
-					}
-					this.#commandBuffer.push(0);
-					// コマンド処理へ
-					this.changeState(this.#state_command);
-					return;
-				} else {
-					// バッチが終わった
-					this.#runningBatch = false;
-				}
-			}
-			if(!this.#runningBatch) {
-				// バッチ処理中出なければ
-				// プロンプト表示して
-				ctx.PRINT(0x23); // #
-				// ライン入力開始へ
-				ctx.startLineInput();
-				this.changeState(this.#state_input_wait);
-			}
+			// =========================================================================
+			// 通常処理
+			// =========================================================================
+			// プロンプト表示して
+			ctx.PRINT(this.#PromptCharacter);
+			// ライン入力開始して
+			ctx.startLineInput();
+			// ライン入力待ちへ遷移
+			this.changeState(this.#state_input_wait);
 		};
+
+		// ライン入力待ち
 		this.#state[this.#state_input_wait] = (ctx)=>{
 			if(!ctx.isFinishLineInput()) {
 				return; // ライン入力中...
@@ -430,385 +736,110 @@ class TaskMonitor {
 
 		// @todo commandと纏めること！
 		this.#state[this.#state_command] = (ctx)=>{
-			if(this.#commandBuffer.length <= 0
-				|| this.#commandBuffer[0] == this.#keyCodeBRK
-				|| this.#commandBuffer[0] != 0x23
-				|| this.#commandBuffer[0] == 0) {
+			// 後々使用するのでコマンドラインを複製しておく
+			const originalCommandLine = [...this.#commandBuffer];
+			// コマンドプロンプトがあるかチェック
+			if((this.#commandBuffer.length <= 0) || (this.#commandBuffer[0] != this.#PromptCharacter)) {
+				// なかったら処理しない
 				this.changeState(this.#state_start);
 				return;
 			}
-			this.#commandBuffer.shift(); // '#'
-			// コマンド
-			switch(this.#commandBuffer.shift()) {
-					// ;	行末までコメントと見なす
-				case 0x3B:
-				case 0x00:
-					this.changeState(this.#state_start);
-					return;
-					// D [<デバイス名>:]				ディレクトリ表示
-					// DV <デバイス名>:					デフォルトデバイス変更 (ディスクからの起動時はA、テープからの起動時はS)
-				case 0x44: // 'D'
-					{
-						let flagCommandDV = false;
-						if(this.#commandBuffer[0] == 0x56) { // 'V'
-							// DV
-							this.#commandBuffer.shift();
-							flagCommandDV = true;
-						}
-						// 空白スキップ
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-						// デバイス名
-						let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
-						if(this.#commandBuffer[1] == 0x3A) {
-							if(0x61 <= this.#commandBuffer[0] && this.#commandBuffer[0] <= 0x65) {
-								deviceName = this.#commandBuffer[0] - 0x20; // 大文字に
-							} else if(0x41 <= this.#commandBuffer[0] && this.#commandBuffer[0] <= 0x45) {
-								deviceName = this.#commandBuffer[0];
-							} else {
-								this.#doError(ctx, SOSErrorCode.BadFileDescripter);
-								this.changeState(this.#state_start);
-								return;
-							}
-						} else if(this.#commandBuffer[0] != 0) {
-							this.#doError(ctx, SOSErrorCode.SyntaxError);
-							this.changeState(this.#state_start);
-							return;
-						}
-						//
-						if(flagCommandDV) {
-							// DV
-							ctx.z80Emu.memWriteU8(SOSWorkAddr.DSK, deviceName);
-						} else {
-							// D
-							const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-							let result = ctx.Files(deviceName, dirRecord);
-							if(result.result == 0) {
-								ctx.PrintFiles(result);
-							} else {
-								ctx.ERROR(result.result);
-								ctx.PRINT(this.#keyCodeCR);
-							}
-						}
+			this.#commandBuffer.shift();
+			// 各種コマンド処理
+			try {
+				switch(this.#commandBuffer.shift()) {
+					case 0x00: // コマンドプロンプトだけだった
+					case 0x3B: // ; REM COMMAND
 						this.changeState(this.#state_start);
 						return;
-					}
-
-				// J <アドレス>							指定アドレス (16進数4桁) のコール
-				case 0x4A:
-					{
-						// 空白スキップ
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-						// ジャンプ先取得
-						const address = this.#parseHex4(this.#commandBuffer);
-						if(!this.#checkResult(ctx, address)) { this.changeState(this.#state_start); return; }
-						// 飛び先設定
-						ctx.monitorCommandJump(address.value);
+					case 0x21: // !	ブート
+						this.Boot_Command(ctx, this.#commandBuffer);
 						// モニタ終了
 						this.changeState(this.#state_end);
-						// カーソル非表示にしてジャンプする
-						ctx.setDisplayCursor(false);
 						return;
-					}
-					// K <ファイル名>					ファイル消去
-				case 0x4B: // 'K'
-					{
-						// 空白スキップ
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-						// ファイル名
-						const filename = this.#parseFilename(ctx, this.#commandBuffer);
-						if(!this.#checkResult(ctx, filename)) { this.changeState(this.#state_start); return; }
-						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-						// ファイル削除
-						let result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
-						if(!this.#checkResult(ctx, result)) { this.changeState(this.#state_start); return; }
-						this.changeState(this.#state_start);
-						return;
-					}
-				case 0x4C: // 'L'
-					// L <ファイル名>[:<アドレス>]		ファイルロード
-					{
-						// 空白スキップ
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-						// ファイル名
-						const filename = this.#parseFilename(ctx, this.#commandBuffer);
-						if(!this.#checkResult(ctx, filename)) { this.changeState(this.#state_start); return; }
-						// ロードアドレス
-						let isSetLoadAddress = false;
-						let loadAddress;
-						if(this.#commandBuffer[0] == 0x3A) { // ':'
-							this.#commandBuffer.shift();
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							// 
-							loadAddress = this.#parseHex4(this.#commandBuffer);
-							if(!this.#checkResult(ctx, loadAddress)) { this.changeState(this.#state_start); return; }
-							isSetLoadAddress = true;
+					case 0x4A: // J <アドレス>	指定アドレス (16進数4桁) のコール
+						this.Jump_Command(ctx, this.#commandBuffer);
+						// 入力バッファへコマンドラインを反映させる
+						this.#copyToKeyBuffer(ctx, originalCommandLine);
+						// DEレジスタに、<アドレス>の次のアドレスを設定する
+						// 例) "#J3000:hogehoge"だったら、「:」のアドレス
+						{
+							const pos = originalCommandLine.length - this.#commandBuffer.length;
+							const commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
+							ctx.z80Emu.setDE(commandAddress + pos);
 						}
-						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-						// 読み込む
-						let data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
-						if(!this.#checkResult(ctx, data)) { this.changeState(this.#state_start); return; }
-						// メモリにコピー
-						const address = isSetLoadAddress ? loadAddress.value : data.loadAddress;
-						for(let i = 0; i < data.value.length; ++i) {
-							ctx.z80Emu.memWriteU8(address + i, data.value[i]);
-						}
-						this.changeState(this.#state_start);
+						// モニタ終了
+						this.changeState(this.#state_end);
 						return;
-					}
-					
-				case 0x4D: // M	各機種のモニタ
-					{
-						// キーバッファをクリア
-						ctx.keyMan.keyBufferClear();
-						// プラットフォームモニタ開始
-						ctx.taskPlatformMonitor.start(ctx);
+					case 0x4C: // L <ファイル名>[:<アドレス>]		ファイルロード
+						this.Load_Command(ctx, this.#commandBuffer);
+						return;
+					case 0x4B: // K <ファイル名>					ファイル消去
+						this.Kill_Command(ctx, this.#commandBuffer);
+						return;
+					case 0x4E: // N <ファイル名1>:<ファイル名2>	ファイル名変更
+						this.Name_Command(ctx, this.#commandBuffer);
+						return;
+					case 0x4D: // M	各機種のモニタ
+						this.Monitor_Command(ctx, this.#commandBuffer);
 						// 完了待ちへ遷移
 						this.changeState(this.#state_platform_monitor_wait);
 						return;
-					}
-					
-				case 0x4E: // N <ファイル名1>:<ファイル名2>	ファイル名変更
-					{
-						const oldFilename = this.#parseFilename(ctx, this.#commandBuffer);
-						if(!this.#checkResult(ctx, oldFilename)) { this.changeState(this.#state_start); return; }
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
-						if(this.#commandBuffer[0] != 0x3A) { // ':'
-							this.#doError(ctx, SOSErrorCode.SyntaxError);
-							this.changeState(this.#state_start);
-							return;
-						}
-						this.#commandBuffer.shift();
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); } // 空白スキップ
-						const newFilename = this.#parseFilename(ctx, this.#commandBuffer);
-						if(!this.#checkResult(ctx, newFilename)) { this.changeState(this.#state_start); return; }
-						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-						// リネーム
-						const result = ctx.Rename(oldFilename.deviceName, dirRecord,
-							oldFilename.filename, oldFilename.extension,
-							newFilename.filename, newFilename.extension
-						);
-						if(!this.#checkResult(ctx, result)) { this.changeState(this.#state_start); return; }
-						this.changeState(this.#state_start);
+					case 0x57: // W	桁数変更
+						this.Width_Command(ctx, this.#commandBuffer);
 						return;
-					}
-
-					// S <ファイル名>:<開始アドレス>:<終了アドレス>[:<実行アドレス>]	ファイルセーブ
-					// ST <ファイル名>:P または :R	ライトプロテクトのON/OFF
-				case 0x53:
-					{
-						if(this.#commandBuffer[0] == 0x54) { // 'ST'
+					case 0x53: // S,ST
+						if(ToUpperCase(this.#commandBuffer[0]) == 0x54) {
 							this.#commandBuffer.shift();
-							const filename = this.#parseFilename(ctx, this.#commandBuffer);
-							if(!this.#checkResult(ctx, filename)) { this.changeState(this.#state_start); return; }
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							if(this.#commandBuffer[0] != 0x3A) { // ':'
-								this.#doError(ctx, SOSErrorCode.SyntaxError);
-								this.changeState(this.#state_start);
-								return;
-							}
-							this.#commandBuffer.shift();
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							if(this.#commandBuffer[0] == 0x50) { // 'P'
-								// ディレクトリのレコード
-								const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-								// ライトプロテクト設定
-								const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
-								if(!this.#checkResult(ctx, result)) { this.changeState(this.#state_start); return; }
-							} else if(this.#commandBuffer[0] == 0x52) { // 'R'
-								// ディレクトリのレコード
-								const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-								// ライトプロテクト解除
-								const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
-								if(!this.#checkResult(ctx, result)) { this.changeState(this.#state_start); return; }
-							} else {
-								this.#doError(ctx, SOSErrorCode.SyntaxError);
-								this.changeState(this.#state_start);
-								return;
-							}
-							this.changeState(this.#state_start);
-							return;
-						} else { // 'S'
-							// ファイル名
-							const filename = this.#parseFilename(ctx, this.#commandBuffer);
-							if(!this.#checkResult(ctx, filename)) { this.changeState(this.#state_start); return; }
-							if(this.#commandBuffer[0] != 0x3A) { // ':'
-								this.#doError(ctx, SOSErrorCode.SyntaxError);
-								this.changeState(this.#state_start);
-								return;
-							}
-							this.#commandBuffer.shift();
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							const saveAddress = this.#parseHex4(this.#commandBuffer);
-							if(!this.#checkResult(ctx, saveAddress)) { this.changeState(this.#state_start); return; }
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							if(this.#commandBuffer[0] != 0x3A) { // ':'
-								this.#doError(ctx, SOSErrorCode.SyntaxError);
-								this.changeState(this.#state_start);
-								return;
-							}
-							this.#commandBuffer.shift();
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							const endAddress = this.#parseHex4(this.#commandBuffer);
-							if(!this.#checkResult(ctx, endAddress)) { this.changeState(this.#state_start); return; }
-							// 空白スキップ
-							while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-							let execAddress = saveAddress;
-							if(this.#commandBuffer[0] == 0x3A) { // ':'
-								this.#commandBuffer.shift();
-								// 空白スキップ
-								while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-								execAddress = this.#parseHex4(this.#commandBuffer);
-								if(!this.#checkResult(ctx, execAddress)) { this.changeState(this.#state_start); return; }
-							}
-							// 値をチェック
-							if(saveAddress.value >= endAddress.value) {
-								this.#doError(ctx, SOSErrorCode.SyntaxError);
-								this.changeState(this.#state_start);
-								return;
-							}
-							if(saveAddress.value > execAddress.value || execAddress.value > endAddress.value) {
-								this.#doError(ctx, SOSErrorCode.SyntaxError);
-								this.changeState(this.#state_start);
-								return;
-							}
-							// データを準備する
-							const dataSize = endAddress.value - saveAddress.value + 1;
-							const data = new Uint8Array(dataSize);
-							for(let i = 0; i < dataSize; ++i) {
-								data[i] = ctx.z80Emu.memReadU8(saveAddress.value + i);
-							}
-							// ディレクトリのレコード
-							const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-							// 属性
-							const fileMode = 0x01; // BIN
-							// セーブ
-							const result = ctx.WriteFile(filename.deviceName, dirRecord,
-								filename.filename, filename.extension, data,
-								saveAddress.value, endAddress.value, execAddress.value,
-								fileMode
-							);
-							if(!this.#checkResult(ctx, result)) { this.changeState(this.#state_start); return; }
-							this.changeState(this.#state_start);
-							return;
+							// ST <ファイル名>:P または :R	ライトプロテクトのON/OFF
+							this.Set_Command(ctx, this.#commandBuffer);
+						} else {
+							// S <ファイル名>:<開始アドレス>:<終了アドレス>[:<実行アドレス>]	ファイルセーブ
+							this.Save_Command(ctx, this.#commandBuffer);
 						}
-					}
-
-					// W	桁数変更
-				case 0x57:
-					this.W_Command(ctx);
-					this.changeState(this.#state_start);
-					return;
-
-					// !	ブート
-				case 0x21:
-					{
-						// 飛び先設定
-						ctx.monitorCommandJump(0x0000); // #COLD
-						// モニタ終了
-						this.changeState(this.#state_end);
 						return;
-					}
-
-					//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。
-					//  テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
-				case 0x20:
-					{
-						// 空白スキップ
-						while(this.#commandBuffer[0] == 0x20) { this.#commandBuffer.shift(); }
-						// ファイル名
-						const filename = this.#parseFilename(ctx, this.#commandBuffer);
-						if(!this.#checkResult(ctx, filename)) { this.changeState(this.#state_start); return; }
-
-						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-						// 読み込む
-						let result = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
-						if(!this.#checkResult(ctx, result)) { this.changeState(this.#state_start); return; }
-						if(SOSInfomationBlock.isBinaryFile(result.attribute)) {
-							// バイナリファイル
-							// 読み込んだデータをメモリにコピー
-							const address = result.loadAddress;
-							for(let i = 0; i < result.value.length; ++i) {
-								ctx.z80Emu.memWriteU8(address + i, result.value[i]);
-							}
-							// 飛び先設定
-							ctx.monitorCommandJump(result.execAddress);
-							// DEレジスタに、ファイル名の後の「:」の次のアドレスを設定する
-							const commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
-							ctx.z80Emu.memWriteU8(commandAddress, 0);
-							if(filename.text.length > 0) {
-								if(filename.text[0] == 0x3A) { // ':'
-									filename.text.shift();
-								}
-								let i = 0;
-								for(; i < this.#min(filename.text.length, 255); ++i) {
-									ctx.z80Emu.memWriteU8(commandAddress + i, filename.text[i]);
-								}
-								ctx.z80Emu.memWriteU8(commandAddress + i, 0);
-							}
-							ctx.z80Emu.setDE(commandAddress);
-							this.#isRunCommand = true;
-							// モニタ終了
+					case 0x44: // D,DV
+						if(ToUpperCase(this.#commandBuffer[0]) == 0x56) {
+							this.#commandBuffer.shift();
+							// DV <デバイス名>:					デフォルトデバイス変更 (ディスクからの起動時はA、テープからの起動時はS)
+							this.DevSet_Command(ctx, this.#commandBuffer);
+						} else {
+							// D [<デバイス名>:]				ディレクトリ表示
+							this.Dir_Command(ctx, this.#commandBuffer);
+						}
+						return;
+					case 0x20: // RUN COMMAND
+						//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。
+						//  テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
+						if(this.Run_Command(ctx, this.#commandBuffer, originalCommandLine) == 0x01) {
+							// バイナリファイルを実行したので、モニタを終了する
 							this.changeState(this.#state_end);
-						} else if(SOSInfomationBlock.isAsciiFile(result.attribute)) {
-							// アスキーファイル
-							if(!this.#runningBatch) {
-								/*
-								// 読み込んだデータをバッチバッファへ
-								this.#batchBuffer.length = 0;
-								for(let i = 0; i < result.value.length; ++i) {
-									this.#batchBuffer.push(result.value[i]);
-								}
-								// バッチ開始
-								this.#runningBatch = true;
-								*/
-								// バッチ開始
-								ctx.batchManager.start(result.value);
-
-								this.changeState(this.#state_start);
-							} else {
-								// バッチ中に、読み込んだ
-								// @todo どうするんじゃろ？
-								ctx.ERROR(SOSErrorCode.ReservedFeature); // 未実装...
-								ctx.PRINT(this.#keyCodeCR);
-								this.changeState(this.#state_start);
-							}
+						} else {
+							// アスキーファイルを実行したので、入力に遷移する
+							this.changeState(this.#state_start);
 						}
 						return;
-					}
-
-					// P	ポーズ
-				case 0x50:
-					{
-						// 止まったよメッセージ表示
-						ctx.printNativeMsg("HIT KEY\n");
-						// キーバッファをクリア
-						ctx.keyMan.keyBufferClear();
+					case 0x50: // P	ポーズ
+						this.Pause_Command(ctx, this.#commandBuffer);
 						// 解除待ちへ遷移
 						this.changeState(this.#state_pause_wait);
 						return;
-					}
-
-					// T
-				case 0x54: // for dev & debug & test
-					{
-						// this.#runningBatch = true;
-						// this.changeState(this.#state_start);
-						// return;
-					}
+					default:
+						throw new SOSError(SOSErrorCode.SyntaxError); // シンタックスエラー
+				}
+			} catch(e) {
+				if(e instanceof SOSError) {
+					// S-OSのエラー
+					// エラーを表示
+					ctx.ERROR(e.GetSOSErrorCode());
+					ctx.PRINT(SOSKeyCode.CR);
+				} else {
+					// その他のエラー
+					ctx.printNativeMsg(e.name + ': ' + e.message + '\n' + e.stack);
+				}
+				// 入力に遷移
+				this.changeState(this.#state_start);
 			}
-			ctx.ERROR(SOSErrorCode.SyntaxError);
-			ctx.PRINT(this.#keyCodeCR);
-			this.changeState(this.#state_start);
 		};
 		this.#state[this.#state_pause_wait] = (ctx)=>{
 			// PAUSE待ち処理
@@ -817,10 +848,10 @@ class TaskMonitor {
 			if(key) {
 				// 何か押された
 				this.changeState(this.#state_start);
-				if(key == this.#keyCodeBRK) {
+				if(key == SOSKeyCode.BRK) {
 					// ブレイクキー押された
-					// @todo バッチ処理中断
-					this.#runningBatch = false;
+					// バッチ処理を停止する
+					ctx.batchManager.stop();
 				}
 				// 念のためキーバッファをクリアしておく
 				ctx.keyMan.keyBufferClear();
@@ -843,9 +874,7 @@ class TaskMonitor {
 		this.#stateNo = this.#state_idle;
 		this.#commandBuffer = [];
 
-		// バッチを初期化
-		this.#runningBatch = false;
-		this.#batchBuffer.length = 0;
+		this.#isRunCommand = false;
 	}
 
 	/**
@@ -865,8 +894,7 @@ class TaskMonitor {
 		// 念のためキーバッファをクリアしておく
 		ctx.keyMan.keyBufferClear();
 		// バッチを初期化
-		this.#runningBatch = false;
-		this.#batchBuffer.length = 0;
+		ctx.batchManager.clear();
 		// 飛び先設定
 		ctx.monitorCommandJump(execAddress);
 		// DEレジスタに空の文字列へのポインタを設定する
@@ -886,348 +914,94 @@ class TaskMonitor {
 	 */
 	executeCommand(ctx, commandBuffer)
 	{
-		if(commandBuffer.length <= 0
-			|| commandBuffer[0] == this.#keyCodeBRK
-			|| commandBuffer[0] != 0x23
-			|| commandBuffer[0] == 0) {
-			return {result: 0, state: this.#state_start};
+		// 後々使用するのでコマンドラインを複製しておく
+		const originalCommandLine = [...commandBuffer];
+		// コマンドプロンプトがあるかチェック
+		if(commandBuffer.length <= 0 || commandBuffer[0] != this.#PromptCharacter) {
+			return;
 		}
 		commandBuffer.shift(); // '#'
-		// コマンド
+
 		switch(commandBuffer.shift()) {
-				// ;	行末までコメントと見なす
-			case 0x3B:
-			case 0x00:
-				return {result: 0, state: this.#state_start};
-				// D [<デバイス名>:]				ディレクトリ表示
-				// DV <デバイス名>:					デフォルトデバイス変更 (ディスクからの起動時はA、テープからの起動時はS)
-			case 0x44: // 'D'
+			case 0x00: // コマンドプロンプトだけだった
+			case 0x3B: // ; REM COMMAND
+				//this.changeState(this.#state_start);
+				return;
+			case 0x21: // !	ブート
+				this.Boot_Command(ctx, this.#commandBuffer);
+				// モニタ終了
+				//this.changeState(this.#state_end);
+				return;
+			case 0x4A: // J <アドレス>	指定アドレス (16進数4桁) のコール
+				this.Jump_Command(ctx, this.#commandBuffer);
+				// 入力バッファへコマンドラインを反映させる
+				this.#copyToKeyBuffer(ctx, originalCommandLine);
+				// DEレジスタに、<アドレス>の次のアドレスを設定する
+				// 例) "#J3000:hogehoge"だったら、「:」のアドレス
 				{
-					let flagCommandDV = false;
-					if(commandBuffer[0] == 0x56) { // 'V'
-						// DV
-						commandBuffer.shift();
-						flagCommandDV = true;
-					}
-					// 空白スキップ
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-					// デバイス名
-					let deviceName = ctx.z80Emu.memReadU8(SOSWorkAddr.DSK);
-					if(commandBuffer[1] == 0x3A) {
-						if(0x61 <= commandBuffer[0] && commandBuffer[0] <= 0x65) {
-							deviceName = commandBuffer[0] - 0x20; // 大文字に
-						} else if(0x41 <= commandBuffer[0] && commandBuffer[0] <= 0x45) {
-							deviceName = commandBuffer[0];
-						} else {
-							return this.#doError(ctx, SOSErrorCode.BadFileDescripter);
-						}
-					} else if(commandBuffer[0] != 0) {
-						return this.#doError(ctx, SOSErrorCode.SyntaxError);
-					}
-					//
-					if(flagCommandDV) {
-						// DV
-						ctx.z80Emu.memWriteU8(SOSWorkAddr.DSK, deviceName);
-					} else {
-						// D
-						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-						let result = ctx.Files(deviceName, dirRecord);
-						if(result.result == 0) {
-							ctx.PrintFiles(result);
-						} else {
-							ctx.ERROR(result.result);
-							ctx.PRINT(this.#keyCodeCR);
-						}
-					}
-					return {result: 0, state: this.#state_start};
+					const pos = originalCommandLine.length - this.#commandBuffer.length;
+					const commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
+					ctx.z80Emu.setDE(commandAddress + pos);
 				}
-
-			// J <アドレス>							指定アドレス (16進数4桁) のコール
-			case 0x4A:
-				{
-					// 空白スキップ
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-					// ジャンプ先取得
-					const address = this.#parseHex4(commandBuffer);
-					if(!this.#checkResult(ctx, address)) { return {result: address.result, state: this.#state_start}; }
-					// 飛び先設定
-					ctx.monitorCommandJump(address.value);
-					// カーソル非表示にしてジャンプする
-					ctx.setDisplayCursor(false);
-					// モニタ終了
-					return {result: 0, state: this.#state_end};
-				}
-				// K <ファイル名>					ファイル消去
-			case 0x4B: // 'K'
-				{
-					// 空白スキップ
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-					// ファイル名
-					const filename = this.#parseFilename(ctx, commandBuffer);
-					if(!this.#checkResult(ctx, filename)) { return {result: filename.result, state: this.#state_start}; }
-					// ディレクトリのレコード
-					const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-					// ファイル削除
-					let result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
-					if(!this.#checkResult(ctx, result)) { return {result: result.result, state: this.#state_start}; }
-					return {result: 0, state: this.#state_start};
-				}
-			case 0x4C: // 'L'
-				// L <ファイル名>[:<アドレス>]		ファイルロード
-				{
-					// 空白スキップ
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-					// ファイル名
-					const filename = this.#parseFilename(ctx, commandBuffer);
-					if(!this.#checkResult(ctx, filename)) { return {result: filename.result, state: this.#state_start}; }
-					// ロードアドレス
-					let isSetLoadAddress = false;
-					let loadAddress;
-					if(commandBuffer[0] == 0x3A) { // ':'
-						commandBuffer.shift();
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						// 
-						loadAddress = this.#parseHex4(commandBuffer);
-						if(!this.#checkResult(ctx, loadAddress)) { return {result: loadAddress.result, state: this.#state_start}; }
-						isSetLoadAddress = true;
-					}
-					// ディレクトリのレコード
-					const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-					// 読み込む
-					let data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
-					if(!this.#checkResult(ctx, data)) { return {result: data.result, state: this.#state_start}; }
-					// メモリにコピー
-					const address = isSetLoadAddress ? loadAddress.value : data.loadAddress;
-					for(let i = 0; i < data.value.length; ++i) {
-						ctx.z80Emu.memWriteU8(address + i, data.value[i]);
-					}
-					return {result: 0, state: this.#state_start};
-				}
-				
-			case 0x4D: // M	各機種のモニタ
-				{
-					// キーバッファをクリア
-					ctx.keyMan.keyBufferClear();
-					// プラットフォームモニタ開始
-					ctx.taskPlatformMonitor.start(ctx);
-					// 完了待ちへ遷移
-					return {result: 0, state: this.#state_platform_monitor_wait};
-				}
-				
+				// モニタ終了
+				//this.changeState(this.#state_end);
+				return;
+			case 0x4C: // L <ファイル名>[:<アドレス>]		ファイルロード
+				this.Load_Command(ctx, this.#commandBuffer);
+				return;
+			case 0x4B: // K <ファイル名>					ファイル消去
+				this.Kill_Command(ctx, this.#commandBuffer);
+				return;
 			case 0x4E: // N <ファイル名1>:<ファイル名2>	ファイル名変更
-				{
-					const oldFilename = this.#parseFilename(ctx, commandBuffer);
-					if(!this.#checkResult(ctx, oldFilename)) { return {result: oldFilename.result, state: this.#state_start}; }
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); } // 空白スキップ
-					if(commandBuffer[0] != 0x3A) { // ':'
-						return this.#doError(ctx, SOSErrorCode.SyntaxError);
-					}
-					commandBuffer.shift();
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); } // 空白スキップ
-					const newFilename = this.#parseFilename(ctx, commandBuffer);
-					if(!this.#checkResult(ctx, newFilename)) { return {result: newFilename.result, state: this.#state_start}; }
-					// ディレクトリのレコード
-					const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-					// リネーム
-					const result = ctx.Rename(oldFilename.deviceName, dirRecord,
-						oldFilename.filename, oldFilename.extension,
-						newFilename.filename, newFilename.extension
-					);
-					if(!this.#checkResult(ctx, result)) { return {result: result.result, state: this.#state_start}; }
-					return {result: 0, state: this.#state_start};
+				this.Name_Command(ctx, this.#commandBuffer);
+				return;
+			case 0x4D: // M	各機種のモニタ
+				this.Monitor_Command(ctx, this.#commandBuffer);
+				// 完了待ちへ遷移
+				//this.changeState(this.#state_platform_monitor_wait);
+				return;
+			case 0x57: // W	桁数変更
+				this.Width_Command(ctx, this.#commandBuffer);
+				return;
+			case 0x53: // S,ST
+				if(ToUpperCase(this.#commandBuffer[0]) == 0x54) {
+					this.#commandBuffer.shift();
+					// ST <ファイル名>:P または :R	ライトプロテクトのON/OFF
+					this.Set_Command(ctx, this.#commandBuffer);
+				} else {
+					// S <ファイル名>:<開始アドレス>:<終了アドレス>[:<実行アドレス>]	ファイルセーブ
+					this.Save_Command(ctx, this.#commandBuffer);
 				}
-
-				// S <ファイル名>:<開始アドレス>:<終了アドレス>[:<実行アドレス>]	ファイルセーブ
-				// ST <ファイル名>:P または :R	ライトプロテクトのON/OFF
-			case 0x53:
-				{
-					if(commandBuffer[0] == 0x54) { // 'ST'
-						commandBuffer.shift();
-						const filename = this.#parseFilename(ctx, commandBuffer);
-						if(!this.#checkResult(ctx, filename)) { return {result: filename.result, state: this.#state_start}; }
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						if(commandBuffer[0] != 0x3A) { // ':'
-							return this.#doError(ctx, SOSErrorCode.SyntaxError);
-						}
-						commandBuffer.shift();
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						if(commandBuffer[0] == 0x50) { // 'P'
-							// ディレクトリのレコード
-							const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-							// ライトプロテクト設定
-							const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
-							if(!this.#checkResult(ctx, result)) { return {result: result.result, state: this.#state_start}; }
-						} else if(commandBuffer[0] == 0x52) { // 'R'
-							// ディレクトリのレコード
-							const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-							// ライトプロテクト解除
-							const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
-							if(!this.#checkResult(ctx, result)) { return {result: result.result, state: this.#state_start}; }
-						} else {
-							return this.#doError(ctx, SOSErrorCode.SyntaxError);
-						}
-						return {result: 0, state: this.#state_start};
-					} else { // 'S'
-						// ファイル名
-						const filename = this.#parseFilename(ctx, commandBuffer);
-						if(!this.#checkResult(ctx, filename)) { return {result: filename.result, state: this.#state_start}; }
-						if(commandBuffer[0] != 0x3A) { // ':'
-							return this.#doError(ctx, SOSErrorCode.SyntaxError);
-						}
-						commandBuffer.shift();
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						const saveAddress = this.#parseHex4(commandBuffer);
-						if(!this.#checkResult(ctx, saveAddress)) { return {result: saveAddress.result, state: this.#state_start}; }
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						if(commandBuffer[0] != 0x3A) { // ':'
-							return this.#doError(ctx, SOSErrorCode.SyntaxError);
-						}
-						commandBuffer.shift();
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						const endAddress = this.#parseHex4(commandBuffer);
-						if(!this.#checkResult(ctx, endAddress)) { return {result: endAddress.result, state: this.#state_start}; }
-						// 空白スキップ
-						while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-						let execAddress = saveAddress;
-						if(commandBuffer[0] == 0x3A) { // ':'
-							commandBuffer.shift();
-							// 空白スキップ
-							while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-							execAddress = this.#parseHex4(commandBuffer);
-							if(!this.#checkResult(ctx, execAddress)) { return {result: execAddress.result, state: this.#state_start}; }
-						}
-						// 値をチェック
-						if(saveAddress.value >= endAddress.value) {
-							return this.#doError(ctx, SOSErrorCode.SyntaxError);
-						}
-						if(saveAddress.value > execAddress.value || execAddress.value > endAddress.value) {
-							return this.#doError(ctx, SOSErrorCode.SyntaxError);
-						}
-						// データを準備する
-						const dataSize = endAddress.value - saveAddress.value + 1;
-						const data = new Uint8Array(dataSize);
-						for(let i = 0; i < dataSize; ++i) {
-							data[i] = ctx.z80Emu.memReadU8(saveAddress.value + i);
-						}
-						// ディレクトリのレコード
-						const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-						// 属性
-						const fileMode = 0x01; // BIN
-						// セーブ
-						const result = ctx.WriteFile(filename.deviceName, dirRecord,
-							filename.filename, filename.extension, data,
-							saveAddress.value, endAddress.value, execAddress.value,
-							fileMode
-						);
-						if(!this.#checkResult(ctx, result)) { return {result: result.result, state: this.#state_start}; }
-						return {result: 0, state: this.#state_start};
-					}
+				return;
+			case 0x44: // D,DV
+				if(ToUpperCase(this.#commandBuffer[0]) == 0x56) {
+					this.#commandBuffer.shift();
+					// DV <デバイス名>:					デフォルトデバイス変更 (ディスクからの起動時はA、テープからの起動時はS)
+					this.DevSet_Command(ctx, this.#commandBuffer);
+				} else {
+					// D [<デバイス名>:]				ディレクトリ表示
+					this.Dir_Command(ctx, this.#commandBuffer);
 				}
-
-				// W	桁数変更
-			case 0x57:
-				this.W_Command(ctx);
-				return {result: 0, state: this.#state_start};
-
-				// !	ブート
-			case 0x21:
-				{
-					// 飛び先設定
-					ctx.monitorCommandJump(0x0000); // #COLD
-					// モニタ終了
-					return {result: 0, state: this.#state_end};
-				}
-
+				return;
+			case 0x20: // RUN COMMAND
 				//  <ファイル名>	空白+ファイル名で、そのファイルをロードして実行します。
 				//  テキストファイルの場合はバッチファイルと見なされます (テープは256バイトまで)。
-			case 0x20:
-				{
-					// 空白スキップ
-					while(commandBuffer[0] == 0x20) { commandBuffer.shift(); }
-					// ファイル名
-					const filename = this.#parseFilename(ctx, commandBuffer);
-					if(!this.#checkResult(ctx, filename)) { return {result: filename.result, state: this.#state_start}; }
-
-					// ディレクトリのレコード
-					const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
-					// 読み込む
-					let result = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
-					if(!this.#checkResult(ctx, result)) { return {result: result.result, state: this.#state_start}; }
-					if(SOSInfomationBlock.isBinaryFile(result.attribute)) {
-						// バイナリファイル
-						// 読み込んだデータをメモリにコピー
-						const address = result.loadAddress;
-						for(let i = 0; i < result.value.length; ++i) {
-							ctx.z80Emu.memWriteU8(address + i, result.value[i]);
-						}
-						// 飛び先設定
-						ctx.monitorCommandJump(result.execAddress);
-						// DEレジスタに、ファイル名の後の「:」の次のアドレスを設定する
-						const commandAddress = ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD);
-						ctx.z80Emu.memWriteU8(commandAddress, 0);
-						if(filename.text.length > 0) {
-							if(filename.text[0] == 0x3A) { // ':'
-								filename.text.shift();
-							}
-							let i = 0;
-							for(; i < this.#min(filename.text.length, 255); ++i) {
-								ctx.z80Emu.memWriteU8(commandAddress + i, filename.text[i]);
-							}
-							ctx.z80Emu.memWriteU8(commandAddress + i, 0);
-						}
-						ctx.z80Emu.setDE(commandAddress);
-						// モニタ終了
-						return {result: 0, state: this.#state_end};
-					} else if(SOSInfomationBlock.isAsciiFile(result.attribute)) {
-						// アスキーファイル
-						if(!this.#runningBatch) {
-							// 読み込んだデータをバッチバッファへ
-							this.#batchBuffer.length = 0;
-							for(let i = 0; i < result.value.length; ++i) {
-								this.#batchBuffer.push(result.value[i]);
-							}
-							// バッチ開始
-							this.#runningBatch = true;
-							return {result: 0, state: this.#state_start};
-						} else {
-							// バッチ中に、読み込んだ
-							// @todo どうするんじゃろ？
-							ctx.ERROR(SOSErrorCode.ReservedFeature); // 未実装...
-							ctx.PRINT(this.#keyCodeCR);
-							return {result: 0, state: this.#state_start};
-						}
-					}
-					return;
+				if(this.Run_Command(ctx, this.#commandBuffer, originalCommandLine) == 0x01) {
+					// バイナリファイルを実行したので、モニタを終了する
+					//this.changeState(this.#state_end);
+				} else {
+					// アスキーファイルを実行したので、入力に遷移する
+					//this.changeState(this.#state_start);
 				}
-
-				// P	ポーズ
-			case 0x50:
-				{
-					// 止まったよメッセージ表示
-					ctx.printNativeMsg("HIT KEY\n");
-					// キーバッファをクリア
-					ctx.keyMan.keyBufferClear();
-					// 解除待ちへ遷移
-					return {result: 0, state: this.#state_pause_wait};
-				}
-
-				// T
-			case 0x54: // for dev & debug & test
-				{
-					// this.#runningBatch = true;
-					// this.changeState(this.#state_start);
-					// return;
-				}
+				return;
+			case 0x50: // P	ポーズ
+				this.Pause_Command(ctx, this.#commandBuffer);
+				// 解除待ちへ遷移
+				//this.changeState(this.#state_pause_wait);
+				return;
+			default:
+				throw new SOSError(SOSErrorCode.SyntaxError); // シンタックスエラー
 		}
-		ctx.ERROR(SOSErrorCode.SyntaxError);
-		ctx.PRINT(this.#keyCodeCR);
-		return {result: SOSErrorCode.SyntaxError, state: this.#state_start};
 	}
 
 	/**
