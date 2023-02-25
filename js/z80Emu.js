@@ -126,7 +126,7 @@ class Z80Emu {
 				// 隠しサブルーチン？
 				command :()=>{ this.#sos.sos_command(this.#ctx); },
 				// DOSモジュール
-				rdi   :()=>{ this.#sos.sos_rdi   (this.#ctx); },
+				rdi   :()=>{ this.#sos.dos_rdi   (this.#ctx); },
 				tropn :()=>{ this.#sos.sos_tropn (this.#ctx); },
 				wri   :()=>{ this.#sos.sos_wri   (this.#ctx); },
 				twrd  :()=>{ this.#sos.sos_twrd  (this.#ctx); },
