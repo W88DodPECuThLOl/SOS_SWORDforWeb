@@ -30,6 +30,17 @@ export default class {
 	#cursor;
 
 	/**
+	 * 論理範囲
+	 * @type {{
+	 * 		top: number,
+	 * 		left: number,
+	 * 		bottom: number,
+	 * 		right: number
+	 * }}
+	 */
+	#range;
+
+	/**
 	 * 制御文字の処理
 	 */
 	#controlCharacter = new Map([
@@ -104,7 +115,7 @@ export default class {
 	{
 		this.#cursor.x++;
 		// 画面右外なら位置を修正
-		const width = this.#target.getScreenWidth();
+		const width = this.#range.right; // this.#target.getScreenWidth();
 		if(this.#cursor.x >= width) {
 			// 次の行に続いているフラグセット
 			this.#lineContinue[this.#cursor.y] = true;
@@ -132,7 +143,7 @@ export default class {
 	
 	#scroll()
 	{
-		this.#target.scroll();
+		this.#target.scroll(this.#range);
 		// 行の続きフラグをスクロールに合わせて移動
 		this.#lineContinue.shift();
 		this.#lineContinue.push(false);
@@ -148,10 +159,10 @@ export default class {
 	clearScreen()
 	{
 		// カーソル位置を左上に
-		this.#cursor.x = 0;
-		this.#cursor.y = 0;
+		this.#cursor.x = this.#range.left;
+		this.#cursor.y = this.#range.top;
 		// 画面クリア
-		this.#target.clearScreen();
+		this.#target.clearScreen(this.#range);
 		// カーソル表示位置を設定
 		this.#target.setCursor(this.#cursor.x, this.#cursor.y);
 		// 行の続きフラグをクリア
@@ -170,12 +181,12 @@ export default class {
 		// 次の行に続いているフラグをリセット
 		this.#lineContinue[this.#cursor.y] = false;
 		// 次の行の先頭に移動
-		this.#cursor.x = 0;
+		this.#cursor.x = this.#range.left;
 		this.#cursor.y++;
 		// カーソルが画面下外ならスクロールする
-		const height = this.#target.getScreenHeight();
+		const height = this.#range.bottom;
 		if(this.#cursor.y >= height) {
-			this.#scroll();
+			this.#scroll(this.#range);
 			this.#cursor.y = height - 1;
 		}
 		// カーソル表示位置を設定
@@ -187,12 +198,12 @@ export default class {
 	 */
 	#cursorMoveRight()
 	{
-		const width = this.#target.getScreenWidth();
+		const width = this.#range.right;
 		this.#cursor.x++;
 		if(this.#cursor.x >= width) {
-			this.#cursor.x = 0;
+			this.#cursor.x = this.#range.left;
 			this.#cursor.y++;
-			const height = this.#target.getScreenHeight();
+			const height = this.#range.bottom;
 			if(this.#cursor.y >= height) {
 				this.#cursor.y = height - 1;
 			}
@@ -207,11 +218,11 @@ export default class {
 	#cursorMoveLeft()
 	{
 		this.#cursor.x--;
-		if(this.#cursor.x < 0) {
+		if(this.#cursor.x < this.#range.left) {
 			// １つ上の行の右端に
-			const width = this.#target.getScreenWidth();
+			const width = this.#range.right;
 			this.#cursor.x = width - 1;
-			if(this.#cursor.y > 0) {
+			if(this.#cursor.y > this.#range.top) {
 				this.#cursor.y--;
 			}
 		}
@@ -224,7 +235,7 @@ export default class {
 	 */
 	#cursorMoveUp()
 	{
-		if(this.#cursor.y > 0) {
+		if(this.#cursor.y > this.#range.top) {
 			this.#cursor.y--;
 			// カーソル表示位置を設定
 			this.#target.setCursor(this.#cursor.x, this.#cursor.y);
@@ -237,7 +248,7 @@ export default class {
 	#cursorMoveDown()
 	{
 		this.#cursor.y++;
-		const height = this.#target.getScreenHeight();
+		const height = this.#range.bottom;
 		if(this.#cursor.y >= height) {
 			this.#cursor.y = height - 1;
 		}
@@ -251,15 +262,15 @@ export default class {
 	 */
 	#backSpaceForLineEdit()
 	{
-		if(this.#cursor.x <= 0) {
-			if(this.#cursor.y <= 0) {
+		if(this.#cursor.x <= this.#range.left) {
+			if(this.#cursor.y <= this.#range.top) {
 				return; // 画面左上の時は何もしない
 			}
 			if(!this.#lineContinue[this.#cursor.y - 1]) {
 				return; // 上の行の続きではないので、何もしない
 			}
 			this.#cursor.y--;
-			this.#cursor.x = this.#target.getScreenWidth();
+			this.#cursor.x = this.#range.right;
 		}
 		this.#cursor.x--;
 
@@ -273,8 +284,8 @@ export default class {
 //		this.#lineDebug(begin, end, "_".codePointAt(0));
 //		this.#lineDebug(begin, textEnd, "*".codePointAt(0));
 //return;
-		if(this.#cursor.x <= 0) {
-			if(this.#cursor.y <= 0) {
+		if(this.#cursor.x <= this.#range.left) {
+			if(this.#cursor.y <= this.#range.top) {
 				return; // 画面左上の時は何もしない
 			}
 			if(!this.#lineContinue[this.#cursor.y - 1]) {
@@ -283,7 +294,7 @@ this.#lineContinue[this.#cursor.y - 1] = true; // 行を接続しちゃう
 while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 	this.#cursor = this.#addCursor(this.#cursor, -1);
 
-	const width = this.#target.getScreenWidth();
+	const width = this.#range.right;
 	let textEnd = this.#lineTextEnd(this.#cursor.y);
 	this.#deleteForLineEdit();
 	textEnd = this.#addCursor(textEnd, -1);
@@ -294,11 +305,11 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 				return; // 上の行の続きではないので、何もしない
 			}
 			this.#cursor.y--;
-			this.#cursor.x = this.#target.getScreenWidth();
+			this.#cursor.x = this.#range.right;
 		}
 		this.#cursor.x--;
 
-		const width = this.#target.getScreenWidth();
+		const width = this.#range.right;
 		let textEnd = this.#lineTextEnd(this.#cursor.y);
 		this.#deleteForLineEdit();
 		textEnd = this.#addCursor(textEnd, -1);
@@ -380,6 +391,12 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 		this.#cursor = {x:0, y:0};
 		this.#lineContinue = new Array(this.#target.getScreenHeight());
 		this.#target.setCursor(0, 0);
+		this.#range = {
+			top: 0,
+			left: 0,
+			bottom: this.#target.getScreenHeight(),
+			right: this.#target.getScreenWidth()
+		};
 	}
 
 	/**
@@ -396,6 +413,12 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 		this.#prcnt = 0;
 		this.#cursor = {x:0, y:0};
 		this.#lineContinue = new Array(this.#target.getScreenHeight());
+		this.#range = {
+			top: 0,
+			left: 0,
+			bottom: this.#target.getScreenHeight(),
+			right: this.#target.getScreenWidth()
+		};
 	}
 
 	/**
@@ -407,10 +430,10 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 		// 文字数カウンタ更新
 		this.#prcnt++;
 		// カーソルが画面下外ならスクロールする
-		const height = this.#target.getScreenHeight();
+		const height = this.#range.bottom;
 		if(this.#cursor.y >= height) {
 			this.#cursor.y = height - 1;
-			this.#scroll();
+			this.#scroll(this.#range);
 		}
 		//
 		if(!this.#controlCharacter.has(codePoint)) {

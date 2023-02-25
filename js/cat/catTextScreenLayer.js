@@ -403,11 +403,20 @@ export default class {
 
 	/**
 	 * 画面クリア
+	 * @param {{top: number, left: number, bottom: number, right: number}} range 画面クリアする範囲
 	 */
-	clearScreen()
+	clearScreen(range)
 	{
-		for(let y = 0; y < this.#height; ++y) {
-			for(let x = 0; x < this.#width; ++x) {
+		if(!range) {
+			range = {
+				top: 0,
+				left: 0,
+				bottom: this.#height,
+				right: this.#width,
+			};
+		}
+		for(let y = range.top; y < range.bottom; ++y) {
+			for(let x = range.left; x < range.right; ++x) {
 				this.#set(x, y, 0, this.#color, this.#attr);
 			}
 		}
@@ -488,7 +497,7 @@ export default class {
 
 	/**
 	 * １行文スクロールする
-	 * @param {*} range スクロールする範囲
+	 * @param {{top: number, left: number, bottom: number, right: number}} range スクロールする範囲
 	 */
 	scroll(range)
 	{
