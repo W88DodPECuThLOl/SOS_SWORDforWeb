@@ -51,7 +51,7 @@
             454E0D00            
 000042 3042 218830          10      LD HL,DATA_ADDR   ; 書き込むデータのアドレス
 000045 3045 22701F          16      LD (DTADR),HL
-000048 3048 217802          10      LD HL,DATA_SIZE   ; 書き込むデータのサイズ（バイト単位）
+000048 3048 217902          10      LD HL,DATA_SIZE   ; 書き込むデータのサイズ（バイト単位）
 00004B 304B 22721F          16      LD (SIZE),HL
 00004E 304E 218830          10      LD HL,EXE_ADDR    ; 実行するときのアドレス アスキーファイルの場合どうなるんだろう？
 000051 3051 226E1F          16      LD (EXADR),HL
@@ -180,11 +180,11 @@
             494A4B4C4D4E4F50    
             5152535455565758    
             595A0D              
-0002FE 32FE 500D                    DB "P", 13
+0002FE 32FE 500D00                  DB "P", 13, 0
                                 
-       3300                     DATA_ADDR_END:
+       3301                     DATA_ADDR_END:
                                 ; 書き込むデータサイズ
-       0278                     DATA_SIZE EQU DATA_ADDR_END - DATA_ADDR
+       0279                     DATA_SIZE EQU DATA_ADDR_END - DATA_ADDR
                                 ; 実行アドレス
        3088                     EXE_ADDR  EQU DATA_ADDR
 [EOF:testWopen.z80:UTF_8]
