@@ -70,9 +70,9 @@ graph LR;
 | 0180h~019Fh | S-OS IBバッファ |
 | 01A0h~01A1h | カーソル位置 |
 | 0200h~02FFh | キーボード入力バッファ |
-| 0300h~03FFh | FAT用バッファ |
-| 0400h~04FFh | セクタデータ読み込み用バッファ |
-| 0500h~07FFh | スタックエリア |
+| 0300h~04FFh | FAT用バッファ(256バイトx2) |
+| 0500h~05FFh | セクタデータ読み込み用バッファ |
+| 0600h~07FFh | スタックエリア |
 |  | 空き |
 | 1F00h~2040h | S-OSサブルーチンのフック、ワーク |
 | 2B00h~2B06h | S-OSサブルーチンのフック、ワーク |
@@ -92,8 +92,8 @@ graph LR;
 | 10xxh b<br>11xxh r<br>12xxh g | X1のグラフィックパレット |
 | 1Bxxh data<br>1Cxxh reg. | AY-3-8910<br>R14レジスタ : GamePad<br>　0bit : Up<br>　1bit: Down<br>　2bit: Left<br>　3bit: Right<br>　5bit: Trigger1<br>　6bit: Trigger2<br>※注意）負論理（0で押下されている）<br>@todo Trigger1と2が物理的に左右どっちのボタンなのかがわからないので、調べること |
 | 1FA0h<br>1FA1h<br>1FA2h<br>1FA3h | Z80 CTC |
-| 2000h~2800h | X1のテキスト属性VRAM<br>PCG属性のみ対応 |
-| 3000h~3800h | X1のテキストVRAM |
+| 2000h~27FFh | X1のテキスト属性VRAM<br>PCG属性、反転のみ対応 |
+| 3000h~37FFh | X1のテキストVRAM |
 | 4000h~FFFFh | X1のグラフィックVRAM |
 
 - AY-3-8910 入力2MHz

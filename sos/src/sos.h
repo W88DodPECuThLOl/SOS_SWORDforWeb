@@ -240,20 +240,20 @@ static constexpr u16 ADDRESS_KBFAD     = 0x0200; // ～ 0x02FF
 /**
  * @brief S-OSファットバッファのアドレス
  */
-static constexpr u16 ADDRESS_FATBF     = 0x0300; // ～ 0x03FF
+static constexpr u16 ADDRESS_FATBF     = 0x0300; // ～ 0x04FF
 /**
  * @brief S-OSセクタリードバッファのアドレス
  */
-static constexpr u16 ADDRESS_DTBUF     = 0x0400; // ～ 0x04FF
+static constexpr u16 ADDRESS_DTBUF     = 0x0500; // ～ 0x05FF
 /**
  * @brief S-OS スタックアドレス
  */
-static constexpr u16 ADDRESS_STKAD     = 0x0800; // 0x0500 ～ 0x07FF
+static constexpr u16 ADDRESS_STKAD     = 0x0800; // 0x0600 ～ 0x07FF
 /**
  * @brief S-OS 使用できるメモリの最大アドレス
  * 
  * 0x3000～0xFFFFが空き。
- * @note 0x0700～0x2FFFも使用していないので、自由に使える
+ * @note 0x0800～0x2FFFも使用していないので、自由に使える
  */
 static constexpr u16 ADDRESS_MEMAX     = 0xFFFF;
 
