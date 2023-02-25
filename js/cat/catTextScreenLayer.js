@@ -485,24 +485,40 @@ export default class {
 	 * @returns {boolean} カーソルを表示するかどうか
 	 */
 	getDisplayCursor() { return this.#display; }
-	
+
 	/**
 	 * １行文スクロールする
+	 * @param {*} range スクロールする範囲
 	 */
-	scroll()
+	scroll(range)
 	{
+		if(!range) {
+			range = {
+				top: 0,
+				left: 0,
+				bottom: this.#height,
+				right: this.#width,
+			};
+		}
 		this.#isModified = true; // 変更フラグセット
+
 		// スクロール
-		let dst = 0;
-		let src = this.#width * this.#letterSize;
-		const end = this.#width * this.#height * this.#letterSize;
-		while(src != end) {
-			this.#tram[dst++] = this.#tram[src++];
+		for(let y = range.top; y < range.bottom - 1; ++y) {
+			let dst = (range.left +  y      * this.#width) * this.#letterSize;
+			let src = (range.left + (y + 1) * this.#width) * this.#letterSize;
+			for(let x = range.left; x < range.right; ++x) {
+				this.#tram[dst++] = this.#tram[src++];
+				this.#tram[dst++] = this.#tram[src++];
+				this.#tram[dst++] = this.#tram[src++];
+			}
 		}
 		// 新しく出来た行をクリア
 		const color = this.getColor();
 		const attr = this.getAttr();
-		while(dst != end) {
+		const y = range.bottom - 1;
+		const x = range.left;
+		let dst = (x + y * this.#width) * this.#letterSize;
+		for(let x = range.left; x < range.right; ++x) {
 			this.#tram[dst + this.#codePointIndex] = 0;
 			this.#tram[dst + this.#colorIndex] = color;
 			this.#tram[dst + this.#attrIndex] = attr;
