@@ -92,34 +92,16 @@ class TaskMonitor {
 	}
 
 	/**
-	 * エラーコードを表示して、コマンド入力状態に遷移する
+	 * ディレクトリのセクタ番号を取得する
+	 * 
 	 * @param {TaskContext} ctx 
-	 * @param {number} errorCode エラーコード
-	 * @returns {boolean} エラーなのでfalseを返す。
+	 * @param {number} deviceName デバイス(A～)
+	 * @returns {number} ディレクトリのセクタ番号
 	 */
-	#doError(ctx, errorCode)
+	#getDirRecord(ctx, deviceName)
 	{
-		// エラーコードを表示
-		ctx.ERROR(errorCode);
-		ctx.PRINT(SOSKeyCode.CR);
-		// コマンド入力状態に遷移
-		//this.changeState(this.#state_start);
-		return {result: errorCode, state: this.#state_start};
-	}
-	/**
-	 * 色々な結果を評価して、エラーならエラー処理をする  
-	 * エラーの時は、コマンド入力状態に遷移する。
-	 * @param {TaskContext} ctx 
-	 * @param {*} res 色々な処理結果
-	 * @returns {boolean} エラーなら false を返す
-	 */
-	#checkResult(ctx, res)
-	{
-		if(res.result != 0) {
-			this.#doError(ctx, res.result);
-			return false;
-		}
-		return true;
+		//return ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		return ctx.GetDIRPS(deviceName);
 	}
 
 	/**
@@ -258,7 +240,7 @@ class TaskMonitor {
 			isSetLoadAddress = true;
 		}
 		// ディレクトリのレコード
-		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#getDirRecord(ctx, filename.deviceName);
 		// 読み込む
 		const data = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		if(data.result != 0) {
@@ -270,9 +252,11 @@ class TaskMonitor {
 		filename.extension.forEach(ch => ctx.PRINT(ch));
 		ctx.PRINT(SOSKeyCode.CR);
 		// メモリにコピー
-		const address = isSetLoadAddress ? loadAddress : data.loadAddress;
-		for(let i = 0; i < data.value.length; ++i) {
-			ctx.z80Emu.memWriteU8(address + i, data.value[i]);
+		if(data.value != null) {
+			const address = isSetLoadAddress ? loadAddress : data.loadAddress;
+			for(let i = 0; i < data.value.length; ++i) {
+				ctx.z80Emu.memWriteU8(address + i, data.value[i]);
+			}
 		}
 	}
 
@@ -290,7 +274,7 @@ class TaskMonitor {
 		// ファイル名
 		const filename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
 		// ディレクトリのレコード
-		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#getDirRecord(ctx, filename.deviceName);
 		// ファイル削除
 		const result = ctx.Kill(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		if(result.result != 0) {
@@ -312,7 +296,7 @@ class TaskMonitor {
 		// 新しいファイル名
 		const newFilename = this.#parseFilename(ctx, commandLine); // 失敗した場合は、SOSErrorの例外を投げる。
 		// ディレクトリのレコード
-		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#getDirRecord(ctx, oldFilename.deviceName);
 		// リネーム
 		const result = ctx.Rename(oldFilename.deviceName, dirRecord,
 			oldFilename.filename, oldFilename.extension,
@@ -350,7 +334,7 @@ class TaskMonitor {
 		SpCut(commandLine);
 		if(commandLine[0] == 0x50) { // 'P'
 			// ディレクトリのレコード
-			const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+			const dirRecord = this.#getDirRecord(ctx, filename.deviceName);
 			// ライトプロテクト設定
 			const result = ctx.SetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 			if(result.result != 0) {
@@ -358,7 +342,7 @@ class TaskMonitor {
 			}
 		} else if(commandLine[0] == 0x52) { // 'R'
 			// ディレクトリのレコード
-			const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+			const dirRecord = this.#getDirRecord(ctx, filename.deviceName);
 			// ライトプロテクト解除
 			const result = ctx.ResetWriteProtected(filename.deviceName, dirRecord, filename.filename, filename.extension);
 			if(result.result != 0) {
@@ -434,7 +418,7 @@ class TaskMonitor {
 			data[i] = ctx.z80Emu.memReadU8(startAddress + i);
 		}
 		// ディレクトリのレコード
-		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		const dirRecord = this.#getDirRecord(ctx, filename.deviceName);
 		// 属性
 		const fileMode = 0x01; // BIN
 		// セーブ
@@ -471,8 +455,8 @@ class TaskMonitor {
 		SpCut(commandLine);
 		// デバイス取得
 		const deviceName = this.#getdev(ctx, commandLine);
-		// ディレクトリ
-		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+		// ディレクトリのレコード
+		const dirRecord = this.#getDirRecord(ctx, deviceName);
 		const result = ctx.Files(deviceName, dirRecord);
 		if(result.result != 0) {
 			throw new SOSError(result.result);
@@ -493,7 +477,7 @@ class TaskMonitor {
 		const pos = originalCommandLine.length - commandLine.length; // 元々のから現在のを引いて、位置を出す
 		ctx.z80Emu.setDE(ctx.z80Emu.memReadU16(SOSWorkAddr.KBFAD) + pos);
 		// ファイルを読み込む
-		const dirRecord = ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS); // ディレクトリのレコード
+		const dirRecord = this.#getDirRecord(ctx, filename.deviceName); // ディレクトリのレコード
 		const result = ctx.ReadFile(filename.deviceName, dirRecord, filename.filename, filename.extension);
 		if(result.result != 0) {
 			throw new SOSError(result.result); // エラーなのでSOSErrorの例外を投げる。
@@ -512,10 +496,10 @@ class TaskMonitor {
 			return 0x1;
 		} else if(SOSInfomationBlock.isAsciiFile(result.attribute)) {
 			// アスキーファイル
-			ctx.batchManager.start(result.value);
+			ctx.batchManager.start(result.value, commandLine);
 			return 0x4;
 		} else {
-			throw new SOSError(result.result); // エラーなのでSOSErrorの例外を投げる。
+			throw new SOSError(SOSErrorCode.BadFileMode); // エラーなのでSOSErrorの例外を投げる。
 		}
 	}
 
@@ -631,14 +615,6 @@ class TaskMonitor {
 		}
 		return {deviceName: deviceName, filename: filename, extension: extension};
 	}
-
-	/**
-	 * 小さい方を返す
-	 * @param {number} a 値
-	 * @param {number} b 値
-	 * @returns {number} 小さい方
-	 */
-	#min(a,b) { return (a < b) ? a : b; }
 
 	/**
 	 * キーボードバッファへ配列をコピーする

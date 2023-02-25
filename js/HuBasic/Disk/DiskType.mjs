@@ -1,32 +1,71 @@
 ﻿"use strict";
 
 import { DiskTypeEnum } from "./DiskTypeEnum.mjs";
-import TrackFormat from "./TrackFormat.mjs";
-import DiskParameter from "./DiskParameter.mjs";
+import { TrackFormat } from "./TrackFormat.mjs";
+import { DiskParameter } from "./DiskParameter.mjs";
+import { DiskError, DiskErrorCode } from "./DiskError.mjs";
 
-//DiskType
-export default class {
+/**
+ * ディスクタイプ
+ */
+export class DiskType {
+	/**
+	 * ディスクの種類
+	 * @type {DiskTypeEnum}
+	 */
+	#imageType;
+
+
+
+
+
 	/**
 	 * @type {boolean}
 	 */
 	#ForceType;
+
 	/**
 	 * 生データかどうか（ヘッダがない）
 	 * @type {boolean}
 	 */
 	#PlainFormat;
+
 	/**
-	 * ディスクの種類
-	 * 
-	 * 0x00 2D  
-	 * 0x10 2DD  
-	 * 0x20 2HD  
-	 * 
-	 * 0x30 1D  
-	 * 0x40 1DD
-	 * @type {DiskTypeEnum}
+	 * ディスクのパラメータ
+	 * @type {DiskParameter}
 	 */
-	#imageType;
+	DiskParameter;
+
+	/**
+	 * トラックフォーマット
+	 * 
+	 * - 最大トラック数
+	 * - トラックあたりのセクタ数
+	 * @type {TrackFormat}
+	 */
+	#CurrentTrackFormat;
+
+	/**
+	 * 拡張子でヘッダが必要かどうかを判定する
+	 * @param {string} ext 
+	 * @returns {boolean} trueならヘッダ必要なし
+	 */
+	#IsPlainExtension(ext) {
+		return (ext == "2D") || (ext == "2DD") || (ext == "2HD") || (ext == "1D") || (ext == "1DD");
+	}
+
+	// =======================================================
+	// 
+	// =======================================================
+
+	/**
+	 * コンストラクタ
+	 */
+	constructor() {
+		// 2DでD88ヘッダありに設定
+		this.SetImageType(DiskTypeEnum.Disk2D);
+		this.SetPlainFormat(false);
+	}
 
 	/**
 	 * ディスクの種類を取得する
@@ -41,111 +80,40 @@ export default class {
 	SetImageType(imageType) {
 		this.#imageType = imageType;
 		// ディスクの種類に対応したトラックフォーマットを設定
-		this.CurrentTrackFormat = new TrackFormat(imageType);
+		this.#CurrentTrackFormat = new TrackFormat(imageType);
 		// ディスクの種類に対応したディスクのパラメータを設定
 		this.DiskParameter = new DiskParameter(imageType);
 	}
 
 	/**
-	 * トラックフォーマット
-	 * 
-	 * 最大トラック数、トラックあたりのセクタ数
-	 * @type {TrackFormat}
+	 * ディスクの最大トラック数を取得する
+	 * @returns {number} ディスクの最大トラック数
 	 */
-	CurrentTrackFormat;
-	/**
-	 * @type {DiskParameter}
-	 */
-	DiskParameter;
+	GetMaxTrackSize() { return this.#CurrentTrackFormat.GetTrackMax(); }
 
 	/**
-	 * コンストラクタ
+	 * トラックあたりのセクタ数を取得する
+	 * @returns {number} トラックあたりのセクタ数
 	 */
-	constructor() {
-		// 2DでD88ヘッダありに設定
-		this.SetImageType(DiskTypeEnum.Disk2D);
-		this.SetPlainFormat(false);
-	}
+	GetTrackPerSector() { return this.#CurrentTrackFormat.GetTrackPerSector(); }
 
 	/**
-	 * ディスクイメージタイプが2D以外かどうかを調べる
-	 * @returns {boolean} ディスクイメージタイプが2D以外かどうか
+	 * デフォルトのセクタのデータサイズを取得する
+	 * @returns {number} デフォルトのセクタのデータサイズ（バイト単位）
 	 */
-	IsNot2D() { return this.GetImageType() != DiskTypeEnum.Disk2D; }
+	GetDataSize() { return 256; }
 
 	/**
-	 * ディスクの種類の値を取得する
-	 * @returns {number} DiskTypeEnum
+	 * 最大クラスタ数を取得する
+	 * @returns {number} 最大クラスタ数
 	 */
-	ImageTypeByte() {
-		switch (this.GetImageType()) {
-			case DiskTypeEnum.Disk2D:
-				return 0x00;
-			case DiskTypeEnum.Disk2DD:
-				return 0x10;
-			case DiskTypeEnum.Disk2HD:
-				return 0x20;
-			case DiskTypeEnum.Disk1D:
-				return 0x30;
-			case DiskTypeEnum.Disk1DD:
-				return 0x40;
-		}
-		return 0x0;
-	}
+	GetMaxCluster() { return this.DiskParameter.GetMaxCluster(); }
 
 	/**
-	 * オプションからの設定
-	 * @param {string} value ディスクの種類の文字列
-	 * @returns {boolean}
+	 * ディレクトリの開始セクタ番号を取得する
+	 * @returns {number} ディレクトリの開始セクタ番号
 	 */
-	SetDiskTypeFromOption(value) {
-		value = value.toUpperCase();
-		switch (value) {
-			case "2D":
-				this.SetImageType(DiskTypeEnum.Disk2D);
-				break;
-			case "2DD":
-				this.SetImageType(DiskTypeEnum.Disk2DD);
-				break;
-			case "2HD":
-				this.SetImageType(DiskTypeEnum.Disk2HD);
-				break;
-			case "1D":
-				this.SetImageType(DiskTypeEnum.Disk1D);
-				break;
-			case "1DD":
-				this.SetImageType(DiskTypeEnum.Disk1DD);
-				break;
-			default:
-				this.SetImageType(DiskTypeEnum.Unknown);
-				break;
-		}
-
-		// 強制設定する
-		this.#ForceType = this.GetImageType() != DiskTypeEnum.Unknown;
-		return this.#ForceType;
-	}
-
-	/**
-	 * ディスクのメディアタイプを文字列で取得する
-	 * @returns {string} ディスクのメディアタイプの文字列
-	 */
-	GetTypeName() {
-		switch (this.GetImageType()) {
-			case DiskTypeEnum.Disk2D:
-				return "2D";
-			case DiskTypeEnum.Disk2DD:
-				return "2DD";
-			case DiskTypeEnum.Disk2HD:
-				return "2HD";
-			case DiskTypeEnum.Disk1D:
-				return "1D";
-			case DiskTypeEnum.Disk1DD:
-				return "1DD";
-			default:
-				return "Unknown";
-		}
-	}
+	GetEntrySectorStart() { return this.DiskParameter.GetEntrySectorStart(); }
 
 	/**
 	 * 
@@ -157,6 +125,80 @@ export default class {
 	 * @type {boolean} 生データかどうか（ヘッダがない）
 	 */
 	GetPlainFormat() { return this.#PlainFormat; }
+
+	// =======================================================
+	// 
+	// =======================================================
+
+	/**
+	 * 記録密度を取得する
+	 * 
+	 * @returns {number} 記録密度
+	 * 		- 0x00: 倍密度
+	 * 		- 0x40: 単密度
+	 * 		- 0x01: 高密度
+	 * @throws DiskError()
+	 */
+	GetDensity() {
+		switch (this.GetImageType()) {
+			case DiskTypeEnum.Disk2D:
+				return 0x00; // 倍密度
+			case DiskTypeEnum.Disk2DD:
+				return 0x00; // 倍密度
+			case DiskTypeEnum.Disk2HD:
+				return 0x01; // 高密度
+			case DiskTypeEnum.Disk1D:
+				return 0x00; // 倍密度
+			case DiskTypeEnum.Disk1DD:
+				return 0x00; // 倍密度
+			default: // 不明
+				throw new DiskError(DiskErrorCode.UnknownDiskImageType);
+		}
+	}
+
+	/**
+	 * ディスクイメージタイプが2D以外かどうかを調べる
+	 * @returns {boolean} ディスクイメージタイプが2D以外かどうか
+	 */
+	IsNot2D() { return this.GetImageType() != DiskTypeEnum.Disk2D; }
+
+	/**
+	 * オプションからの設定
+	 * @param {string} value ディスクの種類の文字列
+	 * @returns {boolean}
+	 */
+	SetDiskTypeFromOption(value) {
+		value = value.toUpperCase();
+		switch (value) {
+			case "2D": this.SetImageType(DiskTypeEnum.Disk2D); break;
+			case "2DD": this.SetImageType(DiskTypeEnum.Disk2DD); break;
+			case "2HD": this.SetImageType(DiskTypeEnum.Disk2HD); break;
+			case "1D": this.SetImageType(DiskTypeEnum.Disk1D); break;
+			case "1DD": this.SetImageType(DiskTypeEnum.Disk1DD); break;
+			default:
+				this.SetImageType(DiskTypeEnum.Unknown);
+				break;
+		}
+		// 強制設定する
+		this.#ForceType = this.GetImageType() != DiskTypeEnum.Unknown;
+		return this.#ForceType;
+	}
+
+	/**
+	 * ディスクタイプを文字列で取得する
+	 * @returns {string} ディスクタイプの文字列
+	 */
+	GetImageTypeName() {
+		switch (this.GetImageType()) {
+			case DiskTypeEnum.Disk2D: return "2D";
+			case DiskTypeEnum.Disk2DD: return "2DD";
+			case DiskTypeEnum.Disk2HD: return "2HD";
+			case DiskTypeEnum.Disk1D: return "1D";
+			case DiskTypeEnum.Disk1DD: return "1DD";
+			default:
+				return "Unknown";
+		}
+	}
 
 	/**
 	 * @param {string} ext
@@ -181,43 +223,12 @@ export default class {
 	}
 
 	/**
-	 * 拡張子でヘッダが必要かどうかを判定する
-	 * @param {string} ext 
-	 * @returns {boolean} trueならヘッダ必要なし
+	 * ディスクイメージの種類から設定する
+	 * @param {number} imageType ディスクイメージの種類
+	 * @throws DiskError()
 	 */
-	#IsPlainExtension(ext) {
-		return (ext == "2D") || (ext == "2DD") || (ext == "2HD");
-	}
-
-	/**
-	 * トラックあたりのセクタ数を取得する
-	 * @returns {number} トラックあたりのセクタ数
-	 */
-	GetTrackPerSector() { return this.CurrentTrackFormat.GetTrackPerSector(); }
-
-	/**
-	 * 記録密度を取得する
-	 * 
-	 * @returns {number} 記録密度 0x00:倍密度 0x40:単密度 0x01:高密度
-	 */
-	GetDensity() { return 0x00; }
-
-	/**
-	 * ディスクの最大トラック数を取得する
-	 * @returns {number} ディスクの最大トラック数
-	 */
-	GetMaxTrackSize() { return this.CurrentTrackFormat.GetTrackMax(); }
-
-	GetSectorSize() {
-		return 1;
-	}
-
-	/**
-	 * ディスクの種類から設定する
-	 * @param {number} t ディスクの種類
-	 */
-	SetImageTypeFromHeader(t) {
-		switch(t & 0xFF) {
+	SetImageTypeFromHeader(imageType) {
+		switch(imageType & 0xFF) {
 			case 0x40: // 1DD
 				this.SetImageType(DiskTypeEnum.Disk1DD);
 				break;
@@ -230,10 +241,11 @@ export default class {
 			case 0x10: // 2DD
 				this.SetImageType(DiskTypeEnum.Disk2DD);
 				break;
-			case 0x00: // 2D
-			default:
+			case 0x00: // 2D 両面倍密度
 				this.SetImageType(DiskTypeEnum.Disk2D);
 				break;
+			default:
+				throw new DiskError(DiskErrorCode.UnknownDiskImageType);
 		}
 	}
 }

@@ -18,20 +18,22 @@ class SOSInfomationBlock {
 	 *   7: ディレクトリ
 	 * @type {number}
 	 */
-	static ib_attribute      = 0;
-	static ib_filename       = SOSInfomationBlock.ib_attribute + 1;			// 1
-	static ib_extension      = SOSInfomationBlock.ib_filename + 13;			// 14
-	static ib_password       = SOSInfomationBlock.ib_extension + 3;			// 17
-	static ib_size           = SOSInfomationBlock.ib_password + 1;			// 18
-	static ib_startAddress   = SOSInfomationBlock.ib_size + 2;				// 20
-	static ib_executeAddress = SOSInfomationBlock.ib_startAddress + 2;		// 22
-	static ib_date           = SOSInfomationBlock.ib_executeAddress + 2;	// 24
-	static ib_cluster        = SOSInfomationBlock.ib_date + 6;				// 30
+	static ib_attribute      = 0;											// 0x00 0
+	static ib_filename       = SOSInfomationBlock.ib_attribute + 1;			// 0x01 1
+	static ib_extension      = SOSInfomationBlock.ib_filename + 13;			// 0x0e 14
+	static ib_password       = SOSInfomationBlock.ib_extension + 3;			// 0x11 17
+	static ib_size           = SOSInfomationBlock.ib_password + 1;			// 0x12 18
+	static ib_startAddress   = SOSInfomationBlock.ib_size + 2;				// 0x14 20
+	static ib_executeAddress = SOSInfomationBlock.ib_startAddress + 2;		// 0x16 22
+	static ib_date           = SOSInfomationBlock.ib_executeAddress + 2;	// 0x18 24
+	static ib_cluster_high   = SOSInfomationBlock.ib_date + 5;				// 0x1d 29
+	static ib_cluster        = SOSInfomationBlock.ib_cluster_high + 1;		// 0x1e 30
+	static ib_cluster_middle = SOSInfomationBlock.ib_cluster + 1;			// 0x1f 31
 	/**
 	 * インフォメーションブロック(IB)のサイズ
 	 * @type {number}
 	 */
-	static InfomationBlockSize = SOSInfomationBlock.ib_cluster + 2;			// 32
+	static InfomationBlockSize = 0x20;
 
 	/**
 	 * ファイル名のサイズ

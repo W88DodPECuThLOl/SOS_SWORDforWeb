@@ -1,9 +1,8 @@
 ﻿"use strict";
 
 import HuBasicDiskEntry from './HuBasicDiskEntry.mjs';
-import HuFileEntry from './HuFileEntry.mjs';
+import { HuFileEntry, HuDateTime } from './HuFileEntry.mjs';
 import Stream from '../Utils/Stream.mjs';
-import { OpenEntryResult } from './OpenEntryResult.mjs';
 
 // HuBasicDiskImage
 export default class {
@@ -26,21 +25,6 @@ export default class {
 	#Setting;
 
 	/**
-	 * @type {Encoding}
-	 */
-	#TextEncoding;
-
-	/**
-	 * @type {boolean}
-	 */
-	IplEntry;
-
-	/**
-	 * @returns {string}
-	 */
-	IplModeText() { return this.IplEntry ? "IPL" : ""; }
-
-	/**
 	 * デバイスが繋がっているかどうか
 	 * @type {boolean}
 	 */
@@ -53,54 +37,15 @@ export default class {
 		this.#Context = context;
 		this.#Setting = context.Setting;
 
-		this.IplEntry = context.Setting.IplMode;
 		this.#Log = this.#Context.Log;
 		this.#DiskEntry = new HuBasicDiskEntry(this.#Context);
-		this.#TextEncoding = this.#Context.TextEncoding;
 
 		this.#deviceOnline = false;
 	}
 
 	/**
-	 * ファイル追加
-	 * @param {string[]} FilePathData 追加するファイルパス
-	 * @param {string} EntryName 追加するエントリ名
-	 * @returns {boolean}
-	 */
-	AddFile(FilePathData, EntryName = null) {
-
-		for (let s of FilePathData) {
-			if (!this.AddFile(s, EntryName)) return false;
-		}
-
-		// 書き出す
-		// this.WriteImage(); // @todo
-		return true;
-	}
-
-	/**
-	 * ファイルの追加
-	 * @param {Stream} fs
-	 * @param {Uint8Array} EntryFilename ファイル名(X1キャラクタコード)
-	 * @param {DateTime} FileDate ファイルの日付
-	 * @returns {boolean} 成功でtrue
-	 */
-	AddFile4(fs, EntryFilename, FileDate) {
-		const fe = this.#AddEntry(EntryFilename, fs.GetSize(), FileDate);
-		if (fe == null) return false;
-		return this.#WriteFileToImage(fs, fe.StartCluster);
-	}
-
-	/**
-	 * 空きバイト数
-	 * @param {number} FreeCluster
-	 * @returns {number}
-	 */
-	GetFreeBytes(FreeCluster) { return this.#DiskEntry.GetFreeBytes(FreeCluster); }
-
-	/**
-	 * 空きクラスタ数
-	 * @returns {number}
+	 * 空きクラスタ数を取得する
+	 * @returns {number} 空きクラスタ数
 	 */
 	CountFreeClusters() { return this.#DiskEntry.CountFreeClusters(); }
 
@@ -118,291 +63,6 @@ export default class {
 	 */
 	GetEntriesAt(entrySector) {
 		return this.#DiskEntry.GetEntriesAt(entrySector);
-	}
-
-	/**
-	 * イメージのディレクトリを開く
-	 * @param {Uint8Array} name ディレクトリ名(X1キャラクタコード)
-	 * @return {HuBasicDiskEntry.OpenEntryResult}
-	 */
-	OpenEntryDirectory(name) { return this.#DiskEntry.OpenEntryDirectory(name); }
-
-	/**
-	 * ステータスの確認
-	 * @param {HuBasicDiskEntry.OpenEntryResult} Result 
-	 * @return {boolean}
-	 */
-	IsOk(Result) { return this.#DiskEntry.IsOk(Result); }
-
-	/**
-	 * ファイル展開(パターン)
-	 * @param {string} Pattern 
-	 */
-	Extract(Pattern) { this.#ExtractPattern(Pattern); }
-
-	/**
-	 * ファイル削除
-	 * @param {string} Pattern 
-	 */
-	Delete_ParamString(Pattern) { this.#DeletePattern(Pattern); }
-
-	/**
-	 * ファイル削除。イメージにも書き込む。
-	 * @param {string[]} Files
-	 */
-	DeleteFile(Files) {
-		for (let Filename of Files) {
-			this.Delete_ParamString(Filename);
-		}
-		// 書き出す
-		// this.WriteImage(); // @todo
-	}
-
-	/**
-	 * ファイル削除。イメージにも書き込む。
-	 * @param {HuFileEntry[]} EntryData 
-	 */
-	Delete(EntryData) {
-		for (let Entry of EntryData) {
-			this.#DiskEntry.Delete(Entry);
-		}
-		// 書き出す
-		// this.WriteImage(); // @todo
-	}
-
-
-	/// <summary>
-	/// ファイルをすべて削除。イメージにも書き込む。
-	/// </summary>
-	DeleteAll() {
-		this.Delete_ParamString("*");
-		// 書き出す
-		// this.WriteImage(); // @todo
-	}
-
-
-	/**
-	 * ファイル展開
-	 * @param {string} OutputFilename 出力するファイル名
-	 * @param {HuFileEntry} fe 出力するファイルエントリ
-	 * @return {Stream}
-	 */
-	#ExtractFile(OutputFilename, fe) {
-		// 出力ストリーム選択
-		const fs = this.#SelectOutputStream(OutputFilename, fe.Size);
-		this.#DiskEntry.ExtractFile(fs, fe);
-		return fs;
-	}
-
-	/**
-	 * ファイルをディレクトリに展開する
-	 * @param {string} Directory
-	 * @param {HuFileEntry[]} Files
-	 * @return {Stream[]}
-	 */
-	ExtractToDirectory(Directory, Files) {
-		// 展開
-		const result = new Array();
-		for (let fe of Files) {
-			const fileName = this.#TextEncoding.Decode(fe.GetFilename()); // X1キャラコードから文字列に変換
-			const outputName = this.#PathCombine(Directory, fileName);
-			result.push(this.#ExtractFile(outputName, fe));
-		}
-		return result;
-	}
-
-	/**
-	 * 
-	 * @param {string} Directory 
-	 * @param {string} FileName 
-	 * @returns {string}
-	 */
-	#PathCombine(Directory, FileName)
-	{
-		if(Directory.endsWith('/')) {
-			return Directory + FileName;
-		} else {
-			return Directory + '/' + FileName;
-		}
-	}
-
-	/// <summary>
-	/// ファイルの追加
-	/// </summary>
-	/// <param name="FilePath">追加するファイルのパス</param>
-	/// <param name="EntryName">エントリ名(設定したい場合)</param>
-	/// <returns></returns>
-
-	/**
-	 * ファイルの追加
-	 * @param {Uint8Array} FileData 追加するファイルのデータ
-	 * @param {FileDate} FileDate 追加するファイルの日付
-	 * @param {Uint8Array} EntryName (X1キャラクタコード)
-	 * @return {boolean}
-	 */
-	AddFile(Filename, FileData, FileDate, EntryName = null) {
-		//if (!File.Exists(FilePath)) return false;
-		//var fi = new FileInfo(FilePath);
-
-		// EntryFilename = エントリ上のファイル名
-		//const EntryFilename = !string.IsNullOrEmpty(EntryName) ? EntryName : Path.GetFileName(FilePath);
-		//var Size = (int)fi.Length;
-		const Size = FileData.length;
-
-		this.#Log.Info("Add:" + EntryName + " Size:" + Size + " " + this.IplModeText());
-
-
-		//const FileDate = File.GetLastWriteTime(FilePath);
-		const fs = new Stream(Filename, Size);
-
-		return this.AddFile4(fs, EntryName, Size, FileDate);
-	}
-
-
-	/**
-	 * @param {Uint8Array} EntryFilename (X1キャラクタコード)
-	 * @param {number} Size ファイルサイズ
-	 * @param {DateTime} FileDate ファイルの日付
-	 * @return {HuFileEntry}
-	 */
-	#AddEntry(EntryFilename, Size, FileDate) {
-		const fe = this.#MakeFileEntry(EntryFilename, Size, FileDate);
-		if (fe == null) {
-			this.Log.Error("ERROR:No entry space!");
-			return null;
-		}
-
-		const fc = this.#DiskEntry.GetFreeCluster(fe);
-		if (fc < 0) {
-			this.Log.Error("ERROR:No free cluster!");
-			return null;
-		}
-		fe.StartCluster = fc;
-		fe.IsIplEntry = this.IplEntry;
-
-		this.#DiskEntry.WriteFileEntry(fe);
-
-		// ファイルをIPL設定する
-		if (this.IplEntry) {
-			this.Log.Info("IPL Name:" + this.#Setting.IplName);
-			this.IplEntry = false;
-		}
-
-		return fe;
-	}
-
-	/**
-	 * @param {Uint8Array} EntryFilename  ファイル名(ファイル名()+"."+ 拡張子)(X1キャラクタコード)
-	 * @param {number} Size ファイルサイズ
-	 * @param {DateTime} FileDate ファイルの日付
-	 * @returns {HuFileEntry}
-	 */
-	#MakeFileEntry(EntryFilename, Size, FileDate) {
-		const fe = this.#DiskEntry.GetWritableEntry(EntryFilename);
-		fe.Set(EntryFilename, Size, FileDate, this.#Setting.ExecuteAddress, this.#Setting.LoadAddress);
-		return fe;
-	}
-
-	/**
-	 * @param {Stream} fs
-	 * @param {number} StartCluster
-	 * @returns {boolean}
-	 */
-	#WriteFileToImage(fs, StartCluster) {
-		return this.#DiskEntry.WriteStream(fs, StartCluster);
-	}
-
-	/**
-	 * @param {string} Name
-	 */
-	#ExtractPattern(Name) {
-		const EntryName = this.#Setting.EntryName;
-		const EntryPattern = !EntryName ? EntryName : Name;
-
-		const MatchedFiles = this.GetMatchedFiles(EntryPattern);
-
-		// 展開
-		for (let fe of MatchedFiles) {
-			this.Log.Info(fe.Description());
-			const OutputName = !string.IsNullOrEmpty(EntryName) ? Name : fe.GetFilename();
-			this.#ExtractFile(OutputName, fe);
-		}
-	}
-
-
-
-
-
-	/**
-	 * @param {string} Name
-	 */
-	#DeletePattern(Name) {
-		const MatchedFiles = this.GetMatchedFiles(Name);
-
-		for (let fe of MatchedFiles) {
-			this.Log.Info(fe.Description(this.#TextEncoding));
-			this.#DiskEntry.Delete(fe);
-		}
-	}
-
-	/**
-	 * パターンに一致したファイルエントリを取得する
-	 * @param {string} EntryPattern パターン(グロブ)
-	 * @return {HuFileEntry[]}
-	 */
-	GetMatchedFiles(EntryPattern) {
-		const entrys = new Array();
-		const re = new RegExp(this.#PatternToRegex(EntryPattern));
-		const Files = this.#DiskEntry.GetEntries();
-		for(let file of Files) {
-			const filename = this.#TextEncoding.Decode(file.GetFilename());
-			if(re.match(filename)) {
-				entrys.push(file);
-			}
-		}
-		return entrys;
-		/*
-		var r = new Regex(PatternToRegex(EntryPattern), RegexOptions.IgnoreCase);
-		var Files = this.#DiskEntry.GetEntries();
-
-		var MatchedFiles = Files.Where(x => r.IsMatch(x.GetFilename())).ToArray();
-		return MatchedFiles;
-		*/
-	}
-
-	/**
-	 * 
-	 * @param {string} Pattern 
-	 * @returns {string}
-	 */
-	#PatternToRegex(Pattern)
-	{
-		//return "^" + Regex.Escape(Pattern).Replace(@"\*", ".*").Replace(@"\?", ".") + "$";
-		Pattern = Pattern.replace("\\", "\\\\")
-			.Pattern.replace("*", "\\*")
-			.Pattern.replace("+", "\\+")
-			.Pattern.replace("|", "\\|")
-			.Pattern.replace("{", "\\{")
-			.Pattern.replace("[", "\\[")
-			.Pattern.replace("(", "\\(")
-			.Pattern.replace(")", "\\)")
-			.Pattern.replace("^", "\\^")
-			.Pattern.replace("$", "\\$")
-			.Pattern.replace(".", "\\.")
-			.Pattern.replace("#", "\\#")
-			.Pattern.replace(" ", "\\ ")
-		;
-		return "^" + Pattern.replace("\\*", ".*").replace("\\?", ".") + "$";
-	}
-
-	/**
-	 * @param {string} OutputFile ファイル名
-	 * @param {number} FileSize ファイルサイズ
-	 * @return {Stream}
-	 */
-	#SelectOutputStream(OutputFile, FileSize) {
-		const fileSize = FileSize ? FileSize : 0x10000;
-		return new Stream(OutputFile, fileSize);
 	}
 
 	// -------------------------------------------------------------------------------------------
@@ -429,6 +89,12 @@ export default class {
 	}
 
 	/**
+	 * ディスクの種類を取得する
+	 * @returns {DiskType} ディスクの種類
+	 */
+	GetDiskType() { return this.#DiskEntry.GetDiskType(); }
+
+	/**
 	 * イメージの書き出し
 	 * 
 	 * @param {boolean} IsPlainFormat ヘッダ無しかどうか
@@ -437,7 +103,7 @@ export default class {
 	WriteImage(IsPlainFormat) {
 		const fs = new Stream();
 		const Filename = "";
-		const FileSize = IsPlainFormat ? 327680 : 348848;  // 2D : D88_2D  @todo ちゃんとしたサイズ
+		const FileSize = this.#DiskEntry.GetDiskImageFileSize(IsPlainFormat);
 		fs.SetupWrite(Filename, FileSize);
 		this.#DiskEntry.WriteImage(fs);
 		return fs.GetBuffer();
@@ -449,7 +115,26 @@ export default class {
 	Mount()
 	{
 		if(this.#Context.onDriveStateChange) {
-			this.#Context.onDriveStateChange(true, false, true);
+			this.#Context.onDriveStateChange(
+				"Mount",
+				{
+					isMount: true,
+					isAccess: false,
+					isNeedSave: true,
+					info: {
+						/**
+						 * ディスクの種類
+						 * @type{DiskType}
+						 */
+						diskType: this.GetDiskType(),
+						/**
+						 * アンマウントからマウントになったときに true
+						 * @type{boolean}
+						 */
+						trigger: (this.#deviceOnline != true)
+					}
+				}
+			);
 		}
 		this.#deviceOnline = true;
 	}
@@ -460,11 +145,29 @@ export default class {
 	Unmount()
 	{
 		if(this.#Context.onDriveStateChange) {
-			this.#Context.onDriveStateChange(false, false, false);
+			this.#Context.onDriveStateChange(
+				"Unmount",
+				{
+					isMount: false,
+					isAccess: false,
+					isNeedSave: false,
+					info: {
+						/**
+						 * マウントからアンマウントになったときに true
+						 * @type{boolean}
+						 */
+						trigger: (this.#deviceOnline != false)
+					}
+				}
+			);
 		}
 		this.#deviceOnline = false;
 	}
 
+	/**
+	 * マウントされているかどうか
+	 * @returns {boolean} マウントされていれば true を返す
+	 */
 	isMount()
 	{
 		return this.#deviceOnline;
@@ -490,76 +193,54 @@ export default class {
 	 * }}
 	 */
 	Files(DirRecord) {
-		if(!this.#deviceOnline) {
-			return {
-				result: 2 // Device Offline デバイスがつなかっていない
-			};
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
+			return { result: 2 }; // Device Offline 
 		}
 		const freeClusters = this.CountFreeClusters();
 		let ib = new Array();
 		const Files = this.GetEntriesAt(DirRecord);
-		for (let f of Files) {
+		for (let fe of Files) {
 			ib.push({
-				attribute: f.FileMode,				// ファイル属性
-				filename: f.Name,					// ファイル名
-				extension: f.Extension,				// 拡張子
-				password: f.Password,				// パスワード
-				size: f.Size,						// ファイルサイズ
-				loadAddress: f.LoadAddress,			// 読み込みアドレス
-				executeAddress: f.ExecuteAddress,	// 実行アドレス
-				date: f.DateTimeData,				// 日付データ
-				startCluster: f.StartCluster		// 開始クラスタ
-				//dummy_2       @todo ?
+				attribute: fe.GetFileMode(),			// ファイル属性
+				filename: fe.GetName(),					// ファイル名
+				extension: fe.GetExtension(),			// 拡張子
+				password: fe.GetPassword(),				// パスワード
+				size: fe.GetSize(),						// ファイルサイズ
+				loadAddress: fe.GetLoadAddress(),		// 読み込みアドレス
+				executeAddress: fe.GetExecuteAddress(),	// 実行アドレス
+				date: fe.DateTimeData,					// 日付データ
+				startCluster: fe.GetStartCluster()		// 開始クラスタ
 			});
 		}
 		return {result:0, entries:ib, freeClusters:freeClusters};
 	}
 
 	/**
+	 * ファイルエントリを検索する
 	 * 
-	 * @param {string} Filename ファイル名
-	 * @returns {string} 調整されたファイル名
-	 */
-	#convertFilename(Filename)
-	{
-		const filenameEnd = Filename.lastIndexOf('.');
-		let f;
-		let e;
-		if(filenameEnd >= 0) {
-			f = Filename.slice(0, filenameEnd).padEnd(HuFileEntry.MaxNameLength, ' ');
-			e = Filename.slice(filenameEnd + 1).padEnd(HuFileEntry.MaxExtensionLength, ' ');
-		} else {
-			f = Filename;
-			e = "".padEnd(HuFileEntry.MaxNameLength, ' ');
-		}
-		f = f.slice(0, HuFileEntry.MaxNameLength);
-		e = e.slice(0, HuFileEntry.MaxExtensionLength);
-		return f + "." + e;
-	}
-
-	/**
-	 * 
-	 * @param {number} EntrySector 
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {number} EntrySector エントリのセクタ番号
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
-	 * @returns {HuFileEntry}
+	 * @returns {HuFileEntry} ファイルエントリ  
+	 * 		見つからなかった場合は、nullを返す
 	 */
-	#findFileEntry(EntrySector, Filename, Extension)
+	#findFileEntry(EntrySector, Name, Extension)
 	{
 		const Files = this.#DiskEntry.GetEntriesAt(EntrySector);
 		for(let fe of Files) {
-			if(fe.isEqualFilename(Filename, Extension)) {
-				return fe;
+			if(fe.isEqualFilename(Name, Extension)) {
+				return fe; // 見つかった
 			}
 		}
-		return null;
+		return null; // 見つからなかった
 	}
 
 	/**
 	 * インフォメーションブロックを取得する
 	 * 
 	 * resultは、0:成功、8:File not Found。
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 *		result: number,			// 処理結果
@@ -570,9 +251,9 @@ export default class {
 	 *		IB: Uint8Array			// IB
 	 *	}}
 	 */
-    GetInfomationBlock(EntrySector, Filename, Extension)
+    GetInfomationBlock(EntrySector, Name, Extension)
 	{
-		if(!this.#deviceOnline) {
+		if(!this.isMount()) {
 			return {
 				result: 2, // Device Offline デバイスがつなかっていない
 				fileMode: 0,
@@ -583,7 +264,7 @@ export default class {
 			};
 		}
 		// ファイルエントリ検索
-		const fe = this.#findFileEntry(EntrySector, Filename, Extension);
+		const fe = this.#findFileEntry(EntrySector, Name, Extension);
 		if(!fe) {
 			// 見つからなかった
 			return {
@@ -596,12 +277,12 @@ export default class {
 			};
 		}
 		return {
-			result: 0,						// 処理結果 Success
-			fileMode: fe.FileMode,			// ファイルモード
-			loadAddress: fe.LoadAddress,	// 読み込みアドレス
-			execAddress: fe.ExecuteAddress,	// 実行アドレス
-			fileSize: fe.Size,				// ファイルサイズ
-			IB: fe.IB						// IB
+			result: 0,								// 処理結果 Success
+			fileMode: fe.GetFileMode(),				// ファイルモード
+			loadAddress: fe.GetLoadAddress(),		// 読み込みアドレス
+			execAddress: fe.GetExecuteAddress(),	// 実行アドレス
+			fileSize: fe.GetSize(),					// ファイルサイズ
+			IB: fe.GetIB()							// IB
 		};
 	}
 
@@ -610,7 +291,7 @@ export default class {
 	 * 
 	 * resultは、0:成功、2:Device Offline、8:File not Found。
 	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename 読み込むファイル名
+	 * @param {Uint8Array} Name 読み込むファイル名
 	 * @param {Uint8Array} Extension 読み込むファイルの拡張子
 	 * @returns {{
 	 *		result: number,			// 処理結果
@@ -620,9 +301,9 @@ export default class {
 	 *		execAddress: number,	// 実行アドレス
 	 * }}
 	 */
-	ReadFile(DirRecord, Filename, Extension)
+	ReadFile(DirRecord, Name, Extension)
 	{
-		if(!this.#deviceOnline) {
+		if(!this.isMount()) {
 			return {
 				result: 2, // Device Offline デバイスがつながっていない
 				attribute: 0,
@@ -633,7 +314,7 @@ export default class {
 		}
 
 		// ファイルエントリ検索
-		const fe = this.#findFileEntry(DirRecord, Filename, Extension);
+		const fe = this.#findFileEntry(DirRecord, Name, Extension);
 		if(!fe) {
 			// 見つからなかった
 			return {
@@ -646,47 +327,61 @@ export default class {
 		}
 		// 読み込み
 		const fs = new Stream();
-		fs.SetupWrite("", fe.Size);
+		fs.SetupWrite("", 0);
 		this.#DiskEntry.ExtractFile(fs, fe);
 		return {
-			result: 0,						// 処理結果 Success
-			attribute: fe.FileMode,			// ファイル属性
-			value: fs.GetBuffer(),			// 読み込んだデータ
-			loadAddress: fe.LoadAddress,	// 読み込みアドレス
-			execAddress: fe.ExecuteAddress	// 実行アドレス
+			result: 0,							// 処理結果 Success
+			attribute: fe.GetFileMode(),		// ファイル属性
+			value: fs.GetBuffer(),				// 読み込んだデータ
+			loadAddress: fe.GetLoadAddress(),	// 読み込みアドレス
+			execAddress: fe.GetExecuteAddress()	// 実行アドレス
 		};
 	}
 
 	/**
-	 * @param {Uint8Array} EntryFilename  ファイル名(ファイル名()+"."+ 拡張子)(X1キャラクタコード)
-	 * @param {number} Size ファイルサイズ
-	 * @param {DateTime} FileDate ファイルの日付
+	 * @param {number} DirRecord 
+	 * @param {Uint8Array} Name  ファイル名
+	 * @param {Uint8Array} Extension  拡張子
+	 * @param {Uint8Array} Data
+	 * @param {number} SaveAddress 
+	 * @param {number} ExecAddress 
+	 * @param {HuDateTime} FileDate ファイルの日付
 	 * @param {number} FileMode 属性（ファイルモード）
 	 * @returns {HuFileEntry}
 	 */
-	#MakeFileEntry2(DirRecord, Filename, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode) {
-		const fe = this.#DiskEntry.GetWritableEntry2(DirRecord, Filename, Extension);
+	#MakeFileEntry2(DirRecord, Name, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode) {
+		const fe = this.#DiskEntry.GetWritableEntry2(DirRecord, Name, Extension);
 		if(!fe) { return null; }
-		fe.Set2(Filename, Extension, Data.length, SaveAddress, ExecAddress, FileDate, FileMode);
+		fe.Set(Name, Extension, Data.length, SaveAddress, ExecAddress, FileDate, FileMode);
 		return fe;
 	}
 
-	#AddEntry2(DirRecord, Filename, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode) {
-		const fe = this.#MakeFileEntry2(DirRecord, Filename, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode);
+	/**
+	 * 
+	 * @param {number} DirRecord ディレクトリのレコード
+	 * @param {Uint8Array} Name ファイル名
+	 * @param {Uint8Array} Extension 拡張子
+	 * @param {Uint8Array} Data 書き込むデータ
+	 * @param {number} SaveAddress 開始アドレス
+	 * @param {number} ExecAddress 実行アドレス
+	 * @param {HuDateTime} FileDate ファイルの日付
+	 * @param {number} FileMode 属性（ファイルモード）
+	 * @returns 
+	 */
+	#AddEntry2(DirRecord, Name, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode) {
+		const fe = this.#MakeFileEntry2(DirRecord, Name, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode);
 		if (fe == null) {
-			return {
-				result: 7 // BadAllocationTable ファットエラー
-			};
+			// BadAllocationTable ファットエラー
+			return { result: 7, value: fe };
 		}
 		// 空きクラスタ取得
-		const fc = this.#DiskEntry.GetFreeCluster(fe);
-		if (fc < 0) {
-			return {
-				result: 9 // DeviceFull ディスクが一杯
-			};
+		const freeCluster = this.#DiskEntry.GetFreeCluster(fe);
+		if (freeCluster < 0) {
+			// 空きクラスタが無いので、ディスクいっぱい
+			return { result: 9, value: fe }; // DeviceFull ディスクが一杯
 		}
 		//
-		fe.StartCluster = fc;
+		fe.StartCluster = freeCluster;
 		this.#DiskEntry.WriteFileEntry(fe);
 		return {result: 0, value: fe};
 	}
@@ -695,7 +390,7 @@ export default class {
 	 * ファイルを書き込む
 	 * 
 	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @param {Uint8Array} Data 書き込むデータ
 	 * @param {number} SaveAddress 開始アドレス
@@ -704,53 +399,54 @@ export default class {
 	 * @param {number} FileMode 属性（ファイルモード）
 	 * @returns 
 	 */
-	WriteFile(DirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
+	WriteFile(DirRecord, Name, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
-		if(!this.#deviceOnline) {
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
 			return {
-				result: 2, // Device Offline デバイスがつなかっていない
+				result: 2, // Device Offline
 				value: new Uint8Array(),
 				loadAddress: 0x0000,
 				execAddress: 0x0000,
 			};
 		}
-		// @todo
-		const date = new Date();
-		const FileDate = {
-			Year: date.getFullYear(),
-			Month: date.getMonth(),
-			DayOfWeek: date.getDay(),
-			Day: date.getDate(),
-			Hour: date.getHours(),
-			Minute: date.getMinutes(),
-			Second: date.getSeconds()
-		};
-/*
-		DateTimeData[0] = this.ConvertToBCD(date.Year);
-		DateTimeData[1] = (date.Month & 0x0f) << 4;
-		DateTimeData[1] |= date.DayOfWeek & 0x0f;
-		DateTimeData[2] = this.ConvertToBCD(date.Day);
+		if(this.#DiskEntry.GetWriteProtect()) {
+			// ディスクが書き込み禁止なのでエラー
+			return {
+				result: 4, // Write Protected
+				value: new Uint8Array(),
+				loadAddress: 0x0000,
+				execAddress: 0x0000,
+			};
+		}
 
-		DateTimeData[3] = this.ConvertToBCD(date.Hour);
-		DateTimeData[4] = this.ConvertToBCD(date.Minute);
-		DateTimeData[5] = this.ConvertToBCD(date.Second);
-*/
-		const fe = this.#AddEntry2(DirRecord, Filename, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode);
+		// @todo 上書きの場合の空き容量の計算
+		const freeClusters = this.CountFreeClusters();
+		if(freeClusters * 256 * 16 < Data.length) {
+			// 空き容量不足
+			return {
+				result: 9, // DeviceFull ディスクが一杯
+				value: new Uint8Array(),
+				loadAddress: 0x0000,
+				execAddress: 0x0000,
+			};
+		}
+
+		const FileDate = new HuDateTime();
+		const fe = this.#AddEntry2(DirRecord, Name, Extension, Data, SaveAddress, ExecAddress, FileDate, FileMode);
 		if(fe.result != 0) {
 			// ファイルエントリ追加失敗
 			return { result: fe.result };
 		}
+		// データ書き込み
 		const fs = new Stream();
 		fs.SetupRead("", Data);
-		if(!this.#WriteFileToImage(fs, fe.value.StartCluster)) {
-			return {
-				result: 1 // Device IO Error 入出力時にエラーが発生した
-			};
+		if(!this.#DiskEntry.WriteStream(fs, fe.value.GetStartCluster())) {
+			// 入出力時にエラーが発生した
+			return { result: 1 }; // Device IO Error 
 		}
 		// 正常終了
-		return {
-			result: 0 // 処理結果 Success
-		};
+		return { result: 0 }; // 処理結果 Success
 	}
 
 	/**
@@ -764,7 +460,7 @@ export default class {
 	 */
 	ReadRecord(Record)
 	{
-		if(!this.#deviceOnline) {
+		if(!this.isMount()) {
 			return {
 				result: 2, // Device Offline デバイスがつなかっていない
 				value: new Uint8Array()
@@ -784,10 +480,13 @@ export default class {
 	 */
 	WriteRecord(Record, Data)
 	{
-		if(!this.#deviceOnline) {
-			return {
-				result: 2 // Device Offline デバイスがつなかっていない
-			};
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
+			return { result: 2 }; // Device Offline
+		}
+		if(this.#DiskEntry.GetWriteProtect()) {
+			// ディスクが書き込み禁止なのでエラー
+			return { result: 4 }; // Write Protected
 		}
 		return this.#DiskEntry.WriteRecord(Record, Data);
 	}
@@ -796,177 +495,161 @@ export default class {
 	 * ライトプロテクトを設定する
 	 * 
 	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }}
 	 */
-	SetWriteProtected(DirRecord, Filename, Extension)
+	SetWriteProtected(DirRecord, Name, Extension)
 	{
-		if(!this.#deviceOnline) {
-			return {
-				result: 2 // Device Offline デバイスがつなかっていない
-			};
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
+			return { result: 2 }; // Device Offline
+		}
+		if(this.#DiskEntry.GetWriteProtect()) {
+			// ディスクが書き込み禁止なのでエラー
+			return { result: 4 }; // Write Protected
 		}
 
 		// ファイルエントリ検索
-		const fe = this.#findFileEntry(DirRecord, Filename, Extension);
+		const fe = this.#findFileEntry(DirRecord, Name, Extension);
 		if(!fe) {
 			// 見つからなかった
-			return {
-				result: 8 // File not Found
-			};
+			return { result: 8 }; // File not Found
 		}
 		if(fe.IsReadOnly()) {
 			// 既に読み出し専用だった
-			return {
-				result: 0 // 処理結果 Success
-			};
+			return { result: 0 }; // 処理結果 Success
 		}
 		// 読み込み専用にして
 		fe.SetReadOnly();
 		// 書き出す
 		this.#DiskEntry.WriteFileEntry(fe);
 		// 正常終了
-		return {
-			result: 0 // 処理結果 Success
-		};
+		return { result: 0 }; // 処理結果 Success
 	}
 
 	/**
 	 * ライトプロテクトを解除する
 	 * 
 	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }}
 	 */
-	ResetWriteProtected(DirRecord, Filename, Extension)
+	ResetWriteProtected(DirRecord, Name, Extension)
 	{
-		if(!this.#deviceOnline) {
-			return {
-				result: 2 // Device Offline デバイスがつなかっていない
-			};
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
+			return { result: 2 }; // Device Offline
+		}
+		if(this.#DiskEntry.GetWriteProtect()) {
+			// ディスクが書き込み禁止なのでエラー
+			return { result: 4 }; // Write Protected
 		}
 
 		// ファイルエントリ検索
-		const fe = this.#findFileEntry(DirRecord, Filename, Extension);
+		const fe = this.#findFileEntry(DirRecord, Name, Extension);
 		if(!fe) {
 			// 見つからなかった
-			return {
-				result: 8 // File not Found
-			};
+			return { result: 8 };  // File not Found
 		}
 		if(!fe.IsReadOnly()) {
 			// 読み出し専用では無かった
-			return {
-				result: 0 // 処理結果 Success
-			};
+			return { result: 0 }; // 処理結果 Success
 		}
 		// 読み書きできるようにして
 		fe.ResetReadOnly();
 		// 書き出す
 		this.#DiskEntry.WriteFileEntry(fe);
 		// 正常終了
-		return {
-			result: 0 // 処理結果 Success
-		};
+		return { result: 0 }; // 処理結果 Success
 	}
 
 	/**
 	 * ファイルを削除する
 	 * 
 	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }}
 	 */
-	Kill(DirRecord, Filename, Extension)
+	Kill(DirRecord, Name, Extension)
 	{
-		if(!this.#deviceOnline) {
-			return {
-				result: 2 // Device Offline デバイスがつなかっていない
-			};
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
+			return { result: 2 }; // Device Offline
+		}
+		if(this.#DiskEntry.GetWriteProtect()) {
+			// ディスクが書き込み禁止なのでエラー
+			return { result: 4 }; // Write Protected
 		}
 
 		// ファイルエントリ検索
-		const fe = this.#findFileEntry(DirRecord, Filename, Extension);
+		const fe = this.#findFileEntry(DirRecord, Name, Extension);
 		if(!fe) {
 			// 見つからなかった
-			return {
-				result: 8 // File not Found
-			};
+			return { result: 8 }; // File not Found
 		}
 		if(fe.IsReadOnly()) {
 			// 読み出し専用だったので、削除できない
-			return {
-				result: 4 // Write Protected
-			};
+			return { result: 4 }; // Write Protected
 		}
 		// 削除する
 		this.#DiskEntry.Delete(fe);
-		// 書き出す
-		// this.WriteImage(); // @todo
 		// 正常終了
-		return {
-			result: 0 // 処理結果 Success
-		};
+		return { result: 0 }; // Success
 	}
 
 	/**
 	 * ファイル名を変更する
 	 * 
 	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
-	 * @param {Uint8Array} NewFilename 新しいファイル名
+	 * @param {Uint8Array} NewName 新しいファイル名
 	 * @param {Uint8Array} NewExtension 新しい拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }}
 	 */
-	Rename(DirRecord, Filename, Extension, NewFilename, NewExtension)
+	Rename(DirRecord, Name, Extension, NewName, NewExtension)
 	{
-		if(!this.#deviceOnline) {
-			return {
-				result: 2 // Device Offline デバイスがつなかっていない
-			};
+		if(!this.isMount()) {
+			// デバイスがつなかっていない
+			return { result: 2 }; // Device Offline
+		}
+		if(this.#DiskEntry.GetWriteProtect()) {
+			// ディスクが書き込み禁止なのでエラー
+			return { result: 4 }; // Write Protected
 		}
 
 		// ファイルエントリ検索
-		const fe = this.#findFileEntry(DirRecord, Filename, Extension);
+		const fe = this.#findFileEntry(DirRecord, Name, Extension);
 		if(!fe) {
 			// 見つからなかった
-			return {
-				result: 8 // File not Found
-			};
+			return { result: 8 }; // File not Found
 		}
 		if(fe.IsReadOnly()) {
 			// 読み出し専用だったので、変更できなかった
-			return {
-				result: 4 // Write Protected
-			};
+			return { result: 4 }; // Write Protected
 		}
-		const newFe = this.#findFileEntry(DirRecord, NewFilename, NewExtension);
+		const newFe = this.#findFileEntry(DirRecord, NewName, NewExtension);
 		if(newFe) {
 			// 新しいファイル名が既に存在する
-			return {
-				result: 10 // File Aready Exists
-			};
+			return { result: 10 }; // File Aready Exists
 		}
 
 		// 新しいファイル名を設定する
-		fe.SetFilename2(NewFilename, NewExtension);
+		fe.SetFilename(NewName, NewExtension);
 		// 書き出す
 		this.#DiskEntry.WriteFileEntry(fe);
 		// 正常終了
-		return {
-			result: 0 // 処理結果 Success
-		};
+		return { result: 0 }; // Success
 	}
 }

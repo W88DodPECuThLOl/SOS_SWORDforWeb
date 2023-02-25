@@ -25,4 +25,18 @@ class SOSKeyCode {
 	 * @type {number}
 	 */
 	static BRK = 0x1B;
+
+	/**
+	 * S-OSのキーコード
+	 * スペース
+	 * @type {number}
+	 */
+	static SPACE = 0x20;
+	
+	/**
+	 * S-OSのキーコード
+	 * コロン
+	 * @type {number}
+	 */
+	static COLON = 0x3A;
 };

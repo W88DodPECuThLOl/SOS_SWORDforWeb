@@ -277,9 +277,11 @@
 					var ctxDisk = new Context();
 					if(i != 2 && i != 3) {
 						ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
+						//ctxDisk.Setting.SetImageType("2DD"); // メモ)2DDのテスト
+						//ctxDisk.Setting.SetImageType("2HD"); // メモ)2HDのテスト
 						ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
 					}
-					ctxDisk.onDriveStateChange = (isMount, isAccess, needSave) => { updateDriveInfo(i, isMount, isAccess, needSave); };
+					ctxDisk.onDriveStateChange = (event, params) => { updateDriveInfo(i, event, params, params.isMount, params.isAccess, params.isNeedSave); };
 					disks.push(new HuBasicDisk(ctxDisk));
 
 					// 保存
@@ -364,7 +366,7 @@
 							const ctxDisk = new Context();
 							ctxDisk.Setting.SetImageType("2D"); // メモ)S-OSは2Dのみ対応
 							ctxDisk.Setting.FormatImage = true; // マウント時にフォーマットするように設定
-							ctxDisk.onDriveStateChange = (isMount, isAccess, needSave) => { updateDriveInfo(i, isMount, isAccess, needSave); };
+							ctxDisk.onDriveStateChange = (event, params) => { updateDriveInfo(i, event, params, params.isMount, params.isAccess, params.isNeedSave); };
 							disks[i] = new HuBasicDisk(ctxDisk);
 							disk.value = '';
 						});
@@ -380,7 +382,7 @@
 			 * @param {boolean} isAccess アクセスされたかどうか
 			 * @param {boolean} needSave 変更されたので保存が必要なとき true
 			 */
-			async function updateDriveInfo(driveNo, isMount, isAccess, needSave)
+			async function updateDriveInfo(driveNo, event, params, isMount, isAccess, needSave)
 			{
 				let baseClass = driveNo <= 3 ? "cat-media-icon-fd" : "cat-media-icon-ram-disk";
 				const drive = document.getElementById('drive' + driveNo);
@@ -389,6 +391,22 @@
 				const storeMenuItem = document.getElementById('store' + driveNo);
 				const restoreMenuItem = document.getElementById('restore' + driveNo);
 
+				if(event == 'Mount') {
+					if(params.info.trigger) {
+						// マウントされた
+						if(ctx) {
+							ctx.diskEvent(driveNo, event, params.info);
+						}
+					}
+				}
+				if(event == 'Unmount') {
+					if(params.info.trigger) {
+						// アンマウントされた
+						if(ctx) {
+							ctx.diskEvent(driveNo, event, params.info);
+						}
+					}
+				}
 				if(isMount) {
 					if(isAccess) {
 						// ドライブアクセス
@@ -481,10 +499,26 @@
 				} else if(isD88Image(readData)) {
 					// D88のイメージ
 					// ディスクをセットする
+					//disks[deviceNo].GetDiskType().SetImageType();
+					disks[deviceNo].GetDiskType().SetPlainFormat(false);
 					disks[deviceNo].mount(filename, readData, false);
 				} else if(is2dImage(filename, readData)) {
 					// 2Dの生イメージ
 					// ディスクをセットする
+					disks[deviceNo].GetDiskType().SetImageType(0x00);
+					disks[deviceNo].GetDiskType().SetPlainFormat(true);
+					disks[deviceNo].mount(filename, readData, true);
+				} else if(is2ddImage(filename, readData)) {
+					// 2DDの生イメージ
+					// ディスクをセットする
+					disks[deviceNo].GetDiskType().SetImageType(0x10);
+					disks[deviceNo].GetDiskType().SetPlainFormat(true);
+					disks[deviceNo].mount(filename, readData, true);
+				} else if(is2hdImage(filename, readData)) {
+					// 2HDの生イメージ
+					// ディスクをセットする
+					disks[deviceNo].GetDiskType().SetImageType(0x20);
+					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
 				} else {
 					alert("不明なフォーマットタイプです。")
@@ -520,13 +554,33 @@
 				// 2Dフォーマット時の標準的なファイルサイズで、判定
 				if(data.length != 327680) { return false; }
 				// イメージファイル名が2Dではないので違う
-				if(!filename.endsWith(".2D") && !filename.endsWith(".2d")) { return false; }
+				if(!filename.toUpperCase().endsWith(".2D")) { return false; }
+				// OK
+				return true;
+			}
+			/**
+			 * 2DDの生イメージかどうか
+			 */
+			 function is2ddImage(filename, data)
+			{
+				// イメージファイル名が2DDではないので違う
+				if(!filename.toUpperCase().endsWith(".2DD")) { return false; }
+				// OK
+				return true;
+			}
+			/**
+			 * 2HDの生イメージかどうか
+			 */
+			 function is2hdImage(filename, data)
+			{
+				// イメージファイル名が2HDではないので違う
+				if(!filename.toUpperCase().endsWith(".2HD")) { return false; }
 				// OK
 				return true;
 			}
 
 			/**
-			 * 2DのD88形式かどうか
+			 * D88形式かどうか
 			 */
 			function isD88Image(data)
 			{
@@ -778,7 +832,7 @@
 			}
 
 			/**
-			 * @param {string} 実行するファイル名
+			 * @param {string} execFile 実行するファイル名
 			 */
 			function autoStart(execFile) {
 				const execFileReader = new XMLHttpRequest() ;

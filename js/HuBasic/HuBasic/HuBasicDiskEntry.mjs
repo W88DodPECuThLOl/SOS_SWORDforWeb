@@ -1,14 +1,10 @@
 ﻿"use strict";
 
 import Stream from '../Utils/Stream.mjs';
-import DiskImage from '../Disk/DiskImage.mjs';
-import HuFileEntry from './HuFileEntry.mjs';
+import { DiskImage } from '../Disk/DiskImage.mjs';
+import { HuFileEntry } from './HuFileEntry.mjs';
 import { OpenEntryResult } from './OpenEntryResult.mjs';
 import { DiskTypeEnum } from "../Disk/DiskTypeEnum.mjs";
-
-// メモ）X1のディレクトリの区切りは スラッシュ
-const directoryDelimiter = 0x2f; // slash
-const extensionDelimiter = 0x2e; // '.'
 
 class AsciiData {
 	/**
@@ -31,7 +27,7 @@ export default class {
 	/**
 	 * @type {number}
 	 */
-	EntryEnd = 0xFF;
+	#EntryEnd = 0xFF;
 	/**
 	 * @type {number}
 	 */
@@ -62,15 +58,23 @@ export default class {
 	 */
 	CurrentEntrySector;
 
-	AllocationTableStart() { return this.DiskParameter.AllocationTableStart; }
 	/**
-	 * @returns {number}
+	 * FATの開始セクタ番号を取得する
+	 * @returns {number} FATの開始セクタ番号
 	 */
-	MaxCluster() { return this.DiskParameter.MaxCluster; }
+	GetAllocationTableStart() { return this.DiskParameter.GetAllocationTableStart(); }
+
 	/**
-	 * @returns {number}
+	 * 最大クラスタ数を取得する
+	 * @returns {number} 最大クラスタ数
 	 */
-	ClusterPerSector() { return this.DiskParameter.ClusterPerSector; }
+	GetMaxCluster() { return this.DiskParameter.GetMaxCluster(); }
+
+	/**
+	 * クラスタあたりのセクタ数を取得する
+	 * @returns {number} クラスタあたりのセクタ数
+	 */
+	GetClusterPerSector() { return this.DiskParameter.GetClusterPerSector(); }
 
 	/**
 	 * @type {DataController[]}
@@ -88,15 +92,11 @@ export default class {
 	/**
 	 * @type {DiskType}
 	 */
-	DiskType;
+	//DiskType;
 	/**
 	 * @type {DiskTypeEnum}
 	 */
 	ImageType;
-	/**
-	 * @type {Encoding}
-	 */
-	TextEncoding;
 	/**
 	 * @type {Log}
 	 */
@@ -108,10 +108,7 @@ export default class {
 	constructor(Context) {
 		this.DiskImage = new DiskImage(Context);
 		this.Setting = Context.Setting;
-
-		this.DiskType = this.Setting.DiskType;
 		this.ImageType = this.Setting.DiskType.GetImageType();
-		this.TextEncoding = Context.TextEncoding;
 
 		this.Log = Context.Log;
 		if (this.Setting.FormatImage) {
@@ -122,11 +119,18 @@ export default class {
 	}
 
 	/**
+	 * ライトプロテクトかどうか
+	 * @returns {boolean} ライトプロテクトなら true を返す
+	 */
+	GetWriteProtect() { return this.DiskImage.GetWriteProtect(); }
+
+	/**
 	 * ディスクイメージの書き込み
 	 * @param {Stream} fs
 	 */
 	WriteImage(fs) {
-		this.DiskImage.Write(fs);
+		const isPlainFormat = false;
+		this.DiskImage.Write(fs, isPlainFormat);
 	}
 
 	/**
@@ -134,7 +138,8 @@ export default class {
 	 * @param {Stream} fs
 	 */
 	ReadOrFormat(fs) {
-		if (!this.DiskImage.Read(fs)) {
+		const isPlainFormat = false;
+		if (!this.DiskImage.Read(fs, isPlainFormat)) {
 			this.FormatDisk();
 			return;
 		}
@@ -144,11 +149,10 @@ export default class {
 	/**
 	 * ディスクイメージの読み込み
 	 * @param {Stream} fs
-	 * @param {boolean} IsPlainFormat ヘッダ無しかどうか
+	 * @param {boolean} isPlainFormat ヘッダ無しかどうか
 	 */
-	Read(fs, IsPlainFormat) {
-		this.DiskImage.PlainFormat = IsPlainFormat;
-		if (!this.DiskImage.Read(fs)) {
+	Read(fs, isPlainFormat) {
+		if (!this.DiskImage.Read(fs, isPlainFormat)) {
 			return false;
 		}
 
@@ -156,6 +160,9 @@ export default class {
 		return true;
 	}
 
+	/**
+	 * フォーマットする
+	 */
 	FormatDisk() {
 		this.DiskImage.Format();
 		this.#SetParameter(true);
@@ -171,31 +178,19 @@ export default class {
 	}
 
 	#SetDiskParameter() {
-		this.DiskParameter = this.DiskType.DiskParameter;
-		this.CurrentEntrySector = this.DiskType.DiskParameter.EntrySectorStart;
+		this.DiskParameter = this.GetDiskType().DiskParameter;
+		this.CurrentEntrySector = this.GetDiskType().DiskParameter.GetEntrySectorStart();
 	}
 
 	/**
-	 * @param {OpenEntryResult} result
-	 * @return {boolean}
-	 */
-	IsOk(result) { return result == OpenEntryResult.Ok; }
-
-	/**
-	 * @param {number} entrySector ディレクトリの場所
+	 * @param {number} entrySector ディレクトリのセクタ番号
 	 * @returns {HuFileEntry[]}
 	 */
-	GetEntriesAt(entrySector) { return this.GetEntriesFromSector(entrySector); }
+	GetEntriesAt(entrySector) { return this.#GetEntriesFromSector(entrySector); }
 	/**
 	 * @returns {HuFileEntry[]}
 	 */
 	GetEntries() { return this.GetEntriesAt(this.CurrentEntrySector); }
-
-	/**
-	 * @param {number} FreeCluster
-	 * @returns {number}
-	 */
-	GetFreeBytes(FreeCluster) { return FreeCluster * this.ClusterPerSector() * this.DefaultSectorBytes; }
 
 	/**
 	 * 空きクラスタを数える
@@ -203,56 +198,69 @@ export default class {
 	 */
 	CountFreeClusters() {
 		let Result = 0;
-		for (let i = 0; i < this.MaxCluster(); i++) {
-			const end = this.#IsEndCluster(i);
-			const ptr = this.#GetClusterValue(i);
-			if (!end && ptr == 0x00) Result++;
+		for (let i = 0; i < this.GetMaxCluster(); i++) {
+			if(!this.#IsEndCluster(i)) {
+				if(this.#GetClusterValue(i) == 0x00) {
+					Result++;
+				}
+			}
 		}
 		return Result;
 	}
 
-
-
 	/**
 	 * ファイル展開
-	 * @param {Stream} fs 
-	 * @param {HuFileEntry} fe 
+	 * @param {Stream} fs ファイルストリーム
+	 * @param {HuFileEntry} fe ファイルエントリ
 	 */
 	ExtractFile(fs, fe) {
-		const StartCluster = fe.StartCluster;
-		const Size = fe.Size;
-
-		let AsciiMode = fe.IsAscii(); // bool
-
-		// 開始クラスタ
-		let c = StartCluster;
-		let LeftSize = Size;
-
-		let TotalOutputBytes = 0;
-
-		const SectorWriteMode = Size == 0; // bool
-
-		if (this.Setting.ForceAsciiMode) AsciiMode = true;
-		if (this.Setting.ForceBinaryMode) AsciiMode = false;
-
-		while (true) {
-			const end = this.#IsEndCluster(c);
-			const next = this.#GetClusterValue(c);
-			if (next == 0x00) {
-				this.Log.Warning("WARNING: Wrong cluster chain!!");
-				break;
+		let cluster = fe.GetStartCluster(); // 開始クラスタ
+		let LeftSize = fe.GetSize();        // ファイルのサイズ（バイト単位）
+		const AsciiMode = fe.IsAscii();     // 属性がアスキーファイルかどうか
+		const SectorWriteMode = fe.GetSize() == 0; // ファイルサイズが0の時は、全セクタ読み込み
+		//let totalOutputBytes = 0;
+		while(true) {
+			//
+			// FAT情報から使用しているセクタ数や次のクラスタを取得
+			//
+			const end         = this.#IsEndCluster(cluster);	// このクラスタで終了かどうか
+			const nextCluster = this.#GetClusterValue(cluster);	// 次のクラスタ、または、使用しているクラスタ数
+			// 値をチェック
+			if(end) {
+				if((nextCluster < 0x80) || (0x8F < nextCluster)) {
+					// 終了フラグが立っている時の値は、0x80～0x8Fでなければならない
+					this.Log.Warning("WARNING: Wrong cluster chain!!");
+					break;
+				}
+			} else {
+				if (nextCluster == 0x00) {
+					// 未使用のクラスタを指しているのでおかしい
+					this.Log.Warning("WARNING: Wrong cluster chain!!");
+					break;
+				}
+				if(nextCluster >= this.GetMaxCluster()) {
+					// 最大クラスタをオーバーしている
+					this.Log.Warning("WARNING: Wrong cluster chain!!");
+					break;
+				}
 			}
-			// セクタ数
-			const SectorCount = end ? (next - 0x7F) : this.ClusterPerSector();
+			const SectorCount = end ? (nextCluster - 0x7F) : this.GetClusterPerSector(); // 使用しているセクタ数
 
+			//
+			//
+			//
 			for (let i = 0; i < SectorCount; i++) {
-				const CurrentSector = (c * this.ClusterPerSector()) + i;
+				const CurrentSector = (cluster * this.GetClusterPerSector()) + i; // クラスタからセクタ番号へ
+				this.Log.Verbose("Cluster:" + cluster + " Sector:" + CurrentSector);
+
+				// セクタデータ取得
 				const Sector = this.DiskImage.GetSector(CurrentSector);
-				
 				let Data = Sector.GetDataForRead();
+
 				let Eof = false;
 				if (AsciiMode) {
-					// メモ
+					// アスキーファイルでは、ファイルサイズがあてにならないらしいので、ファイルが終わったかどうかを終端文字を調べる
+					// メモ）
 					// ASCII files may have an incorrect size — loading continues until the character 0x0D
 					// is followed by character 0x1A.
 					// https://www.z88dk.org/tools/x1/XBrowser_User_Guide.pdf
@@ -261,25 +269,30 @@ export default class {
 					Data = AsciiData.Data;
 				}
 
-				this.Log.Verbose("Cluster:" + c + " Sector:" + CurrentSector + " Position:0x" + Sector.Position .toString(16));
-
 				let OutputBytes = Data.length;
 
-				// セクタ書き込みモード
 				if (!SectorWriteMode) {
-					// セクタサイズか残りのバイト数を書き出す
-					if (LeftSize < OutputBytes) OutputBytes = LeftSize;
+					// ファイルサイズが有効の場合、使用する
+					OutputBytes = Math.min(LeftSize, OutputBytes) | 0;
 					LeftSize -= OutputBytes;
+					if(LeftSize <= 0) {
+						Eof = true; // 全部読み込んだので終わり
+					}
 				}
 
 				fs.Write(Data, 0, OutputBytes);
-				TotalOutputBytes += OutputBytes;
+				// totalOutputBytes += OutputBytes;
 
-				// 次のクラスタに進む
-				if (Eof) break;
+				if (Eof) {
+					break;
+				}
 			}
-			if (end) break;
-			c = next;
+			if (end) {
+				// 終了フラグが立っていたので終了
+				break;
+			}
+			// 次のクラスタへ
+			cluster = nextCluster;
 		}
 	}
 
@@ -289,43 +302,78 @@ export default class {
 	 */
 	#ConvertAscii(Data) {
 		let Eof = false;
-		const Result = new Array(); // List<byte>(Data.length * 2);
+		const Result = new Array();
 		for(const b of Data) {
 			if (b == 0x1a) {
 				Eof = true;
 				break;
 			}
 			Result.push(b);
-//			if (b == 0x0d) {
-//				Result.push(0x0a);
-//			}
 		}
 		return new AsciiData(Uint8Array.from(Result), Eof);
 	}
 
+	/**
+	 * FATを初期化する。エントリも初期化する
+	 */
 	#FillAllocationTable() {
-		const dc = this.DiskImage.GetDataControllerForWrite(this.AllocationTableStart());
-		dc.Fill(0);
-		dc.SetByte(0, 0x01);
-		dc.SetByte(1, 0x8f);
-
 		switch (this.ImageType) {
 			case DiskTypeEnum.Disk2D:
-				for (let i = 0x50; i < 0x80; i++) dc.SetByte(i, 0x8f);
-				break;
 			case DiskTypeEnum.Disk2DD:
-				dc.SetBuffer(this.DiskImage.GetSectorDataForWrite(this.AllocationTableStart() + 1));
-				dc.Fill(0);
-				for (let i = 0x20; i < 0x80; i++) dc.SetByte(i, 0x8f);
-				break;
 			case DiskTypeEnum.Disk2HD:
-				dc.SetByte(2, 0x8f);
-				dc.SetBuffer(this.DiskImage.GetSectorDataForWrite(this.AllocationTableStart() + 1));
-				dc.Fill(0);
-				for (let i = 0x7a; i < 0x80; i++) dc.SetByte(i, 0x8f);
+			case DiskTypeEnum.Disk1D: // @todo
+			case DiskTypeEnum.Disk1DD: // @todo
+				{
+					// 最大クラスタ数分FATのエントリが必要
+					let fat = this.GetAllocationTableStart(); // FATの開始クラスタ番号
+					let remainCluster = this.GetMaxCluster(); // 最大クラスタ数
+					while(remainCluster > 0) {
+						const dc = this.DiskImage.GetDataControllerForWrite(fat++);
+						dc.Fill(0);
+						if(remainCluster < 0x80) {
+							for (let i = remainCluster; i < 0x80; i++) {
+								dc.SetByte(i, 0x8f);
+							}
+							remainCluster = 0;
+						} else {
+							remainCluster -= 0x80;
+						}
+					}
+					// 予約部分
+					{
+						fat = this.GetAllocationTableStart();
+						const dc = this.DiskImage.GetDataControllerForWrite(fat);
+						if(this.ImageType == DiskTypeEnum.Disk2D || this.ImageType == DiskTypeEnum.Disk2DD) {
+							// 2D, 2DD
+							// 2クラスタ予約
+							dc.SetByte(0, 0x01);
+							dc.SetByte(1, 0x8f);
+						} else {
+							// 2HD
+							// 3クラスタ予約  @todo あってる？
+							dc.SetByte(0, 0x01);
+							dc.SetByte(1, 0x8f);
+							dc.SetByte(2, 0x8f);
+						}
+					}
+				}
 				break;
 		}
+
+		// ディレクトリエントリのフォーマット（初期化）
 		this.#FormatEntry(this.CurrentEntrySector);
+	}
+
+	/**
+	 * ディレクトリエントリのフォーマット（初期化）
+	 * @param {number} Sector 初期化するセクタ番号（クラスタでは無いので注意）
+	 */
+	#FormatEntry(Sector) {
+		// Sectorから1クラスタ分、0xFF(ディレクトリのエンドマーク)で埋める
+		for (let i = 0; i < this.GetClusterPerSector(); i++) {
+			const dc = this.DiskImage.GetDataControllerForWrite(Sector + i);
+			dc.Fill(0xff);
+		}
 	}
 
 	/**
@@ -335,17 +383,7 @@ export default class {
 	Delete(fe) {
 		fe.SetDelete();
 		this.WriteFileEntry(fe);
-		this.RemoveAllocation(fe.StartCluster);
-	}
-
-	/**
-	 * @param {number} Sector 
-	 */
-	#FormatEntry(Sector) {
-		for (let i = 0; i < this.ClusterPerSector(); i++) {
-			const dc = this.DiskImage.GetDataControllerForWrite(Sector + i);
-			dc.Fill(0xff);
-		}
+		this.RemoveAllocation(fe.GetStartCluster());
 	}
 
 	/**
@@ -357,28 +395,27 @@ export default class {
 	 */
 	GetEntry(dc, sector, pos) {
 		const fe = new HuFileEntry();
-		const Name = dc.Copy(pos + 0x01, HuFileEntry.MaxNameLength);
-		const Extension = dc.Copy(pos + 0x0e, HuFileEntry.MaxExtensionLength);
-		fe.SetEntryFromSector(dc, sector, pos, Name, Extension);
+		fe.SetEntryFromSector(dc, sector, pos);
 		return fe;
 	}
 
 
 	/**
+	 * 有効なファイルエントリを取得する
 	 * 
-	 * @param {int} Sector 
-	 * @returns {HuFileEntry[]}
+	 * @param {number} entrySector ディレクトリのセクタ番号
+	 * @returns {HuFileEntry[]} 有効なファイルエントリ
 	 */
-	GetEntriesFromSector(Sector) {
+	#GetEntriesFromSector(entrySector) {
 		const FileList = new Array();
-		for (let i = 0; i < this.ClusterPerSector(); i++, Sector++) {
-			const dc = this.DiskImage.GetDataControllerForRead(Sector);
-			for (let j = 0; j < 8; j++) {
-				const pos = (j * 0x20);
+		for (let i = 0; i < this.GetClusterPerSector(); i++, entrySector++) {
+			const dc = this.DiskImage.GetDataControllerForRead(entrySector);
+			for (let j = 0; j < this.EntriesInSector; j++) {
+				const pos = (j * this.FileEntrySize);
 				const mode = dc.GetByte(pos);
-				if (mode == this.EntryEnd) return FileList;
-				if (mode == this.EntryDelete) continue;
-				FileList.push(this.GetEntry(dc, Sector, pos));
+				if (mode == this.#EntryEnd) { return FileList; }
+				if (mode == this.EntryDelete) { continue; }
+				FileList.push(this.GetEntry(dc, entrySector, pos));
 			}
 		}
 		return FileList;
@@ -389,176 +426,9 @@ export default class {
 	 * @param {HuFileEntry} fe 
 	 */
 	WriteFileEntry(fe) {
-		this.#FileEntryNormalize(fe);
+		fe.FileEntryNormalize();
 		const dc = this.DiskImage.GetDataControllerForWrite(fe.EntrySector);
-		this.#WriteEntry(dc, fe, fe.EntryPosition, fe.StartCluster, false);
-
-		if (fe.IsIplEntry) this.WriteIplEntry(fe);
-	}
-
-
-	/**
-	 * 
-	 * @param {HuFileEntry} fe 
-	 */
-	#FileEntryNormalize(fe) {
-		if (fe.Name.length > fe.MaxNameLength) {
-			fe.Name = fe.Name.slice(0, HuFileEntry.MaxNameLength);
-		}
-		if (fe.Extension.length > 0 && fe.Extension[0] == extensionDelimiter) {
-			fe.Extension = fe.Extension.slice(1);
-		}
-		if (fe.Extension.length > fe.MaxExtensionLength) {
-			fe.Extension = fe.Extension.slice(0, fe.MaxExtensionLength);
-		}
-	}
-
-	// IPLエントリ書き出し
-	/**
-	 * 
-	 * @param {HuFileEntry} fe 
-	 */
-	WriteIplEntry(fe) {
-		const dc = this.DiskImage.GetDataControllerForWrite(0);
-		this.#WriteEntry(dc, fe, 0x00, fe.StartCluster * this.ClusterPerSector(), true);
-	}
-
-
-	/**
-	 * 
-	 * @param {DataController} dc 
-	 * @param {HuFileEntry} fe 
-	 * @param {number} pos 
-	 * @param {number} start 
-	 * @param {boolean} ipl 
-	 */
-	#WriteEntry(dc, fe, pos, start, ipl) {
-		if (ipl) {
-			dc.Fill(0x20, pos + 0x01, HuFileEntry.MaxNameLength);
-			dc.Fill(0x20, pos + 0x0e, HuFileEntry.MaxExtensionLength);
-			this.#WriteIplName(dc, pos);
-		} else {
-			this.#WriteEntryName(dc, fe, pos);
-		}
-		dc.SetByte(pos + 0x11, fe.Password);
-
-		dc.SetWord(pos + 0x12, fe.Size);
-		dc.SetWord(pos + 0x14, fe.LoadAddress);
-		dc.SetWord(pos + 0x16, fe.ExecuteAddress);
-		dc.SetCopy(pos + 0x18, fe.DateTimeData);
-
-		// 最上位は未調査
-		dc.SetByte(pos + 0x1d, (start >> 14) & 0x7f);
-		dc.SetByte(pos + 0x1e, start & 0x7f);
-		dc.SetByte(pos + 0x1f, (start >> 7) & 0x7f);
-	}
-
-	/**
-	 * 
-	 * @param {DataController} dc 
-	 * @param {HuFileEntry} fe 
-	 * @param {number} pos 
-	 */
-	#WriteEntryName(dc, fe, pos) {
-		dc.SetByte(pos, fe.FileMode);
-		for(let i = 0; i < HuFileEntry.MaxNameLength; ++i) {
-			if(i < fe.Name.length) {
-				dc.SetByte(pos + 0x01 + i, fe.Name[i]);
-			} else {
-				dc.SetByte(pos + 0x01 + i, 0x20);
-			}
-		}
-		for(let i = 0; i < HuFileEntry.MaxExtensionLength; ++i) {
-			if(i < fe.Extension.length) {
-				dc.SetByte(pos + 0x0e + i, fe.Extension[i]);
-			} else {
-				dc.SetByte(pos + 0x0e + i, 0x20);
-			}
-		}
-	}
-
-	/**
-	 * 
-	 * @param {DataController} dc 
-	 * @param {number} pos 
-	 */
-	#WriteIplName(dc, pos) {
-		dc.SetByte(pos, 0x01);
-		//dc.SetCopy(pos + 0x01, this.TextEncoding.GetBytes(Setting.IplName));
-		//dc.SetCopy(pos + 0x0e, this.TextEncoding.GetBytes("Sys"));
-		dc.SetCopy(pos + 0x01, Setting.IplName);
-		const extension = new Uint8Array(3);
-		extension[0] = 0x53; // 'S'
-		extension[1] = 0x79; // 'y'
-		extension[2] = 0x73; // 's'
-		dc.SetCopy(pos + 0x0e, extension);
-	}
-
-	/**
-	 * 
-	 * @param {Uint8Array} Filename ファイル名(ファイル名()+"."+ 拡張子)
-	 * @param {number} EntrySector 
-	 * @returns {HuFileEntry}
-	 */
-	#GetFileEntry(Filename, EntrySector) {
-		let Sector = EntrySector;
-		Filename = this.#toUpperCase(Filename);
-		// 名前
-		let Name = HuFileEntry.GetFileNameWithoutExtension(Filename);
-		// 拡張子
-		let Extension = HuFileEntry.GetExtension(Filename);
-
-		for (let i = 0; i < this.ClusterPerSector(); i++, Sector++) {
-			const dc = this.DiskImage.GetDataControllerForRead(Sector);
-
-			for (let j = 0; j < this.EntriesInSector; j++) {
-
-				const pos = (j * this.FileEntrySize);
-				const mode = dc.GetByte(pos);
-				if (mode == this.EntryEnd) return null;
-
-				const EntryName = dc.Copy(pos + 0x01, HuFileEntry.MaxNameLength);
-				const EntryExtension = dc.Copy(pos + 0x0e, HuFileEntry.MaxExtensionLength);
-
-				if (!this.#IsEqual(Name, EntryName) || !this.#IsEqual(Extension, EntryExtension)) continue;
-
-				return this.GetEntry(dc, Sector, pos);
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * 大文字に変換する
-	 * @param {Uint8Array} Filename 変換する文字列
-	 * @returns {Uint8Array} 大文字に変換された文字列
-	 */
-	#toUpperCase(Filename)
-	{
-		let result = new Uint8Array(Filename.length);
-		for(let i = 0; i < Filename.length; ++i) {
-			let ch = Filename[i];
-			if(0x61 <= ch && ch <= 0x7A) {
-				ch -= 0x20;
-			}
-			result[i] = ch;
-		}
-		return result;
-	}
-
-	/**
-	 * ２つの配列の中身が同じかどうか
-	 * @param {Uint8Array} a 
-	 * @param {Uint8Array} b 
-	 * @returns 同じならtrueを返す
-	 */
-	#IsEqual(a, b)
-	{
-		if(a.length != b.length) { return false; }
-		for(let i = 0; i < a.length; ++i) {
-			if(a[i] != b[i]) { return false; }
-		}
-		return true;
+		fe.writeIB(dc, fe.EntryPosition);
 	}
 
 	/**
@@ -567,12 +437,12 @@ export default class {
 	 * @returns {HuFileEntry}
 	 */
 	#GetNewFileEntry(Sector) {
-		for (let i = 0; i < this.ClusterPerSector(); i++) {
+		for (let i = 0; i < this.GetClusterPerSector(); i++) {
 			const dc = this.DiskImage.GetDataControllerForRead(Sector + i);
 			for (let j = 0; j < this.EntriesInSector; j++) {
 				const pos = (j * this.FileEntrySize);
 				const mode = dc.GetByte(pos);
-				if (mode != this.EntryEnd && mode != this.EntryDelete) continue;
+				if (mode != this.#EntryEnd && mode != this.EntryDelete) continue;
 
 				const newFileEntry = new HuFileEntry();
 				newFileEntry.EntrySector = Sector + i;
@@ -584,71 +454,28 @@ export default class {
 	}
 
 	/**
-	 * イメージのディレクトリを開く
-	 * @param {Uint8Array} Name ファイル名(ファイル名()+"."+ 拡張子)
-	 * @return {number} OpenEntryResult
-	 */
-	OpenEntryDirectory(Name) {
-		let fe = this.#GetFileEntry(Name, this.CurrentEntrySector);
-		if (fe != null) {
-			if (!fe.IsDirectory) {
-				this.Log.Error("ERROR: " + Name + " is not directory!");
-				return OpenEntryResult.NotDirectory;
-			}
-
-			// エントリセクタを変更
-			this.CurrentEntrySector = (fe.StartCluster * this.ClusterPerSector());
-			return OpenEntryResult.Ok;
-		}
-
-		fe = this.#GetNewFileEntry(this.CurrentEntrySector);
-		if (fe == null) {
-			this.Log.Error("ERROR:No entry space!");
-			return OpenEntryResult.NotDirectory;
-		}
-
-		fe.SetNewDirectoryEntry(Name);
-
-		const fc = this.#GetNextFreeCluster();
-		if (fc < 0) {
-			this.Log.Error("ERROR:No free cluster!");
-			return OpenEntryResult.NoFreeCluster;
-		}
-
-		fe.StartCluster = fc;
-		this.WriteFileEntry(fe);
-		this.CurrentEntrySector = fc * this.ClusterPerSector();
-		this.#FormatEntry(this.CurrentEntrySector);
-		this.#SetClusterValue(fc, 0x0f, true);
-		return OpenEntryResult.Ok;
-	}
-
-
-	/**
 	 * @param {Stream} fs
 	 * @param {number} StartCluster
-	 * @returns {boolean}
+	 * @returns {boolean} 処理結果
 	 */
 	WriteStream(fs, StartCluster)
 	{
-		this.Log.Info("StartCluster:" + StartCluster .toString());
-
-		let Size = fs.GetSize();
+		let RemainSize = fs.GetSize();
 		let c = StartCluster;
 		while (true) {
-			let s = c * this.ClusterPerSector();
+			let s = c * this.GetClusterPerSector();
 			let LastSector = 0;
-			for (let sc = 0; sc < this.ClusterPerSector(); sc++, s++) {
-				const Length = Size < this.DefaultSectorBytes ? Size : this.DefaultSectorBytes;
+			for (let sc = 0; sc < this.GetClusterPerSector(); sc++, s++) {
+				const Length = (RemainSize < this.DefaultSectorBytes) ? RemainSize : this.DefaultSectorBytes;
 				this.DiskImage.GetSector(s).Fill(0x00);
-				if (Size == 0) continue;
+				if (RemainSize == 0) continue;
 
 				const SectorBuffer = this.DiskImage.GetSectorDataForWrite(s);
 				fs.Read(SectorBuffer, 0, Length);
-				Size -= Length;
+				RemainSize -= Length;
 				if (Length > 0) LastSector = sc;
 			}
-			if (Size == 0) {
+			if (RemainSize <= 0) {
 				if (this.Setting.X1SMode && LastSector > 0) {
 					LastSector--;
 					if ((Filesize & 0xff) == 0) LastSector++;
@@ -674,47 +501,33 @@ export default class {
 	 * @returns {number}
 	 */
 	GetFreeCluster(fe) {
-		if (this.Setting.IplMode) {
-			const Cluster = (fe.Size / (this.ClusterPerSector() * this.DefaultSectorBytes)) + 1;
+		/*if (this.Setting.IplMode) {
+			const Cluster = (fe.GetSize() / (this.GetClusterPerSector() * this.DefaultSectorBytes)) + 1;
 			return this.#GetNextFreeSerialCluster(Cluster);
-		} else {
+		} else*/
+		{
 			return this.#GetNextFreeCluster();
 		}
 	}
 
 	/**
-	 * @param {Uint8Array} Filename ファイル名(ファイル名()+"."+ 拡張子)
-	 * @returns {HuFileEntry}
+	 * FAT領域をキャッシュする
 	 */
-	GetWritableEntry(Filename) {
-		const fe = this.#GetFileEntry(Filename, this.CurrentEntrySector);
-		// エントリに確保されていたクラスタを解放する
-		if (fe != null) {
-			this.RemoveAllocation(fe.StartCluster);
-		} else {
-			fe = this.#GetNewFileEntry(this.CurrentEntrySector);
-		}
-
-		return fe;
-	}
-
 	#SetAllocateController() {
-		this.#AllocationController = new Array(2); // new DataController[2];
-		this.#AllocationController[0] = this.DiskImage.GetDataControllerForWrite(this.AllocationTableStart());
-		//if (this.DiskType.IsNot2D()) {
-			// @todo フォーマットに関係なく、次のセクタも含めてみる。本来は、やってはいけない。
-			//       ちゃんと調べること
-			this.#AllocationController[1] = this.DiskImage.GetDataControllerForWrite(this.AllocationTableStart() + 1);
-		//}
+		const fat = this.GetAllocationTableStart(); // FATの開始セクタ番号
+		const FATSectorSize = (this.GetMaxCluster() / 0x80 | 0) + 1; // 必要なセクタ数
+		this.#AllocationController = new Array(FATSectorSize);
+		for(let i = 0; i < FATSectorSize; ++i) {
+			this.#AllocationController[i] = this.DiskImage.GetDataControllerForWrite(fat + i);
+		}
 	}
-
 
 	/**
 	 * @param {number} Step
 	 * @return {number}
 	 */
 	#GetNextFreeCluster(Step = 1) {
-		for (let i = 0; i < this.MaxCluster(); i++) {
+		for (let i = 0; i < this.GetMaxCluster(); i++) {
 			const end = this.#IsEndCluster(i);
 			const ptr = this.#GetClusterValue(i);
 			if (!end && ptr == 0x00) {
@@ -732,7 +545,7 @@ export default class {
 	#GetNextFreeSerialCluster(Clusters) {
 		let FreeCount = 0;
 		let FreeStart = 0;
-		for (let i = 0; i < this.MaxCluster(); i++) {
+		for (let i = 0; i < this.GetMaxCluster(); i++) {
 			const end = this.#IsEndCluster(i);
 			const ptr = this.#GetClusterValue(i);
 			if (!end && ptr == 0x00) {
@@ -755,15 +568,16 @@ export default class {
 	RemoveAllocation(StartCluster) {
 		let c = StartCluster;
 		while (true) {
-			const next = this.#GetClusterValue(c);
+			// FAT
 			const end = this.#IsEndCluster(c);
+			const next = this.#GetClusterValue(c);
 			// 0x00 = 既に解放済み
 			if (next == 0x00) break;
-			this.#SetClusterValue(c, 0x00);
-			const FillLength = end ? ((next & 0x0f) + 1) : this.ClusterPerSector();
-
+			this.#SetClusterValue(c, 0x00); // 空きクラスタにする
+			const FillLength = end ? ((next & 0x0f) + 1) : this.GetClusterPerSector();
+			// ファイルの中身をクリア
 			for (let i = 0; i < FillLength; i++) {
-				this.DiskImage.GetDataControllerForWrite((c * this.ClusterPerSector()) + i).Fill(0);
+				this.DiskImage.GetDataControllerForWrite((c * this.GetClusterPerSector()) + i).Fill(0);
 			}
 			// 0x8x = 最後のクラスタ
 			if (end) break;
@@ -779,15 +593,17 @@ export default class {
 	#SetClusterValue(pos, value, end = false) {
 		const offset = pos / 0x80 | 0;
 		pos &= 0x7f;
+
+		// 下位ビット
 		let low = (value & 0x7f);
 		low |= end ? 0x80 : 0x00;
 		this.#AllocationController[offset].SetByte(pos, low);
-		if(this.#is2BytesFAT()) {
-			if(!end) {
-				this.#AllocationController[offset].SetByte(pos + 0x80, (value >> 7) & 0x7F);
-			} else {
-				this.#AllocationController[offset].SetByte(pos + 0x80, 0);
-			}
+		// 上位ビット
+		if(!end) {
+			this.#AllocationController[offset].SetByte(pos + 0x80, (value >> 7) & 0x7F);
+		} else {
+			// 終了フラグが立っていたら0
+			this.#AllocationController[offset].SetByte(pos + 0x80, 0);
 		}
 	}
 
@@ -795,24 +611,30 @@ export default class {
 	 * @param {number} pos
 	 * @retutns {number}
 	 * 
-	 * メモ）
-	 * posが0x80～0xFFなら次のセクタのデータを参照
-	 * 
-	 * FAT
-	 * 0x00～0x7F セクタの下位7ビット分  MSBは終了フラグ
-	 * 0x80～0xFF セクタの上位8ビット分　合計15ビット？
+	 * メモ）posが0x80～なら次のセクタのデータを参照
 	 */
 	#GetClusterValue(pos) {
+		// FATのセクタ 0～3
+		//  0  : 2D
+		//  0-1: 2DD, 2HD
+		//  0-3: ハードディスク?
 		const offset = pos / 0x80 | 0;
+		// FATのセクタ内での位置 0～127
 		pos &= 0x7f;
-		let Result = this.#AllocationController[offset].GetByte(pos);
-		if(this.#is2BytesFAT()) {
-			// 128バイト目からの上位ビットも考慮する
-			if((Result & 0x80) == 0) {
-				Result |= (this.#AllocationController[offset].GetByte(pos + 0x80) << 7);
+		let result = this.#AllocationController[offset].GetByte(pos);
+
+		const end = this.#IsEndCluster(pos);
+		if(end) {
+			// 終了フラグが立っていたらそのまま返す
+			return result; // 0x80～0x8F
+		} else {
+			if(this.#is2BytesFAT()) {
+				// 128バイト目からの上位ビットも考慮する
+				// メモ）2Dで、上位ビットが0で無いものがあるので、判定している取得している
+				result |= (this.#AllocationController[offset].GetByte(pos + 0x80) << 7);
 			}
+			return result;
 		}
-		return Result;
 	}
 
 	/**
@@ -821,7 +643,13 @@ export default class {
 	 * @returns {boolean}
 	 */
 	#IsEndCluster(pos) {
+		// FATのセクタ 0～3
+		//  0  : 2D
+		//  0-1: 2DD
+		//  0-2: 2HD ?
+		//  0-3: ハードディスク?
 		const offset = pos / 0x80 | 0;
+		// FATのセクタ内での位置 0～127
 		pos &= 0x7f;
 		return (this.#AllocationController[offset].GetByte(pos) & 0x80) != 0x00;
 	}
@@ -847,7 +675,7 @@ export default class {
 				value: new Uint8Array()
 			};
 		}
-		const maxSector = this.DiskParameter.MaxCluster * this.DiskParameter.ClusterPerSector;
+		const maxSector = this.GetMaxCluster() * this.GetClusterPerSector();
 		if((record < 0) || (record >= maxSector)) {
 			return {
 				result: 5, // BadRecord レコードナンバーに間違いがある
@@ -878,7 +706,7 @@ export default class {
 				value: new Uint8Array()
 			};
 		}
-		const maxSector = this.DiskParameter.MaxCluster * this.DiskParameter.ClusterPerSector;
+		const maxSector = this.GetMaxCluster() * this.GetClusterPerSector();
 		if((record < 0) || (record >= maxSector)) {
 			return {
 				result: 5, // BadRecord レコードナンバーに間違いがある
@@ -902,59 +730,63 @@ export default class {
 
 	/**
 	 * 
-	 * @param {Uint8Array} Filename ファイル名(ファイル名()+"."+ 拡張子)
-	 * @param {number} EntrySector 
+	 * @param {number} DirRecord 
+	 * @param {Uint8Array} Name 
+	 * @param {Uint8Array} Extension 
 	 * @returns {HuFileEntry}
 	 */
-	#GetFileEntry2(Filename, Extension, EntrySector) {
-		let Sector = EntrySector;
-		for (let i = 0; i < this.ClusterPerSector(); i++, Sector++) {
+	#GetFileEntry2(DirRecord, Name, Extension) {
+		let Sector = DirRecord;
+		for (let i = 0; i < this.GetClusterPerSector(); i++, Sector++) {
 			const dc = this.DiskImage.GetDataControllerForRead(Sector);
-
 			for (let j = 0; j < this.EntriesInSector; j++) {
-
 				const pos = (j * this.FileEntrySize);
-				const mode = dc.GetByte(pos);
-				if (mode == this.EntryEnd) return null;
-
-				const EntryName = dc.Copy(pos + 0x01, HuFileEntry.MaxNameLength);
-				const EntryExtension = dc.Copy(pos + 0x0e, HuFileEntry.MaxExtensionLength);
-
-				if (!this.#IsEqual(Filename, EntryName) || !this.#IsEqual(Extension, EntryExtension)) continue;
-
-				return this.GetEntry(dc, Sector, pos);
+				const fe = this.GetEntry(dc, Sector, pos);
+				if(fe.IsEntryEnd()) { return null; }
+				if(fe.IsDelete()) { continue; }
+				if(!fe.isEqualFilename(Name, Extension)) { continue; }
+				return fe;
 			}
 		}
 		return null;
 	}
 
 	/**
-	 * @param {Uint8Array} Filename ファイル名(ファイル名()+"."+ 拡張子)
+	 * @param {number} DirRecord 
+	 * @param {Uint8Array} Name 
+	 * @param {Uint8Array} Extension 
 	 * @returns {HuFileEntry}
 	 */
-	GetWritableEntry2(DirRecord, Filename, Extension) {
-		let fe = this.#GetFileEntry2(Filename, Extension, DirRecord);
-		// エントリに確保されていたクラスタを解放する
+	GetWritableEntry2(DirRecord, Name, Extension) {
+		let fe = this.#GetFileEntry2(DirRecord, Name, Extension);
 		if (fe != null) {
-			this.RemoveAllocation(fe.StartCluster);
+			// エントリに確保されていたクラスタを解放する
+			this.RemoveAllocation(fe.GetStartCluster());
 		} else {
+			// 新しい空きエントリを取得する
 			fe = this.#GetNewFileEntry(DirRecord);
 		}
 		return fe;
 	}
 
+	/**
+	 * FATが2バイト必要かどうか
+	 * @returns {boolean} 2バイト必要ならtrueを返す
+	 */
 	#is2BytesFAT()
 	{
-		switch(this.DiskImage.DiskType.GetImageType()) {
-			case DiskTypeEnum.Disk2D:
-				return false;
-			case DiskTypeEnum.Disk2DD:
-				return true;
-			case DiskTypeEnum.Disk2HD:
-				return true;
-			case DiskTypeEnum.Disk1DD:
-				return false;
-		}
-		return false;
+		// 管理しているクラスタ数が128個以上なら必要
+		return this.GetMaxCluster() >= 0x80;
+	}
+
+	/**
+	 * ディスクの種類を取得する
+	 * @returns {DiskType} ディスクの種類
+	 */
+	GetDiskType() { return this.DiskImage.GetDiskType(); }
+
+	GetDiskImageFileSize(IsPlainFormat)
+	{
+		return this.DiskImage.GetDiskImageFileSize(IsPlainFormat);
 	}
 };

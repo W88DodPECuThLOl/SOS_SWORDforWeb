@@ -2,9 +2,59 @@
 
 import HuBasicDiskImage from './HuBasicDiskImage.mjs';
 
+class D88Checker {
+	/**
+	 * 2Dの生イメージかどうか
+	 * @param {string} filename 
+	 * @param {Uint8Array} data 
+	 * @returns {boolean}
+	 */
+	is2dImage(filename, data)
+	{
+		// 2Dフォーマット時の標準的なファイルサイズで、判定
+		if(data.length != 327680) { return false; }
+		// イメージファイル名が2Dではないので違う
+		if(!filename.toUpperCase().endsWith(".2D")) { return false; }
+		// OK
+		return true;
+	}
+	/**
+	 * 2DDの生イメージかどうか
+	 * @param {string} filename 
+	 * @param {Uint8Array} data 
+	 * @returns {boolean}
+	 */
+	is2ddImage(filename, data)
+	{
+		// 2DDフォーマット時の標準的なファイルサイズで、判定
+		//if(data.length != 327680) { return false; }
+		// イメージファイル名が2Dではないので違う
+		if(!filename.toUpperCase().endsWith(".2DD")) { return false; }
+		// OK
+		return true;
+	}
+	/**
+	 * 2HDの生イメージかどうか
+	 * @param {string} filename 
+	 * @param {Uint8Array} data 
+	 * @returns {boolean}
+	 */
+	is2hdImage(filename, data)
+	{
+		// 2DDフォーマット時の標準的なファイルサイズで、判定
+		//if(data.length != 327680) { return false; }
+		// イメージファイル名が2Dではないので違う
+		if(!filename.toUpperCase().endsWith(".2HD")) { return false; }
+		// OK
+		return true;
+	}
+}
+
+
+
+
 // HuBasicDisk
 export default class {
-
 	/**
 	 * @type {Context}
 	 */
@@ -38,123 +88,6 @@ export default class {
 		}
 	}
 
-	/**
-	 * 編集
-	 * @returns {boolean}
-	 */
-	Edit() {
-		// イメージ内のディレクトリを設定する
-		if (!this.SetEntryDirectory(this.#Context.Setting.EntryDirectory)) {
-			this.Log.Error("Directory open error!");
-			return false;
-		}
-
-		var Files = this.#Context.Files;
-		var EntryName = this.#Context.Setting.EntryName;
-
-		switch (this.#Context.RunMode) {
-
-			case RunModeTypeEnum.Extract:
-				this.Log.Info("Extract files:");
-				this.#Extract();
-				return true;
-
-			case RunModeTypeEnum.Add:
-				this.Log.Info("Add files:");
-				if (!AddFile(Files, EntryName)) return false;
-				break;
-
-			case RunModeTypeEnum.List:
-				this.Log.Info("List files:");
-				ListFiles();
-				break;
-
-			case RunModeTypeEnum.Delete:
-				this.Log.Info("Delete files:");
-				// ファイル未指定ではすべて削除
-				this.#DeleteFile(Files);
-
-				break;
-		}
-
-		DisplayFreeSpace();
-		return true;
-	}
-
-	/**
-	 * 
-	 * @param {string[]} Files
-	 * @param {string}  EntryName
-	 * @return {boolean}
-	 */
-	AddFile(Files, EntryName) {
-		if (Files.length == 1) {
-			this.Log.Info("No files to add.");
-			//@todo
-			//this.Image.WriteImage();
-			return true;
-		}
-		return this.Image.AddFile(Files.slice(1), EntryName);
-
-	}
-
-	/**
-	 * 
-	 * @param {string[]} Files
-	 */
-	#DeleteFile(Files) {
-		if (Files.length == 1) {
-			this.Image.DeleteAll();
-		} else {
-			this.Image.DeleteFile(Files.slice(1));
-		}
-	}
-
-	#Extract() {
-		const Files = this.Context.Files;
-		if (Files.length == 1) return;
-
-		for (let i = 1; i < Files.Count; i++) {
-			const Filename = Files[i];
-			this.Image.Extract(Filename);
-		}
-	}
-
-	/**
-	 * イメージ内のエントリを設定
-	 * @param {string} EntryDirectory
-	 * @returns {boolean}
-	 */
-	SetEntryDirectory(EntryDirectory) {
-		if (EntryDirectory.length == 0) return true;
-		this.Log.Info("EntryDirectory:" + EntryDirectory);
-
-		// パス区切りは「\」と「/」を使用できる
-		EntryDirectory = EntryDirectory.replaceAll('\\', '/');
-		for (let Name of EntryDirectory.split('/')) {
-			if (Name.length == 0) continue;
-			const Result = this.Image.OpenEntryDirectory(Name);
-			if (!this.Image.IsOk(Result)) return false;
-		}
-		return true;
-	}
-
-	/**
-	 * ファイル一覧の表示
-	 */
-	ListFiles() {
-		const Files = this.Image.GetEntries();
-		for (let f of Files) {
-			this.Log.Info(f.Description(this.#Context.TextEncoding));
-		}
-	}
-
-	DisplayFreeSpace() {
-		const fc = this.Image.CountFreeClusters();
-		const fb = this.Image.GetFreeBytes(fc);
-		this.Log.Info("Free:" + fb + " byte(s) / " + fc + " cluster(s)");
-	}
-
 	// -------------------------------------------------------------------------------------------
 	// -------------------------------------------------------------------------------------------
 
@@ -173,6 +106,13 @@ export default class {
 	{
 		return this.Image.Unmount();
 	}
+
+	/**
+	 * ディスクの種類を取得する
+	 * @returns {DiskType} ディスクの種類
+	 */
+	GetDiskType() { return this.Image.GetDiskType(); }
+
 	/**
 	 * ディスクイメージの書き出し
 	 * 
@@ -182,7 +122,22 @@ export default class {
 	SaveDisk(IsPlainFormat)
 	{
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true, false);
+			this.#onDriveStateChange(
+				"SaveDisk",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: false,
+					info: {
+						/**
+						 * 保存の形式
+						 *   raw: 生のイメージ
+						 *   D88: D88形式
+						 * @type {string}
+						 */
+						format: (IsPlainFormat ? "raw" : "D88")
+					}
+				})
 		}
 		return this.Image.WriteImage(IsPlainFormat);
 	}
@@ -207,7 +162,21 @@ export default class {
 	 */
 	Files(dirRecord) {
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true, false);
+			this.#onDriveStateChange(
+				"Files", 
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: false,
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord
+					}
+				}
+			);
 		}
 		return this.Image.Files(dirRecord);
 	}
@@ -217,7 +186,7 @@ export default class {
 	 * 
 	 * resultは、0:成功、8:File not Found。
 	 * @param {number} dirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename 読み込むファイル名
+	 * @param {Uint8Array} Name 読み込むファイル名
 	 * @param {Uint8Array} Extension 読み込むファイルの拡張子
 	 * @returns {{
 	 *		result: number,			// 処理結果
@@ -227,19 +196,49 @@ export default class {
 	 *		execAddress: number,	// 実行アドレス
 	 * }}
 	 */
-	ReadFile(DirRecord, Filename, Extension)
+	ReadFile(dirRecord, Name, Extension)
 	{
+		const result = this.Image.ReadFile(dirRecord, Name, Extension);
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true, false);
+			this.#onDriveStateChange(
+				"ReadFile",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: false,
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
-		return this.Image.ReadFile(DirRecord, Filename, Extension);
+		return result;
 	}
 	/**
 	 * ファイル書き込み
 	 * 
 	 * resultは、0:成功
 	 * @param {number} dirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension ファイルの拡張子
 	 * @param {Uint8Array} Data 書き込むデータ
 	 * @param {number} SaveAddress セーブアドレス
@@ -250,13 +249,65 @@ export default class {
 	 *		result: number			// 処理結果
 	 * }} 処理結果
 	 */
-   	WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
+   	WriteFile(dirRecord, Name, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
-		const result = this.Image.WriteFile(dirRecord, Filename, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
-		if(result.result == 0) {
-			if(this.#onDriveStateChange) {
-				this.#onDriveStateChange(this.isMount(), true, true);
-			}
+		const result = this.Image.WriteFile(dirRecord, Name, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(
+				"WriteFile",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: (result.result == 0), // 正常終了時のみ保存する必要がある
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 書き込むデータ
+						 * @type {Uint8Array}
+						 */
+						Data: Data,
+						/**
+						 * セーブアドレス
+						 * @type {number}
+						 */
+						SaveAddress: SaveAddress,
+						/**
+						 * 終了アドレス
+						 * @type {number}
+						 */
+						EndAddress: EndAddress,
+						/**
+						 * 実行アドレス
+						 * @type {number}
+						 */
+						ExecAddress: ExecAddress,
+						/**
+						 * 属性(ファイルモード)
+						 * @type {number}
+						 */
+						FileMode: FileMode,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
 		return result;
 	}
@@ -270,10 +321,30 @@ export default class {
 	 */
 	ReadRecord(record)
 	{
+		const result = this.Image.ReadRecord(record);
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true, false);
+			this.#onDriveStateChange(
+				"ReadRecord",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: false,
+					info: {
+						/**
+						 * 読み込むレコード
+						 * @type {number}
+						 */
+						record: record,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
-		return this.Image.ReadRecord(record);
+		return result;
 	}
    /**
 	 * レコード（セクタ）を書き込む
@@ -286,10 +357,32 @@ export default class {
 	WriteRecord(record, data)
 	{
 		const result = this.Image.WriteRecord(record, data);
-		if(result.result == 0) {
-			if(this.#onDriveStateChange) {
-				this.#onDriveStateChange(this.isMount(), true, true);
-			}
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(
+				"WriteRecord",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: (result.result == 0), // 正常終了時のみ保存する必要がある
+					info: {
+						/**
+						 * 書き込むレコード
+						 * @type {number}
+						 */
+						record: record,
+						/**
+						 * 書き込むデータ
+						 * @type {Uint8Array}
+						 */
+						data: data,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
 		return result;
 	}
@@ -298,8 +391,8 @@ export default class {
 	 * インフォメーションブロックを取得する
 	 * 
 	 * resultは、0:成功、8:File not Found。
-	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {number} dirRecord ディレクトリのレコード
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 *		result: number,			// 処理結果
@@ -310,50 +403,134 @@ export default class {
 	 *		IB: Uint8Array			// IB
 	 *	}} インフォメーションブロックの情報
 	 */
-	GetInfomationBlock(DirRecord, Filename, Extension)
+	GetInfomationBlock(dirRecord, Name, Extension)
 	{
+		const result = this.Image.GetInfomationBlock(dirRecord, Name, Extension);
 		if(this.#onDriveStateChange) {
-			this.#onDriveStateChange(this.isMount(), true, false);
+			this.#onDriveStateChange(
+				"GetInfomationBlock",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: false,
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
-		return this.Image.GetInfomationBlock(DirRecord, Filename, Extension);
+		return result;
 	}
 
 	/**
 	 * ライトプロテクトを設定する
 	 * @param {number} dirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }} 処理結果
 	 */
-    SetWriteProtected(DirRecord, Filename, Extension)
+    SetWriteProtected(dirRecord, Name, Extension)
 	{
-		const result = this.Image.SetWriteProtected(DirRecord, Filename, Extension);
-		if(result.result == 0) {
-			if(this.#onDriveStateChange) {
-				this.#onDriveStateChange(this.isMount(), true, true);
-			}
+		const result = this.Image.SetWriteProtected(dirRecord, Name, Extension);
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(
+				"SetWriteProtected",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: (result.result == 0), // 正常終了時のみ保存する必要がある
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
 		return result;
 	}
 
 	/**
 	 * ライトプロテクトを解除する
-	 * @param {number} DirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {number} dirRecord ディレクトリのレコード
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }} 処理結果
 	 */
-	ResetWriteProtected(DirRecord, Filename, Extension)
+	ResetWriteProtected(dirRecord, Name, Extension)
 	{
-		const result = this.Image.ResetWriteProtected(DirRecord, Filename, Extension);
-		if(result.result == 0) {
-			if(this.#onDriveStateChange) {
-				this.#onDriveStateChange(this.isMount(), true, true);
-			}
+		const result = this.Image.ResetWriteProtected(dirRecord, Name, Extension);
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(
+				"ResetWriteProtected",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: (result.result == 0), // 正常終了時のみ保存する必要がある
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
 		return result;
 	}
@@ -361,19 +538,46 @@ export default class {
 	/**
 	 * ファイルを削除する
 	 * @param {number} dirRecord ディレクトリのレコード
-	 * @param {Uint8Array} Filename ファイル名
+	 * @param {Uint8Array} Name ファイル名
 	 * @param {Uint8Array} Extension 拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }} 処理結果
 	 */
-	Kill(DirRecord, Filename, Extension)
+	Kill(dirRecord, Name, Extension)
 	{
-		const result = this.Image.Kill(DirRecord, Filename, Extension);
-		if(result.result == 0) {
-			if(this.#onDriveStateChange) {
-				this.#onDriveStateChange(this.isMount(), true, true);
-			}
+		const result = this.Image.Kill(dirRecord, Name, Extension);
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(
+				"Kill",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: (result.result == 0), // 正常終了時のみ保存する必要がある
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
 		return result;
 	}
@@ -383,25 +587,63 @@ export default class {
 	 * @param {number} dirRecord ディレクトリのレコード
 	 * @param {Uint8Array} Filename ファイル名
 	 * @param {Uint8Array} Extension 拡張子
-	 * @param {Uint8Array} NewFilename 新しいファイル名
+	 * @param {Uint8Array} NewName 新しいファイル名
 	 * @param {Uint8Array} NewExtension 新しい拡張子
 	 * @returns {{
 	 * 		result:number // 処理結果
 	 * }} 処理結果
 	 */
-	Rename(DirRecord, Filename, Extension, NewFilename, NewExtension)
+	Rename(dirRecord, Name, Extension, NewName, NewExtension)
 	{
-		const result = this.Image.Rename(DirRecord, Filename, Extension, NewFilename, NewExtension);
-		if(result.result == 0) {
-			if(this.#onDriveStateChange) {
-				this.#onDriveStateChange(this.isMount(), true, true);
-			}
+		const result = this.Image.Rename(dirRecord, Name, Extension, NewName, NewExtension);
+		if(this.#onDriveStateChange) {
+			this.#onDriveStateChange(
+				"Rename",
+				{
+					isMount: this.isMount(),
+					isAccess: true,
+					isNeedSave: (result.result == 0), // 正常終了時のみ保存する必要がある
+					info: {
+						/**
+						 * ディレクトリのレコード
+						 * @type {number}
+						 */
+						dirRecord: dirRecord,
+						/**
+						 * ファイル名
+						 * @type {Uint8Array}
+						 */
+						Name: Name,
+						/**
+						 * ファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						Extension: Extension,
+						/**
+						 * 新しいファイル名
+						 * @type {Uint8Array}
+						 */
+						NewName: NewName,
+						/**
+						 * 新しいファイルの拡張子
+						 * @type {Uint8Array}
+						 */
+						NewExtension: NewExtension,
+						/**
+						 * 処理結果
+						 * @type {*}
+						 */
+						result: result
+					}
+				}
+			);
 		}
 		return result;
 	}
 
-	isMount()
-	{
-		return this.Image.isMount();
-	}
+	/**
+	 * ディスクがマウントされているかどうか
+	 * @returns {boolean} マウントされてたら true を返す
+	 */
+	isMount() { return this.Image.isMount(); }
 }

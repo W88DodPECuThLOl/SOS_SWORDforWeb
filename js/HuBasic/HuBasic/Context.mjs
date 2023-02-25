@@ -1,11 +1,7 @@
 ﻿"use strict";
 
-import { OptionType } from './OptionType.mjs';
-import { RunModeTypeEnum } from './RunModeTypeEnum.mjs';
 import Setting from './Setting.mjs';
 import Log from '../Utils/Log.mjs';
-import MiniOption from '../Utils/MiniOption.mjs';
-import { DefineData } from '../Utils/MiniOption.mjs';
 
 class Encoding {
 	/**
@@ -115,29 +111,10 @@ class Encoding {
 // Context
 export default class {
 	/**
-	 * @type {string}
-	 */
-	#ProgramTitle = "HuDisk";
-	/**
-	 * @type {string}
-	 */
-	#ProgramVersion = "1.20";
-
-	/**
-	 * @type {number} RunModeTypeEnum
-	 */
-	RunMode = RunModeTypeEnum.List;
-
-	/**
 	 * 
 	 * @type {string[]}
 	 */
 	Files;
-
-	/**
-	 * @type {Encoding}
-	 */
-	TextEncoding;
 
 	/**
 	 * 
@@ -154,7 +131,6 @@ export default class {
 	constructor() {
 		this.Setting = new Setting();
 		this.Log = new Log();
-		this.TextEncoding = this.#GetEncoding();
 	}
 
 	/**
@@ -165,181 +141,9 @@ export default class {
 	}
 
 	/**
-	 * @param {string[]} args
-	 * @return {boolean}
-	 */
-	Parse(args) {
-		const miniopt = this.#GetOptionData();
-		if (!miniopt.Parse(args)) return false;
-
-		if (miniopt.Files.length < 1) {
-			this.Usage();
-			return false;
-		}
-
-		if (!this.CheckOption(miniopt)) return false;
-
-		const ImageFilename = miniopt.Files[0];
-		this.SetImageFilename(ImageFilename);
-
-		this.Files = miniopt.Files;
-		return true;
-	}
-
-	/**
 	 * @param {string} Filename
 	 */
 	SetImageFilename(Filename) {
 		this.Setting.SetImageFilename(Filename);
-	}
-
-
-	/**
-	 * @returns {MiniOption}
-	 */
-	#GetOptionData() {
-		const miniopt = new MiniOption();
-		miniopt.AddOptionDefines([
-			new DefineData(OptionType.Add,"a","add",false),
-			new DefineData(OptionType.Extract,"x","extract",false),
-			new DefineData(OptionType.List,"l","list",false),
-			new DefineData(OptionType.Delete,"d","delete",false),
-
-			new DefineData(OptionType.Go, "g","go",true),
-			new DefineData(OptionType.Read,"r","read",true),
-			new DefineData(OptionType.Ipl,"i","ipl",true),
-
-
-			new DefineData(OptionType.ImageType,null,"type",true),
-			new DefineData(OptionType.Format,null,"format",false),
-			new DefineData(OptionType.X1S,null,"x1s",false),
-			new DefineData(OptionType.EntryName,null,"name",true),
-			new DefineData(OptionType.Path,null,"path",true),
-			new DefineData(OptionType.Verbose,"v","verbose",false),
-			new DefineData(OptionType.ForceAscii,null,"ascii",false),
-			new DefineData(OptionType.ForceBinary,null,"binary",false),
-
-			new DefineData(OptionType.Help,"h","help",false),
-			new DefineData(OptionType.Help,"?",null,false)
-		]);
-		return miniopt;
-	}
-
-
-
-	Usage() {
-		console.log(this.ProgramTitle + " ver " + this.ProgramVersion);
-		console.log("Usage HuDisk IMAGE.D88 [Files..] [Options...]");
-		console.log();
-		console.log(" Options...");
-		console.log(" -a,--add <files...>   Add file(s)");
-		console.log(" -x,--extract [files...] Extract file(s)");
-		console.log(" -l,--list     List file(s)");
-		console.log(" -d,--delete   Delete file(s)");
-		console.log();
-		console.log(" --format    Format image file");
-		console.log(" --type <type> Determine Image type (2d/2dd/2hd)");
-		console.log(" -i,--ipl <iplname>    Added file as a IPL binary");
-		console.log(" -r,--read  <address>    Set load address");
-		console.log(" -g,--go  <address>    Set execute address");
-		console.log(" --x1s    Set x1save.exe compatible mode");
-		console.log(" --name <name>   Set entry name as <name>");
-		console.log(" --path <path>   Change directory in image");
-		console.log(" -v,--verbose Set verbose mode");
-		console.log(" --binary Force binary mode");
-		console.log(" --ascii Force ASCII mode");
-		console.log();
-		console.log(" -h,-?,--help  This one");
-	}
-
-
-	/**
-	 * @param {string} s
-	 * @returns {number} 
-	 */
-	ReadValue(s) {
-		return parseInt(s, 16);
-	}
-
-	/**
-	 * @param {MiniOption}
-	 * @return {boolean}
-	 */
-	CheckOption(miniopt) {
-		for (let o of miniopt.Result) {
-			switch (o.Type) {
-				case OptionType.Add:
-					RunMode = RunModeTypeEnum.Add;
-					break;
-				case OptionType.Extract:
-					RunMode = RunModeTypeEnum.Extract;
-					break;
-				case OptionType.List:
-					RunMode = RunModeTypeEnum.List;
-					break;
-				case OptionType.Delete:
-					RunMode = RunModeTypeEnum.Delete;
-					break;
-
-				case OptionType.Format:
-					RunMode = RunModeTypeEnum.Add;
-					Setting.FormatImage = true;
-					break;
-				case OptionType.Help:
-					this.Usage();
-					return false;
-				default:
-					if (!this.CheckOptionExternal(o)) return false;
-					break;
-			}
-		}
-		return true;
-	}
-
-	/**
-	 * @param {MiniOption.OptionData} o
-	 * @returns {boolean}
-	 */
-	CheckOptionExternal(o) {
-		switch (o.Type) {
-			case OptionType.Go:
-				this.Setting.ExecuteAddress = this.ReadValue(o.Value);
-				break;
-			case OptionType.Read:
-				this.Setting.LoadAddress = this.ReadValue(o.Value);
-				break;
-			case OptionType.Ipl:
-				this.Setting.IplMode = true;
-				this.Setting.IplName = o.Value;
-				break;
-			case OptionType.EntryName:
-				this.Setting.EntryName = o.Value;
-				break;
-			case OptionType.Path:
-				this.Setting.EntryDirectory = o.Value;
-				break;
-			case OptionType.X1S:
-				this.Setting.X1SMode = true;
-				break;
-
-			case OptionType.ForceAscii:
-				this.Setting.ForceAsciiMode = true;
-				break;
-
-			case OptionType.ForceBinary:
-				this.Setting.ForceBinaryMode = true;
-				break;
-
-			case OptionType.Verbose:
-				this.Log.SetVerbose();
-				break;
-			case OptionType.ImageType:
-				const Result = this.Setting.SetImageType(o.Value);
-				if (!Result) {
-					this.Log.Error("Image Type is Unknown... " + o.Value);
-				}
-				break;
-		}
-		return true;
 	}
 }

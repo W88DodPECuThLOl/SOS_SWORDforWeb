@@ -62,6 +62,11 @@ class TaskContext {
 	 */
 	batchManager;
 
+	/**
+	 * ディスクの情報
+	 */
+	#deviceInfo = new Array(32);
+
 	#keyCodeBackSpace = 0x08; // BackSpaceキー
 	#keyCodeDelete = 'Delete'; // DELキー
 
@@ -88,9 +93,19 @@ class TaskContext {
 		this.sndMan = sndMan;
 		this.gamePad = gamePad;
 		this.batchManager = new SOSBatchManager();
-
+		// ディスクの情報の初期化
+		this.#initializeDisk();
 		// PCGの初期化
 		this.#initializeSvgPCG();
+	}
+
+	/**
+	 * S-OSから独立して動いている状態かどうか
+	 * @returns {boolean} S-OSから独立して動いている状態なら trueを返す
+	 */
+	isStandAloneMode()
+	{
+		return false; // todo実装すること
 	}
 
 	/**
@@ -782,16 +797,102 @@ class TaskContext {
 	// --------------------------------------------------------------------
 
 	/**
+	 * ディスクの情報の初期化
+	 */
+	#initializeDisk()
+	{
+		this.#deviceInfo = new Array(32);
+		for(let i = 0; i < this.#deviceInfo.length; ++i) {
+			this.#deviceInfo[i] = {
+				/**
+				 * ディスクの種類
+				 * - 0x00 : 2D
+				 * - 0x10 : 2DD
+				 * - 0x20 : 2HD
+				 * - 0x30 : 1D
+				 * - 0x40 : 1DD
+				 * @type {number} DiskTypeEnum
+				 */
+				imageType: 0x00,
+				/**
+				 * ディレクトリエントリのあるレコード(セクタ)番号
+				 * @type {number}
+				 */
+				DIRPS: 16, // 2Dのデフォルトに設定
+			};
+		}
+	}
+
+	/**
 	 * ディスクデバイスかどうか
 	 * 
 	 * メモ)'A'～'D'がディスク
 	 * メモ)'E'がRAMディスク
-	 * @param {number} descriptor デバイスを示す文字
+	 * @param {number} descriptor デバイスを示す文字（'A'～）
 	 * @return {boolean} ディスクデバイスなら true を返す
 	 */
 	#checkDiskDescriptor(descriptor)
 	{
 		return 0x41 <= descriptor && descriptor <= 0x45; // A～E
+	}
+
+	/**
+	 * ディスクの種類を取得する
+	 * @param {number} descriptor デバイスを示す文字（'A'～）
+	 */
+	GetDiskType(descriptor)
+	{
+		if(this.#checkDiskDescriptor(descriptor)) {
+			return this.diskManager[descriptor - 0x41].GetDiskType();
+		} else {
+			return nullptr;
+		}
+	}
+
+	/**
+	 * ディレクトリエントリのあるレコード番号を取得する
+	 * @param {number} descriptor デバイスを示す文字（'A'～）
+	 */
+	GetDIRPS(descriptor)
+	{
+		// @todo 2DD,2HD対応
+		/*
+		if(this.#checkDiskDescriptor(descriptor)) {
+			return this.#deviceInfo[descriptor - 0x41].DIRPS;
+		} else {
+			return 16;
+		}
+		*/
+		return this.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
+	}
+
+	/**
+	 * ディスクのイベント処理
+	 * @param {number} no デバイスの番号(0～)
+	 * @param {string} event イベント名
+	 * @param {*} info 情報
+	 */
+	diskEvent(no, event, info)
+	{
+		console.log("[DiskEvent] devive:" + no + " event:" + event);
+		if(!this.#checkDiskDescriptor(0x41 + no)) {
+			return; // 未対応のドライブ
+		}
+		if(event == "Unmount") {
+			// アンマウントされた
+			this.#deviceInfo[no].imageType = 0x00; // 2D
+			this.#deviceInfo[no].DIRPS = 16; // 2Dのデフォルトに設定
+		} else if(event == "Mount") {
+			// マウントされた
+			const diskType = info.diskType;
+			if(diskType) {
+				this.#deviceInfo[no].imageType = diskType.GetImageType();
+				this.#deviceInfo[no].DIRPS = diskType.GetEntrySectorStart();
+			} else {
+				this.#deviceInfo[no].imageType = 0x00; // 2D
+				this.#deviceInfo[no].DIRPS = 16; // 2Dのデフォルトに設定
+			}
+		}
 	}
 
 	/**

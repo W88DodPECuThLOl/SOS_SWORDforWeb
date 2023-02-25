@@ -37,7 +37,11 @@ export default class {
 	SetupWrite(Filename, FileSize)
 	{
 		this.#Filename = Filename;
-		this.#buffer = new Uint8Array(FileSize);
+		if(FileSize > 0) {
+			this.#buffer = new Uint8Array(FileSize);
+		} else {
+			this.#buffer = null;
+		}
 		this.#position = 0;
 	}
 
@@ -59,7 +63,11 @@ export default class {
 	 * @returns {number} 現在のバッファのサイズ
 	 */
 	GetSize() {
-		return this.#buffer.length;
+		if(this.#buffer != null) {
+			return this.#buffer.length;
+		} else {
+			return 0;
+		}
 	}
 
 	/**
@@ -69,7 +77,16 @@ export default class {
 	 */
 	Write8(value)
 	{
-		if(this.#position >= this.#buffer.length) { return 0; }
+		if(this.#buffer != null) {
+			if(this.#position >= this.#buffer.length) {
+				// 拡張する
+				const newBuffer = new Uint8Array(this.#buffer.length + 1);
+				newBuffer.set(this.#buffer);
+				this.#buffer = newBuffer;
+			}
+		} else {
+			this.#buffer = new Uint8Array(1);
+		}
 		this.#buffer[this.#position++] = value;
 		return 1;
 	}

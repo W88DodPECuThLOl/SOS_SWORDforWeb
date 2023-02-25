@@ -31,6 +31,9 @@ export default class {
 	 */
 	#ShowVerbose;
 
+	/**
+	 * コンストラクタ
+	 */
 	constructor() {
 		this.#ShowError = true;
 		this.#ShowWarning = true;

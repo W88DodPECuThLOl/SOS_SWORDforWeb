@@ -1,7 +1,9 @@
 ﻿"use strict";
 
-// DataController
-export default class {
+/**
+ * Uint8Arrayの便利なラッパ
+ */
+export class DataController {
 	/**
 	 * バッファ
 	 * @type {Uint8Array}
@@ -114,10 +116,11 @@ export default class {
 	 */
 	SetCopy(pos, data, length = -1) {
 		if (length < 0) {
-			length = data.length - pos;
+			length = data.length;
 		}
 		for (let i = 0; i < length; i++) { this.#Buffer[pos + i] = data[i]; }
 	}
+
 	/**
 	 * 指定された値で埋める
 	 * @param {number} value 値
@@ -129,8 +132,4 @@ export default class {
 		// for (let i = 0; i < length; i++) this.#Buffer[pos + i] = value;
 		this.#Buffer.fill(value, pos, pos + length);
 	}
-
-	//internal void SetByte(int v, object imageTypeByte) {
-	//	throw new NotImplementedException();
-	//}
 }

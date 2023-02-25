@@ -7,6 +7,111 @@
 void setupHeap(void* heapBase, size_t heapSize);
 #endif // BUILD_WASM
 
+
+s32
+oct(const c8* start, const c8* end)
+{
+	s32 value = 0;
+	while(start != end) {
+		value <<= 3;
+		value |= *start - '0';
+		start++;
+	}
+	return value;
+}
+
+s32
+hex(const c8* start, const c8* end)
+{
+	s32 value = 0;
+	while(start != end) {
+		value <<= 4;
+		const s8 ch = *start;
+		if('a' <= ch && ch <= 'f') {
+			value |= ch - 'a' + 10;
+		} else if('A' <= ch && ch <= 'F') {
+			value |= ch - 'A' + 10;
+		} else {
+			value |= ch - '0';
+		}
+		start++;
+	}
+	return value;
+}
+
+
+//
+// 可変長引数テスト
+//
+void hoge( const c8* fmt, ...) {
+	va_list args;
+	va_start( args, fmt );
+
+#if false
+	const c8* YYCURSOR = fmt;
+	const c8* YYLIMIT = fmt + len;
+	const c8* YYMARKER;
+	const c8* OCT;
+	const c8* HEX;
+	const c8* FLAG;
+	const c8* WIDTH;
+	const c8* PRECISION;
+	const c8* LENGTH;
+	const c8* TYPE;
+	const c8* END;
+	c8* buffer = nullptr;
+	for(;;) {
+		/*!stags:re2c format = 'const c8* @@;'; */
+		/*!re2c
+			re2c:define:YYCTYPE = c8;
+			re2c:yyfill:enable = 0; // バッファ充填関数を使用しない
+			re2c:eof = 0; // ヌル文字(\0)を番兵文字として指定
+
+			// memo
+			// "foo" case-sensitive string literal
+			// 'foo' case-insensitive string literal
+
+			* { add(buffer, *YYCURSOR ); }
+			$ { return buffer; }
+
+			// エスケープ
+			"\\"  @OCT [0-7]{1..3} @END
+				{
+					add(buffer, oct(OCT, END));
+				}
+			"\\x" @HEX [1-9a-fA-F] [0-9a-fA-F]? @END
+				{
+					add(buffer, hex(HEX, END));
+				}
+			"\\a"  { add(buffer, '\a' ); }
+			"\\b"  { add(buffer, '\b' ); }
+			"\\f"  { add(buffer, '\f' ); }
+			"\\n"  { add(buffer, '\n' ); }
+			"\\r"  { add(buffer, '\r' ); }
+			"\\t"  { add(buffer, '\t' ); }
+			"\\v"  { add(buffer, '\v' ); }
+			"\\\\" { add(buffer, '\\' ); }
+			"%%"   { add(buffer, '%'  ); }
+
+			//
+			// printfの書式
+			// %[flags][width][.precision][length]type
+			//
+			flag = [+- #0]+;
+			width = (([1-9][0-9]*) | "*");
+			precision = "." (([1-9][0-9]*) | "*");
+			length = "h"{1,2} | "l"{1,2} | "j" | "z" | "t" | "L";
+			type = [diuoxXc]
+			"%" @FLAG flag? @WIDTH width? @PRECISION precision? @LENGTH length? @TYPE type @END {
+				format(args, buffer, FLAG, WIDTH, PRECISION, LENGTH, TYPE, END);
+			}
+		*/
+	}
+#endif
+
+	va_end( args );
+}
+
 class SOS_Context {
 	static unsigned char readByte(void* arg, unsigned short addr) { return ((SOS_Context*)arg)->RAM[addr]; }
 	static void writeByte(void* arg, unsigned short addr, unsigned char value) {
@@ -488,6 +593,9 @@ initialize(void* heapBase, size_t heapSize)
 	delete ctx;
 	ctx = new SOS_Context();
 	initPlatform();
+
+	// 可変長引数のテスト
+	//hoge( u8"%d,%d,%d,%d", 1, 2, 4, 8 );
 }
 
 /**

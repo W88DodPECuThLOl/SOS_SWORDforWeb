@@ -39,6 +39,7 @@ typedef __builtin_va_list   va_list;
 #define va_arg(v,l)         __builtin_va_arg(v,l)
 #define va_copy(dest, src)  __builtin_va_copy(dest, src)
 
+extern "C"
 int vsnprintf(char *buffer, size_t count, const char *format, va_list argptr);
 
 WASM_IMPORT("js", "sin")
