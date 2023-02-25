@@ -1,12 +1,12 @@
 "use strict";
 
-class DOSWorkAddr {
- 	static NXCLST = 0x27DE; // DS 1
-	static DEBUF  = 0x27DF; // DS 2
-	static HLBUF  = 0x27E1; // DS 2
+const DOSWorkAddr = {
+	NXCLST: 0x27DE, // DS 1
+	DEBUF: 0x27DF, // DS 2
+	HLBUF: 0x27E1, // DS 2
 
-	static OPNFG = 0x291e;
-	static FTYPE = 0x291f;
+	OPNFG: 0x291e,
+	FTYPE: 0x291f,
 /*
 	_RDI	equ	2900h
 	_TROPN	equ	2903h
@@ -23,10 +23,11 @@ class DOSWorkAddr {
 	;EXCOM	equ	1cc0h		;for original RUN & SUBMIT
 	EXCOM	equ	1c00h		;for RUN & SUBMIT
 */
-}
-class DiskWorkAddr {
-	static UNITNO = 0x2b06;
-}
+};
+
+const DiskWorkAddr = {
+	UNITNO: 0x2b06
+};
 
 /**
  * #PAUSEの状態
