@@ -392,12 +392,12 @@
 				const restoreMenuItem = document.getElementById('restore' + driveNo);
 
 				if(event == 'Mount') {
-					if(params.info.trigger) {
+					//if(params.info.trigger) {
 						// マウントされた
 						if(ctx) {
 							ctx.diskEvent(driveNo, event, params.info);
 						}
-					}
+					//}
 				}
 				if(event == 'Unmount') {
 					if(params.info.trigger) {
@@ -502,24 +502,32 @@
 					//disks[deviceNo].GetDiskType().SetImageType();
 					disks[deviceNo].GetDiskType().SetPlainFormat(false);
 					disks[deviceNo].mount(filename, readData, false);
+					// "AUTOEXEC.BAT"を実行する
+					ctx.setAutoExecBat();
 				} else if(is2dImage(filename, readData)) {
 					// 2Dの生イメージ
 					// ディスクをセットする
 					disks[deviceNo].GetDiskType().SetImageType(0x00);
 					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
+					// "AUTOEXEC.BAT"を実行する
+					ctx.setAutoExecBat();
 				} else if(is2ddImage(filename, readData)) {
 					// 2DDの生イメージ
 					// ディスクをセットする
 					disks[deviceNo].GetDiskType().SetImageType(0x10);
 					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
+					// "AUTOEXEC.BAT"を実行する
+					ctx.setAutoExecBat();
 				} else if(is2hdImage(filename, readData)) {
 					// 2HDの生イメージ
 					// ディスクをセットする
 					disks[deviceNo].GetDiskType().SetImageType(0x20);
 					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
+					// "AUTOEXEC.BAT"を実行する
+					ctx.setAutoExecBat();
 				} else {
 					alert("不明なフォーマットタイプです。")
 					return false;
@@ -836,7 +844,6 @@
 			 */
 			function autoStart(execFile) {
 				const execFileReader = new XMLHttpRequest() ;
-				//execFileReader.open("get", "./files/" + execFile, true) ;
 				execFileReader.open("get", execFile, true) ;
 				execFileReader.responseType = "arraybuffer" ;
 				
@@ -889,7 +896,7 @@
 								ctx.z80Emu.setPCG(ch, pcgData);
 							}
 						}
-						// auto staart
+						// auto start
 						if(cfg.execFile != null) {
 							autoStart(cfg.execFile) ;
 						}

@@ -7,6 +7,13 @@ class SOSKeyCode {
 
 	/**
 	 * S-OSのキーコード
+	 * 0
+	 * @type {number}
+	 */
+	static NUL = 0x00;
+
+	/**
+	 * S-OSのキーコード
 	 * CLS
 	 * @type {number}
 	 */

@@ -1,5 +1,16 @@
 "use strict";
 
+/**
+ * Web版の独自拡張機能
+ * @type {}
+ */
+const SOS_Web_Ext = {
+	/**
+	 * FATを2セクタで処理するように拡張する
+	 */
+	FAT2SECTOR: true,
+};
+
 const DOSWorkAddr = {
 	NXCLST: 0x27DE, // DS 1
 	DEBUF: 0x27DF, // DS 2
@@ -86,6 +97,9 @@ class SOS {
 	 * @type {boolean}
 	 */
 	#pauseState = PauseState.Idle;
+
+	// --------------------------------------------------
+	// --------------------------------------------------
 
 	/**
 	 * コンストラクタ
@@ -1840,18 +1854,45 @@ class SOS {
 		if(!this.#isCpuOccupation) {
 			this.#Log(ctx, "sos_flget - z80 freeze");
 			ctx.keyMan.keyBufferClear(); // キーボードバッファをクリア
-			this.#isCpuOccupation = true;
 			// カーソル位置を設定
 			const address = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.XYADR);
 			const pos     = this.#memReadU16(address);
 			ctx.setScreenLocate({x: pos & 0xFF, y:pos >> 8});
+
+			//
+			// バッチ処理
+			//
+			try {
+				const result = ctx.batchManager.get();
+				if(!result.cy && (result.character != 0)) {
+					// バッチから入力された
+					this.#setA(result.character);
+					// 正常終了
+					this.#clearCY();
+					// CPU停止していたのを終わらせる
+					this.setPC(this.#getPC() + 3);
+					return;
+				}
+			} catch(e) {
+				if(e instanceof SOSBatchUserInput) {
+					// 「\0」の処理
+					ctx.BELL(0); // ベルを鳴らして、ユーザー入力へ
+				} else {
+					throw e;
+				}
+			}
+
+			// ユーザーからの入力待ちへ
+			this.#isCpuOccupation = true;
 			// カーソル表示
 			ctx.setDisplayCursor(true);
 			return;
 		} else {
+			// ユーザからの入力
 			let key = Number(ctx.keyMan.inKey());
 			if(isNaN(key)) { key = 0; }
 			if(key) {
+				// 入力された
 				this.#Log(ctx, "sos_flget - z80 wakeup!");
 				this.#isCpuOccupation = false;
 				this.#setA(key);
@@ -2417,7 +2458,7 @@ class SOS {
 		}
 		// 空き容量
 		this.#beginCursor(ctx); // S-OSのワークからカーソル位置を設定する
-		const freeClusters = this.#dos_freclu();
+		const freeClusters = this.#dos_freclu(ctx);
 		ctx.printNativeMsg("$" + ToStringHex2(freeClusters) + " Clusters Free\n");
 		this.#endCursor(ctx); // カーソル位置をS-OSのワークに設定する
 
@@ -3175,7 +3216,7 @@ class SOS {
 		// 書き込める容量があるかどうかを確認
 		let dataSize = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE); // _SIZE
 		const needCluster = ((((dataSize-1) & 0xFFFF) >> 4) + 0x100) >> 8;
-		if(this.#dos_freclu() < needCluster) {
+		if(this.#dos_freclu(ctx) < needCluster) {
 			this.#setA(SOSErrorCode.DeviceFull);
 			this.#setCY();
 			return false;
@@ -3186,7 +3227,7 @@ class SOS {
 			this.#memWriteU8(ib_base + SOSInfomationBlock.ib_date + i, 0);
 		}
 		// 開始クラスタを設定
-		let freePos = this.#dos_fcget(); // 空きクラスタを取得
+		let freePos = this.#dos_fcget(ctx); // 空きクラスタを取得
 		if(freePos < 0) {
 			// メモ）空きを確認しているので、ここには来ない
 			this.#setA(SOSErrorCode.DeviceFull);
@@ -3220,7 +3261,7 @@ class SOS {
 			} else {
 				// まだ残ってるので、次の空いているクラスタを取得
 				this.#memWriteU8(currentFat, 0x80); // 別の空きクラスタ位置を取得したいので、一旦使用中にする。
-				freePos = this.#dos_fcget(); // 次に続く空きクラスタ位置を取得
+				freePos = this.#dos_fcget(ctx); // 次に続く空きクラスタ位置を取得
 				if(freePos < 0) {
 					// メモ）空きを確認しているので、ここには来ない
 					this.#setA(SOSErrorCode.DeviceFull);
@@ -3272,7 +3313,19 @@ class SOS {
 		*/
 		const fatps = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATPOS);
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
-		return this.#dos_dskred(ctx, fatbf, fatps, 1);
+		let size = 1;
+		if(SOS_Web_Ext.FAT2SECTOR) {
+			// Web版の拡張
+			const deviceName = this.wrkReadDSK();
+			const diskType = ctx.GetDiskType(deviceName);
+			if(diskType && (fatbf == 0x0300) && (diskType.GetMaxCluster() >= 128)) {
+				// バッファがデフォルト
+				// 128クラスタ以上なら2セクタ分
+				size = 2;
+				this.#Log(ctx, "Web拡張機能:FAT2セクタ 読み込み dsk:" + deviceName + " fatps:" + fatps);
+			}
+		}
+		return this.#dos_dskred(ctx, fatbf, fatps, size);
 	}
 
 	/**
@@ -3295,7 +3348,19 @@ class SOS {
 		*/
 		const fatps = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATPOS);
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
-		return this.#dos_dskwrt(ctx, fatbf, fatps, 1);
+		let size = 1;
+		if(SOS_Web_Ext.FAT2SECTOR) {
+			// Web版の拡張
+			const deviceName = this.wrkReadDSK();
+			const diskType = ctx.GetDiskType(deviceName);
+			if(diskType && (fatbf == 0x0300) && (diskType.GetMaxCluster() >= 128)) {
+				// バッファがデフォルト
+				// 128クラスタ以上なら2セクタ分
+				size = 2;
+				this.#Log(ctx, "Web拡張機能:FAT2セクタ 書き込み dsk:" + deviceName + " fatps:" + fatps);
+			}
+		}
+		return this.#dos_dskwrt(ctx, fatbf, fatps, size);
 	}
 
 	/**
@@ -3304,8 +3369,9 @@ class SOS {
 	 * #FATBFに読み込まれているFAT情報から空きクラスタ数を取得する。
 	 * @returns {number}	空きクラスタ数
 	 */
-	#dos_freclu()
+	#dos_freclu(ctx)
 	{
+		this.#Log(ctx, "dos_freclu");
 		/*
 		; FREE CLUSTERS GET
 		
@@ -3328,9 +3394,20 @@ class SOS {
 			pop		bc
 			ret
 		*/
-		let freeClusters = 0;
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
-		for(let i = 0; i < 0x80; ++i) {
+		let maxCluster = 0x80;
+		if(SOS_Web_Ext.FAT2SECTOR) {
+			// Web版の拡張
+			const deviceName = this.wrkReadDSK();
+			const diskType = ctx.GetDiskType(deviceName);
+			if(diskType && (fatbf == 0x0300) && (diskType.GetMaxCluster() >= 128)) {
+				maxCluster = diskType.GetMaxCluster();
+				this.#Log(ctx, "Web拡張機能:FAT2セクタ 最大クラスタ分検索する dsk:" + deviceName + " 最大クラスタ数:" + maxCluster);
+			}
+		}
+
+		let freeClusters = 0;
+		for(let i = 0; i < maxCluster; ++i) {
 			if(this.#memReadU8(fatbf + i) == 0) {
 				freeClusters++;
 			}
@@ -3346,7 +3423,7 @@ class SOS {
 	 * @returns {number}	空きクラスタ位置(0～0x7F)  
 	 * 						空きクラスタがない時は -1 を返す
 	 */
-	#dos_fcget()
+	#dos_fcget(ctx)
 	{
 		/*
 		; FREE CLUSTER POSITION GET
@@ -3374,7 +3451,17 @@ class SOS {
 			ret
 		*/
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
-		for(let i = 0; i < 0x80; ++i) {
+		let maxCluster = 0x80;
+		if(SOS_Web_Ext.FAT2SECTOR) {
+			// Web版の拡張
+			const deviceName = this.wrkReadDSK();
+			const diskType = ctx.GetDiskType(deviceName);
+			if(diskType && (fatbf == 0x0300) && (diskType.GetMaxCluster() >= 128)) {
+				maxCluster = diskType.GetMaxCluster();
+				this.#Log(ctx, "Web拡張機能:FAT2セクタ 最大クラスタ分検索する dsk:" + deviceName + " 最大クラスタ数:" + maxCluster);
+			}
+		}
+		for(let i = 0; i < maxCluster; ++i) {
 			if(this.#memReadU8(fatbf + i) == 0) {
 				this.#clearCY();
 				return i;
@@ -3426,7 +3513,7 @@ class SOS {
 		let next = startCluster;
 		const fatbf = this.#memReadU16(this.#SOSWorkBaseAddress + SOSWorkAddr.FATBF);
 		while(true) {
-			const tempAddr = fatbf + next;
+			let tempAddr = fatbf + next;
 			next = this.#memReadU8(tempAddr);
 			this.#memWriteU8(tempAddr, 0);
 			if(next < 0x80) {

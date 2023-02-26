@@ -94,23 +94,31 @@ class TaskLineInput {
 			ctx.setDisplayCursor(true);
 		};
 		this.#state[this.#state_wait] = (ctx)=>{
-			if(ctx.batchManager.isActive()) {
-				// バッチ処理中
-				const command = ctx.batchManager.getLine();
-				if(ctx.batchManager.isActive()) {
-					for(let ch of command) {
-						if(ch == 0) {
-							// Enterキー、入力完了
-							this.#lineCommit(ctx);
-							return;
-						}
-						// 画面に表示
-						ctx.catTextScreen.putch32(ch);
+			//
+			// バッチ処理
+			//
+			try {
+				let res = ctx.batchManager.get();
+				while(!res.cy) {
+					if(res.character == KeyCode_CR) {
+						// Enterキー、入力完了
+						this.#lineCommit(ctx);
+						return;
 					}
-					return;
+					// 画面に表示
+					ctx.catTextScreen.putch32(res.character);
+					res = ctx.batchManager.get();
+				}
+			} catch(e) {
+				if(e instanceof SOSBatchUserInput) {
+					// 「\0」の処理
+					ctx.BELL(0); // ベルを鳴らして、ユーザー入力へ
+				} else {
+					throw e;
 				}
 			}
 
+			// ユーザからの入力
 			const keyCode = ctx.keyMan.dequeueKeyBuffer();
 			if(keyCode > 0) {
 				if(keyCode == KeyCode_BRK) {

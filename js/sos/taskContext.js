@@ -856,14 +856,12 @@ class TaskContext {
 	GetDIRPS(descriptor)
 	{
 		// @todo 2DD,2HD対応
-		/*
 		if(this.#checkDiskDescriptor(descriptor)) {
-			return this.#deviceInfo[descriptor - 0x41].DIRPS;
+			const no = descriptor - 0x41;
+			return this.#deviceInfo[no].DIRPS;
 		} else {
-			return 16;
+			return this.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 		}
-		*/
-		return this.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 	}
 
 	/**
@@ -874,7 +872,7 @@ class TaskContext {
 	 */
 	diskEvent(no, event, info)
 	{
-		console.log("[DiskEvent] devive:" + no + " event:" + event);
+		let logText = "[DiskEvent] devive:" + no + " event:" + event;
 		if(!this.#checkDiskDescriptor(0x41 + no)) {
 			return; // 未対応のドライブ
 		}
@@ -888,11 +886,14 @@ class TaskContext {
 			if(diskType) {
 				this.#deviceInfo[no].imageType = diskType.GetImageType();
 				this.#deviceInfo[no].DIRPS = diskType.GetEntrySectorStart();
+				logText += " imageType:" + diskType.GetImageTypeName();
+				logText += " DefaultDirectoryEntry:" + diskType.GetEntrySectorStart();
 			} else {
 				this.#deviceInfo[no].imageType = 0x00; // 2D
 				this.#deviceInfo[no].DIRPS = 16; // 2Dのデフォルトに設定
 			}
 		}
+		console.log(logText);
 	}
 
 	/**
@@ -1237,5 +1238,13 @@ class TaskContext {
 	NL()
 	{
 		if(this.getScreenLocate().x != 0) { this.PRINT(SOSKeyCode.CR); }
+	}
+
+	/**
+	 * "AUTOEXEC.BAT"を実行する
+	 */
+	setAutoExecBat()
+	{
+		this.batchManager.setAutoExecBat();
 	}
 }
