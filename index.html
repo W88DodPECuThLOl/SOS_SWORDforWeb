@@ -151,6 +151,7 @@
 			import CatGamePad from './js/cat/catGamePad.js';
 			import CatFullScreen from './js/cat/catFullScreen.js';
 
+
 			// URL Param
 			// ?fnt=PC8001でPC8001風のフォントマップに
 			// ?exec=実行したいファイルのURL
@@ -474,6 +475,8 @@
 				*/
 			}
 
+			var autoexec = false; // @todo もっとエレガントに
+
 			/**
 			 * ディスクイメージをマウント、または、１個のファイルを実行する
 			 * @param {number} deviceNo デバイス(0～3)
@@ -502,32 +505,40 @@
 					//disks[deviceNo].GetDiskType().SetImageType();
 					disks[deviceNo].GetDiskType().SetPlainFormat(false);
 					disks[deviceNo].mount(filename, readData, false);
-					// "AUTOEXEC.BAT"を実行する
-					ctx.setAutoExecBat();
+					if(autoexec) {
+						// "AUTOEXEC.BAT"を実行する
+						ctx.setAutoExecBat();
+					}
 				} else if(is2dImage(filename, readData)) {
 					// 2Dの生イメージ
 					// ディスクをセットする
 					disks[deviceNo].GetDiskType().SetImageType(0x00);
 					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
-					// "AUTOEXEC.BAT"を実行する
-					ctx.setAutoExecBat();
+					if(autoexec) {
+						// "AUTOEXEC.BAT"を実行する
+						ctx.setAutoExecBat();
+					}
 				} else if(is2ddImage(filename, readData)) {
 					// 2DDの生イメージ
 					// ディスクをセットする
 					disks[deviceNo].GetDiskType().SetImageType(0x10);
 					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
-					// "AUTOEXEC.BAT"を実行する
-					ctx.setAutoExecBat();
+					if(autoexec) {
+						// "AUTOEXEC.BAT"を実行する
+						ctx.setAutoExecBat();
+					}
 				} else if(is2hdImage(filename, readData)) {
 					// 2HDの生イメージ
 					// ディスクをセットする
 					disks[deviceNo].GetDiskType().SetImageType(0x20);
 					disks[deviceNo].GetDiskType().SetPlainFormat(true);
 					disks[deviceNo].mount(filename, readData, true);
-					// "AUTOEXEC.BAT"を実行する
-					ctx.setAutoExecBat();
+					if(autoexec) {
+						// "AUTOEXEC.BAT"を実行する
+						ctx.setAutoExecBat();
+					}
 				} else {
 					alert("不明なフォーマットタイプです。")
 					return false;
@@ -857,7 +868,9 @@
 					}
 					const objArray = execFileReader.response ;
 					const objFile  = new Uint8Array(objArray) ;
+					autoexec = true;
 					mountImage(0, execFile, objFile);
+					autoexec = false;
 				}
 				execFileReader.send() ;
 			}
