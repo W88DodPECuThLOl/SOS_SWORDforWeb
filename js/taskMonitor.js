@@ -100,7 +100,6 @@ class TaskMonitor {
 	 */
 	#getDirRecord(ctx, deviceName)
 	{
-		//return ctx.z80Emu.memReadU16(SOSWorkAddr.DIRPS);
 		return ctx.GetDIRPS(deviceName);
 	}
 
@@ -660,27 +659,7 @@ class TaskMonitor {
 			// =========================================================================
 			// バッチ処理
 			// =========================================================================
-			if(ctx.batchManager.isActive()) {
-				// バッチ処理中
-				const command = ctx.batchManager.getLine(); // １行取得
-				if(ctx.batchManager.isActive()) {
-					// コマンドバッファへコピー
-					this.#commandBuffer.length = 0
-					this.#commandBuffer.push(this.#PromptCharacter); // プロンプト
-					for(let ch of command) { this.#commandBuffer.push(ch); }
-					// 表示もしておく
-					for(let ch of this.#commandBuffer) {
-						if(ch == 0) {
-							ctx.PRINT(SOSKeyCode.CR);
-							break;
-						}
-						ctx.PRINT(ch);
-					}
-					// コマンド処理へ
-					this.changeState(this.#state_command);
-					return;
-				}
-			}
+			// メモ）ライン入力で処理されるので、不要
 
 			// =========================================================================
 			// 通常処理
