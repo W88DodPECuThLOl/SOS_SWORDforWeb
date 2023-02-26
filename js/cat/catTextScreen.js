@@ -126,6 +126,17 @@ export default class {
 	}
 
 	/**
+	 * 理論画面範囲を設定する
+	 * @param {*} range 理論画面範囲
+	 * @param {number} layer レイヤ
+	 */
+	setWindowRange(range, layer)
+	{
+		layer = (typeof layer === 'undefined') ? this.#defaultLayer : layer;
+		return this.#textLayerControler[layer].setWindowRange(range);
+	}
+
+	/**
 	 * １文字出力する
 	 * @param {number_Or_string} codePoint UTF-32の文字、または、制御文字列
 	 * @param {number} layer レイヤ番号

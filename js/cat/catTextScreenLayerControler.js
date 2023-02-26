@@ -390,13 +390,22 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 		this.#prcnt = 0;
 		this.#cursor = {x:0, y:0};
 		this.#lineContinue = new Array(this.#target.getScreenHeight());
-		this.#target.setCursor(0, 0);
-		this.#range = {
+		this.setWindowRange({
 			top: 0,
 			left: 0,
 			bottom: this.#target.getScreenHeight(),
 			right: this.#target.getScreenWidth()
-		};
+		});
+		this.#target.setCursor(0, 0);
+	}
+
+	/**
+	 * 理論画面範囲を設定する
+	 * @param {*} range 
+	 */
+	setWindowRange(range)
+	{
+		this.#range = range;
 	}
 
 	/**
@@ -413,12 +422,12 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 		this.#prcnt = 0;
 		this.#cursor = {x:0, y:0};
 		this.#lineContinue = new Array(this.#target.getScreenHeight());
-		this.#range = {
+		this.setWindowRange({
 			top: 0,
 			left: 0,
 			bottom: this.#target.getScreenHeight(),
 			right: this.#target.getScreenWidth()
-		};
+		});
 	}
 
 	/**

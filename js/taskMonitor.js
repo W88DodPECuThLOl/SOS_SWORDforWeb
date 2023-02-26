@@ -76,7 +76,7 @@ class TaskMonitor {
 	 * S-OS #HOTで実行が完了したときに、このフラグをみて、戻り値でエラーを表示するかどうかを判定している。
 	 * @type {boolean}
 	 */
-	#isRunCommand = false; 
+	#isRunCommand = false;
 
 	/**
 	 * Z80のメモリへデータを転送する
@@ -112,6 +112,16 @@ class TaskMonitor {
 		ctx.z80Emu.memWriteU8(SOSWorkAddr.WIDTH, screenWidth);
 		ctx.z80Emu.memWriteU8(SOSWorkAddr.MAXLIN, screenHeight);
 		ctx.changeScreenSize(screenWidth, screenHeight);
+	}
+
+	/**
+	 * 
+	 * @param {TaskContext} ctx 
+	 * @param {Array} commandLine コマンド
+	 */
+	C_Command(ctx, commandLine)
+	{
+		ctx.changeFunction();
 	}
 
 	/**
@@ -778,6 +788,10 @@ class TaskMonitor {
 						this.Pause_Command(ctx, this.#commandBuffer);
 						// 解除待ちへ遷移
 						this.changeState(this.#state_pause_wait);
+						return;
+					case 0x43: // Cコマンド
+						this.C_Command(ctx, this.#commandBuffer);
+						this.changeState(this.#state_start);
 						return;
 					default:
 						throw new SOSError(SOSErrorCode.SyntaxError); // シンタックスエラー

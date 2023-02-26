@@ -120,6 +120,9 @@ class TaskContext {
 	 */
 	initialMsg()
 	{
+		// 描画範囲を設定
+		this.setFunctionMode(0);
+		// 初期画面のメッセージ表示
 		this.catTextScreen.clearScreen();
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
 		this.printNativeMsg("Version 0.00.02 猫大名 ねこ猫\n");
@@ -177,6 +180,11 @@ class TaskContext {
 	screenScale = {x: 1.0, y: 1.0};
 
 	/**
+	 * 
+	 */
+	#isWindowMode = 0;
+
+	/**
 	 * 画面サイズを変更する
 	 * @param {number} width 横幅のサイズ
 	 * @param {number} height 高さのサイズ
@@ -191,7 +199,68 @@ class TaskContext {
 		// CTRC設定
 		this.z80Emu.ioWrite(0x1800, 1);
 		this.z80Emu.ioWrite(0x1801, width);
+		// 画面範囲を再設定する
+		if(this.#isWindowMode) {
+			this.setFunctionMode(this.#isWindowMode);
+		}
 	}
+
+	/**
+	 * 画面範囲を設定する
+	 * @param {number} isWindowMode 行数
+	 */
+	setFunctionMode(isWindowMode)
+	{
+		this.#isWindowMode = isWindowMode;
+		if(isWindowMode) {
+			// ファンクションの表示
+			this.printFunction();
+		}
+		const screenWidth = this.catTextScreen.getScreenWidth();
+		const screenHeight = this.catTextScreen.getScreenHeight();
+		this.setWindowRange({
+			top: 0, left: 0,
+			bottom: screenHeight - this.#isWindowMode, right: screenWidth
+		});
+	}
+
+	/**
+	 * 画面範囲を切り替える
+	 */
+	changeFunction()
+	{
+		if(this.#isWindowMode) {
+			// 25行モード
+			this.setFunctionMode(0);
+		} else {
+			// 24行モード
+			this.setFunctionMode(1);
+		}
+	}
+
+	/**
+	 * 理論画面範囲を設定する
+	 * @param {*} range 
+	 */
+	setWindowRange(range)
+	{
+		this.catTextScreen.setWindowRange(range);
+	}
+
+	/**
+	 * ファンクションの表示
+	 */
+	printFunction()
+	{
+		//const screenWidth = this.catTextScreen.getScreenWidth();
+		const screenHeight = this.catTextScreen.getScreenHeight();
+		// ファンクションキーの表示
+		const saveLocation = this.getScreenLocate();
+		this.setScreenLocate({x:0, y:screenHeight - 1});
+		this.printNativeMsg(" ファンクションキーのエリア 0000000000000000000000000");
+		this.setScreenLocate(saveLocation);
+	}
+
 
 	/**
 	 * 画面のスケーリングを設定する
