@@ -26,10 +26,14 @@ AILZ80ASM.exe --input testBatErr.z80 --output testBatErr.lst -lst -f
 AILZ80ASM.exe --input testGetL.z80 --output testGetL.bin -f
 AILZ80ASM.exe --input testGetL.z80 --output testGetL.lst -lst -f
 
+AILZ80ASM.exe --input testFLGet.z80 --output testFLGet.bin -f
+AILZ80ASM.exe --input testFLGet.z80 --output testFLGet.lst -lst -f
+
 AILZ80ASM.exe --input testGRAM.z80 --output testGRAM.bin -f
 AILZ80ASM.exe --input testGRAM.z80 --output testGRAM.lst -lst -f
 
 REM hudisk https://github.com/BouKiCHi/HuDisk
+
 hudisk.exe -a SOS_TEST.d88 testPause.bin  --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testWopen.bin  --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testRopen.bin  --read 3000 --go 3000
@@ -39,6 +43,7 @@ hudisk.exe -a SOS_TEST.d88 testPad.bin    --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testASCII.bin  --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testBatErr.bin --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testGetL.bin   --read 3000 --go 3000
+hudisk.exe -a SOS_TEST.d88 testFLGet.bin  --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testGRAM.bin   --read 3000 --go 3000
 
 pause

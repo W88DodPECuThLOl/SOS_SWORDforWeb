@@ -107,6 +107,24 @@ DATA_ADDR:
 	DB "BATCH FILE TEST", 13  ; S-OS #GETLの入力のリダイレクション
 	DB " testGetL.bin", 13    ; バイナリの実行テスト
 	DB "ABCDEFGHIJKLMNOPQRSTUVWXYZ", 13  ; S-OS #GETLの入力のリダイレクション
+	DB " testFLGet.bin", 13   ; バイナリの実行テスト
+	DB "A"                    ; S-OS #FLGETの入力のリダイレクション
+	DB " testFLGet.bin", 13   ; バイナリの実行テスト
+	DB $5c, "0abcdefg", 13        ; S-OS #FLGETの入力のリダイレクション \0のユーザー入力
+	DB "P", 13
+
+	DB ";----------------------------------", 13
+	DB "; PARAM TEST                       ", 13
+	DB ";----------------------------------", 13
+	DB "; PARAM 1:", $5c, "1", 13
+	DB "; PARAM 2:", $5c, "2", 13
+	DB "; PARAM 3:", $5c, "3", 13
+	DB "; PARAM 4:", $5c, "4", 13
+	DB "; PARAM 5:", $5c, "5", 13
+	DB "; PARAM 6:", $5c, "6", 13
+	DB "; PARAM 7:", $5c, "7", 13
+	DB "; PARAM 8:", $5c, "8", 13
+	DB "; PARAM 9:", $5c, "9", 13
 	DB "P", 13, 0
 
 DATA_ADDR_END:

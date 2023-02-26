@@ -1,0 +1,27 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; S-OS BATCH FLGET TEST
+                                ;
+                                ; ・S-OS FLGETを呼び出して1文字入力する
+                                ; ・入力したデータを16進数2桁で表示する
+                                ;
+                                
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+       2021                     FLGET   EQU $2021 ; #FLGET※(2021H) ｶｰｿﾙ位置で、ｶｰｿﾙ点滅１文字入力を行い、Ａに押されたｷｬﾗｸﾀをｾｯﾄ。画面へのｴｺｰﾊﾞｯｸは行わない。
+       1FC1                     PRTHX   EQU $1FC1 ; Ａﾚｼﾞｽﾀの内容を16進数２桁で表示する。 破壊: AF
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 532D4F5320424154        DB "S-OS BATCH FLGET TEST"
+            434820464C474554    
+            2054455354          
+000018 3018 0D00                    DB 13, 0
+                                
+                                    ; １文字入力
+00001A 301A CD2120          17      CALL FLGET
+                                    ; 読み込んだ結果を16進数で表示
+00001D 301D CDC11F          17      CALL PRTHX  ; 16進2桁で表示
+000020 3020 B7               4      OR   A
+000021 3021 C9              10      RET
+[EOF:testFLGet.z80:UTF_8]

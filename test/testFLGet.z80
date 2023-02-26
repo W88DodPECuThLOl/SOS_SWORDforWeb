@@ -1,0 +1,23 @@
+;
+; S-OS BATCH FLGET TEST
+;
+; ・S-OS FLGETを呼び出して1文字入力する
+; ・入力したデータを16進数2桁で表示する
+;
+
+	org $3000
+
+MPRINT  EQU $1FE2
+FLGET   EQU $2021 ; #FLGET※(2021H) ｶｰｿﾙ位置で、ｶｰｿﾙ点滅１文字入力を行い、Ａに押されたｷｬﾗｸﾀをｾｯﾄ。画面へのｴｺｰﾊﾞｯｸは行わない。
+PRTHX   EQU $1FC1 ; Ａﾚｼﾞｽﾀの内容を16進数２桁で表示する。 破壊: AF
+
+	CALL MPRINT
+	DB "S-OS BATCH FLGET TEST"
+	DB 13, 0
+
+	; １文字入力
+	CALL FLGET
+	; 読み込んだ結果を16進数で表示
+	CALL PRTHX  ; 16進2桁で表示
+	OR   A
+	RET
