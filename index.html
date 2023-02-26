@@ -603,8 +603,8 @@
 			 */
 			function isD88Image(data)
 			{
-				// D88の2Dフォーマット時の標準的なファイルサイズで、判定
-				if(data.length < 348848) { return false; }
+				if(data.length < 0x1B0) { return false; }
+
 				// リザーブエリアが0かどうかで判定
 				for(let i = 0x11; i < 0x1A; ++i) {
 					if(data[i] != 0x00) { return false; }
@@ -618,6 +618,14 @@
 				if(size != data.length) {
 					return false;
 				}
+
+				// D88のPC6のサイズ
+				if(data.length == 174768) {
+					return true; // PC6
+				}
+				// D88の2Dフォーマット時の標準的なファイルサイズで、判定
+				if(data.length < 348848) { return false; }
+
 				// このぐらいでゆるしておく
 				return true;
 			}
