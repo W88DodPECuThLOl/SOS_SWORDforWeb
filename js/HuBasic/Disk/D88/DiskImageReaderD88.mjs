@@ -51,8 +51,8 @@ export class DiskImageReaderD88 {
 			const SectorAddress = trackAddress[track]; // セクタの開始位置
 			Log.AddLog(LogType.Debug, track + ": トラック部のオフセット:0x" + (SectorAddress).toString(16));
 			if(SectorAddress == 0) {
-				// トラックが無いので、終了
-				break;
+				// トラックが無い
+				continue;
 			}
 			if (SectorAddress < D88.D88HeaderSize) {
 				Log.Error("トラック部分のアドレスが不正です。 Track:" + track + " トラック部分のアドレス:0x" + (SectorAddress).toString(16));
@@ -154,7 +154,7 @@ export class DiskImageReaderD88 {
 		const D88ImageSize = dc.GetLong(0x1c);
 
 		// デバッグ
-		Log.AddLog(LogType.Debug, "ディスクの名前:" + diskImage.GetDiskName());
+		Log.AddLog(LogType.Debug, "ディスクの名前:" + diskImage.GetDiskName() + "(" + diskType.toString(16) + ")");
 		Log.AddLog(LogType.Debug, "ライトプロテクト:" + dc.GetByte(0x1a));
 		Log.AddLog(LogType.Debug, "ディスクの種類:" + diskImage.GetDiskType().GetImageTypeName() + "(diskType:" + diskType + ")");
 		Log.AddLog(LogType.Debug, "ディスクのサイズ:" + D88ImageSize);
