@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SUZUKI PLAN - Z80 Emulator
  * -----------------------------------------------------------------------------
  * The MIT License (MIT)
@@ -31,6 +31,8 @@
 #define DISABLE_LOG
 #define DISABLE_BREAK_POINTS
 #define DISABLE_BREAK_OPERANDS
+
+#define R800 (1)
 
 #ifndef BUILD_WASM
 #include <functional>
@@ -1723,7 +1725,50 @@ class Z80
     static inline void LDIR(Z80* ctx) { ctx->repeatLD(true, true); }
     static inline void LDD(Z80* ctx) { ctx->repeatLD(false, false); }
     static inline void LDDR(Z80* ctx) { ctx->repeatLD(false, true); }
-
+#if R800
+    // multiply
+    inline void mulub(unsigned char r)
+    {
+        unsigned short value = static_cast<unsigned short>(reg.pair.A) * static_cast<unsigned short>(getRegister(r));
+        if (isDebug()) log("[%04X] MULUB A<$%02X>, %s", reg.PC - 2, reg.pair.A, registerDump(r));
+        setHL(value);
+        setFlagS(false);
+        setFlagPV(false);
+        setFlagZ(value == 0);
+        setFlagC(value > 0xFF);
+        consumeClock(14);
+    }
+    inline void muluw_bc()
+    {
+        unsigned int value = static_cast<unsigned int>(getHL()) * static_cast<unsigned int>(getBC());
+        if (isDebug()) log("[%04X] MULUW HL<$%04X>, BC<$%04X>", reg.PC - 2, getHL(), getBC());
+        setDE(value >> 16);
+        setHL(value & 0xFFFF);
+        setFlagS(false);
+        setFlagPV(false);
+        setFlagZ(value == 0);
+        setFlagC(value > 0xFFFF);
+        consumeClock(36);
+    }
+    inline void muluw_sp()
+    {
+        unsigned int value = static_cast<unsigned int>(getHL()) * static_cast<unsigned int>(reg.SP);
+        if (isDebug()) log("[%04X] MULUW HL<$%04X>, SP<$%04X>", reg.PC - 2, getHL(), reg.SP);
+        setDE(value >> 16);
+        setHL(value & 0xFFFF);
+        setFlagS(false);
+        setFlagPV(false);
+        setFlagZ(value == 0);
+        setFlagC(value > 0xFFFF);
+        consumeClock(36);
+    }
+    static inline void MULUB_A_B(Z80* ctx) { ctx->mulub(0b000); }
+    static inline void MULUB_A_C(Z80* ctx) { ctx->mulub(0b001); }
+    static inline void MULUB_A_D(Z80* ctx) { ctx->mulub(0b010); }
+    static inline void MULUB_A_E(Z80* ctx) { ctx->mulub(0b011); }
+    static inline void MULUW_HL_BC(Z80* ctx) { ctx->muluw_bc(); }
+    static inline void MULUW_HL_SP(Z80* ctx) { ctx->muluw_sp(); }
+#endif
     // Exchange stack top with IX
     static inline void EX_SP_IX_(Z80* ctx) { ctx->EX_SP_IX(); }
     inline void EX_SP_IX()
@@ -5247,10 +5292,27 @@ class Z80
         0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, // 90 ~ 9F
         2, 2, 2, 2, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, // A0 ~ AF
         2, 2, 2, 2, 0, 0, 0, 0, 2, 2, 2, 2, 0, 0, 0, 0, // B0 ~ BF
+#if R800
+        //                                 .hl←.a * r
+        // 1100 0001 ED C1  mulub .a, .b
+        // 1100 1001 ED C9  mulub .a, .c
+        // 1101 0001 ED D1  mulub .a, .d
+        // 1101 1001 ED D9  mulub .a, .e
+        //                                 .de:.hl←.hl * ss
+        // 1100 0011 ED C3  muluw .hl, .bc
+        // 1111 0011 ED F3  muluw .hl, .sp
+        0, 2, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, // C0 ~ CF
+        0, 2, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, // D0 ~ DF
+#else
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // C0 ~ CF
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // D0 ~ DF
+#endif
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // E0 ~ EF
+#if R800
+        0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // F0 ~ FF
+#else
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // F0 ~ FF
+#endif
     };
     int opLengthIXY[256] = {
         0, 0, 0, 0, 2, 2, 3, 0, 0, 2, 0, 0, 2, 2, 3, 0, // 00 ~ 0F
@@ -5338,7 +5400,26 @@ class Z80
         LDI, CPI, INI, OUTI, nullptr, nullptr, nullptr, nullptr,
         LDD, CPD, IND, OUTD, nullptr, nullptr, nullptr, nullptr,
         LDIR, CPIR, INIR, OUTIR, nullptr, nullptr, nullptr, nullptr,
-        LDDR, CPDR, INDR, OUTDR, nullptr, nullptr, nullptr, nullptr};
+        LDDR, CPDR, INDR, OUTDR, nullptr, nullptr, nullptr, nullptr,
+#if R800
+        //                                 .hl←.a * r
+        // 1100 0001 ED C1  mulub .a, .b
+        // 1100 1001 ED C9  mulub .a, .c
+        // 1101 0001 ED D1  mulub .a, .d
+        // 1101 1001 ED D9  mulub .a, .e
+        //                                 .de:.hl←.hl * ss
+        // 1100 0011 ED C3  muluw .hl, .bc
+        // 1111 0011 ED F3  muluw .hl, .sp
+/* C0 */
+        nullptr, MULUB_A_B, nullptr, MULUW_HL_BC, nullptr, nullptr, nullptr, nullptr, nullptr, MULUB_A_C, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+/* D0 */
+        nullptr, MULUB_A_D, nullptr, nullptr,     nullptr, nullptr, nullptr, nullptr, nullptr, MULUB_A_E, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+/* E0 */
+        nullptr, nullptr,   nullptr, nullptr,     nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+/* F0 */
+        nullptr, nullptr,   nullptr, MULUW_HL_SP, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,   nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+#endif
+        };
     void (*opSetIX[256])(Z80* ctx) = {
         nullptr, nullptr, nullptr, nullptr, INC_B_2, DEC_B_2, LD_B_N_3, nullptr,
         nullptr, ADD_IX_BC, nullptr, nullptr, INC_C_2, DEC_C_2, LD_C_N_3, nullptr,
