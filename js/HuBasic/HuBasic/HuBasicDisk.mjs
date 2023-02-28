@@ -198,6 +198,10 @@ export default class {
 	 */
 	ReadFile(dirRecord, Name, Extension)
 	{
+		if((dirRecord === undefined) || (dirRecord < 0)) {
+			// デフォルトのディレクトリエントリで
+			dirRecord = this.GetDiskType().GetEntrySectorStart();
+		}
 		const result = this.Image.ReadFile(dirRecord, Name, Extension);
 		if(this.#onDriveStateChange) {
 			this.#onDriveStateChange(
@@ -251,6 +255,10 @@ export default class {
 	 */
    	WriteFile(dirRecord, Name, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode)
 	{
+		if((dirRecord === undefined) || (dirRecord < 0)) {
+			// デフォルトのディレクトリエントリで
+			dirRecord = this.GetDiskType().GetEntrySectorStart();
+		}
 		const result = this.Image.WriteFile(dirRecord, Name, Extension, Data, SaveAddress, EndAddress, ExecAddress, FileMode);
 		if(this.#onDriveStateChange) {
 			this.#onDriveStateChange(

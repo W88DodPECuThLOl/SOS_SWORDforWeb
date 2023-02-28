@@ -2,6 +2,63 @@
 
 "use strict";
 
+class FunctionKey {
+	#functionKeys = new Map();
+	constructor()
+	{
+		this.#functionKeys.set("F1",  "DA:\x0d");
+		this.#functionKeys.set("F2",  "DB:\x0d");
+		this.#functionKeys.set("F3",  "DE:\x0d");
+		this.#functionKeys.set("F4",  "#L   \x0d");
+		this.#functionKeys.set("F5",  "#    \x0d");
+		this.#functionKeys.set("F6",  " DIR:");
+		this.#functionKeys.set("F7",  " TYPE:");
+		this.#functionKeys.set("F8",  " STAT:");
+		this.#functionKeys.set("F9",  " NAME:");
+		this.#functionKeys.set("F10", " COPY:");
+	}
+	getFunctionKeyText(keyCode)
+	{
+		return this.#functionKeys.get(keyCode);
+	}
+
+	getDisplayText(ctx, isWidth80)
+	{
+		let cnt = 0;
+		if(isWidth80) {
+			for(let func of this.#functionKeys.values()) {
+				let temp = func.replace("\x0d", "\uF00d").padEnd(7," ");
+				ctx.printNativeTagMsg(temp, '<span class="function_key">', '</span>');
+				if(cnt == 4) {
+					ctx.printNativeMsg("|");
+				} else {
+					ctx.printNativeMsg(" ");
+				}
+				cnt++;
+			}
+		} else {
+			for(let func of this.#functionKeys.values()) {
+				let temp = func.replace("\x0d", "\uF00d").padEnd(7," ");
+				ctx.printNativeTagMsg(temp, '<span class="function_key">', '</span>');
+				if(cnt == 4) {
+					break;
+				} else {
+					ctx.printNativeMsg(" ");
+				}
+				cnt++;
+			}
+		}
+	}
+}
+
+/**
+ * 
+ */
+class FunctionLine25 {
+
+}
+
+
 class TaskContext {
 	/**
 	 * Z80のエミュレータ
@@ -67,6 +124,8 @@ class TaskContext {
 	 */
 	#deviceInfo = new Array(32);
 
+	#functionKey = new FunctionKey();
+
 	#keyCodeBackSpace = 0x08; // BackSpaceキー
 	#keyCodeDelete = 'Delete'; // DELキー
 
@@ -125,11 +184,23 @@ class TaskContext {
 		// 初期画面のメッセージ表示
 		this.catTextScreen.clearScreen();
 		this.printNativeMsg("<<<<< S-OS  SWORD >>>>>\n");
-		this.printNativeMsg("Version 0.00.02 猫大名 ねこ猫\n");
+		this.printNativeMsg("Version 0.00.03 ");
+		this.printNativeTagMsg("猫大名 ねこ猫", '<a href="https://twitter.com/W88DodPECuThLOl" target="_blank" rel="noopener noreferrer">', '</a>');
+		this.printNativeMsg("\n");
 
 		// デバッグレイヤ
 		//this.catTextScreen.clearScreen(this.debugLayer);
 		//this.catTextScreen.setDisplayCursor(false, this.debugLayer);
+	}
+	printNativeTagMsg(msg, startTag, endTag)
+	{
+		const tag = {
+			start: startTag,
+			end: endTag
+		};
+		this.catTextScreen.setAttr({ tag: tag });
+		this.printNativeMsg(msg);
+		this.catTextScreen.setAttr({tag: null});
 	}
 
 	/**
@@ -180,9 +251,13 @@ class TaskContext {
 	screenScale = {x: 1.0, y: 1.0};
 
 	/**
-	 * 
+	 * 実験
 	 */
 	#isWindowMode = 0;
+	#kanjiMode = false;
+
+
+
 
 	/**
 	 * 画面サイズを変更する
@@ -215,6 +290,11 @@ class TaskContext {
 		if(isWindowMode) {
 			// ファンクションの表示
 			this.printFunction();
+		} else {
+			// 漢字モードOFF
+			this.#kanjiMode = false;
+			// ファンクションの表示
+			this.printFunction();
 		}
 		const screenWidth = this.catTextScreen.getScreenWidth();
 		const screenHeight = this.catTextScreen.getScreenHeight();
@@ -244,7 +324,30 @@ class TaskContext {
 	 */
 	setWindowRange(range)
 	{
+		if(range === undefined) {
+			const screenWidth = this.catTextScreen.getScreenWidth();
+			const screenHeight = this.catTextScreen.getScreenHeight();
+			range = {
+				top: 0, left: 0,
+				bottom: screenHeight, right: screenWidth
+			};
+		}
 		this.catTextScreen.setWindowRange(range);
+	}
+
+	// 漢字モード　トグル
+	toggleKanjiMode()
+	{
+		if(!this.#isWindowMode) {
+			return;
+		}
+		this.#kanjiMode = !this.#kanjiMode;
+		this.printFunction();
+	}
+
+	getFunctionKeyText(keyCode)
+	{
+		return this.#functionKey.getFunctionKeyText(keyCode);
 	}
 
 	/**
@@ -252,12 +355,40 @@ class TaskContext {
 	 */
 	printFunction()
 	{
-		//const screenWidth = this.catTextScreen.getScreenWidth();
+		if(!this.#isWindowMode) {
+			return;
+		}
+
+		const screenWidth = this.catTextScreen.getScreenWidth();
 		const screenHeight = this.catTextScreen.getScreenHeight();
-		// ファンクションキーの表示
 		const saveLocation = this.getScreenLocate();
+		// 25行目をクリア
+		this.setWindowRange({
+			top: screenHeight - 1, left: 0,
+			bottom: screenHeight, right: screenWidth
+		});
+		this.catTextScreen.clearScreen();
+		// 一旦、全面にする
+		this.setWindowRange();
 		this.setScreenLocate({x:0, y:screenHeight - 1});
-		this.printNativeMsg(" ファンクションキーのエリア 0000000000000000000000000");
+
+		const isWidth80 = screenWidth > 40;
+		if(this.#kanjiMode) {
+			// FEP
+			this.catTextScreen.setColor(0xFF00FFFF);
+			this.printNativeMsg("[テキスト入力]");
+			this.catTextScreen.setColor(0xFFFFFFFF);
+			this.printNativeTagMsg(" ", `<span><input type="text" class="kanji_input" onChange="onChangeKanjiInput(this)" onInput="onInputKanjiInput(this)">`, '</input></span>');
+		} else {
+			// ファンクションキーの表示
+			this.#functionKey.getDisplayText(this, isWidth80);
+		}
+
+		// 24行に
+		this.setWindowRange({
+			top: 0, left: 0,
+			bottom: screenHeight - 1, right: screenWidth
+		});
 		this.setScreenLocate(saveLocation);
 	}
 
@@ -569,6 +700,16 @@ class TaskContext {
 
 	#svg_PCG = [];
 
+	/**
+	 * タグ
+	 * 
+	 * 実験中
+	 */
+	#tagStart;
+	#tagEnd;
+	setStartTag(tagStart) { this.#tagStart = tagStart; }
+	setEndTag(tagEnd) { this.#tagEnd = tagEnd; }
+
 	#initializeSvgPCG()
 	{
 		// 16だと駄目なので14に
@@ -618,6 +759,7 @@ class TaskContext {
 		const paletteIndex = attr & 0x07;
 		const isPCG = ((attr & 0x20) != 0);
 
+		// test
 		if(codePoint >= 0x100) {
 			// 0x0100～は、半分のサイズにして描画
 			const moji = String.fromCodePoint(codePoint);
@@ -751,6 +893,8 @@ class TaskContext {
 		}
 	};
 
+	#currentTag = null;
+
 	/**
 	 * フォントを変更する
 	 * @param {Uint8Array|string} fontName 機種名
@@ -771,13 +915,45 @@ class TaskContext {
 			this.tblMojiEncode = this.tblMojiEncode_X1;
 			fontUrls = ["./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setCustomDrawLetter( (x, y, width, codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, attr, cursor ); });
+			this.catTextScreen.setCustomDrawLetter( (x, y, width, codePoint, color, attr, cursor) => {
+				if(x == 0 && y == 0) {
+					this.#currentTag = null;
+				}
+				let text = "";
+				if(this.#currentTag !== attr.tag) {
+					if(this.#currentTag) {
+						text += this.#currentTag.end;
+					}
+					this.#currentTag = attr.tag;
+					if(this.#currentTag) {
+						text += this.#currentTag.start;
+					}
+				}
+				text += this.#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, attr, cursor );
+				return text;
+			});
 		} else if(this.strcmp(fontName, "X1p") == 0) {
 			// X1風
 			this.tblMojiEncode = this.tblMojiEncode_Unit;
 			fontUrls = ["./fonts/X1/X1-FONT-PUA.ttf"];
 			this.setScreenScale(2.0, 1.0);
-			this.catTextScreen.setCustomDrawLetter( (x, y, width, codePoint, color, attr, cursor) => { return this.#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, attr, cursor ); });
+			this.catTextScreen.setCustomDrawLetter( (x, y, width, codePoint, color, attr, cursor) => {
+				if(x == 0 && y == 0) {
+					this.#currentTag = null;
+				}
+				let text = "";
+				if(this.#currentTag !== attr.tag) {
+					if(this.#currentTag && this.#currentTag.end) {
+						text += this.#currentTag.end;
+					}
+					this.#currentTag = attr.tag;
+					if(this.#currentTag && this.#currentTag.start) {
+						text += this.#currentTag.start;
+					}
+				}
+				text += this.#customDrawLetter_RetoroPC_X1(x, y, width, codePoint, color, 0, cursor );
+				return text;
+			});
 		} else if(this.strcmp(fontName, "PC8001") == 0 || this.strcmp(fontName, "PC8") == 0) {
 			// PC8001風(Original) S-OS
 			this.tblMojiEncode = this.tblMojiEncode_PC8001;
@@ -1024,11 +1200,16 @@ class TaskContext {
 			// デバイス名
 			let text = "";
 			text += String.fromCodePoint(result.deviceName) + ":";
-			this.printNativeMsg(text);
 			// ファイル名
-			for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) { this.PRINT(entry.filename[i]); }
-			this.PRINT(0x2E); // "."
-			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) { this.PRINT(entry.extension[i]); }
+			for(let i = 0; i < SOSInfomationBlock.filename_size; ++i) {
+				text += String.fromCodePoint([entry.filename[i]]);
+			}
+			text += ".";
+			for(let i = 0; i < SOSInfomationBlock.extension_size; ++i) {
+				text += String.fromCodePoint([entry.extension[i]]);
+			}
+			this.printNativeTagMsg(text, '<a href="javascript:void(0)" onclick="onFileObjectClick(\'' + text + '\', event); return false;">', '</a>');
+			//this.printNativeMsg(text);
 			// 読み込みアドレス
 			text = ":" + ToStringHex4(entry.loadAddress);
 			// 終了アドレス

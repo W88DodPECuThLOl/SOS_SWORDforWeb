@@ -11,6 +11,7 @@ const KeyCode_ArrowLeft = 'ArrowLeft'; // 左カーソルキー
 const KeyCode_ArrowRight = 'ArrowRight'; // 右カーソルキー
 const KeyCode_ArrowUp = 'ArrowUp'; // 上カーソルキー
 const KeyCode_ArrowDown = 'ArrowDown'; // 下カーソルキー
+const KeyCode_KanjiMode = 'KanjiMode'; // 漢字モード
 
 /**
  * 一行入力をするタスク
@@ -149,6 +150,20 @@ class TaskLineInput {
 				// 行頭へ、行末へ、カーソル移動、DELキー
 				ctx.catTextScreen.putch32(keyCode);
 				return;
+			} else if(keyCode == "F1" || keyCode == "F2" || keyCode == "F3" || keyCode == "F4" || keyCode == "F5" || keyCode == "F6" || keyCode == "F7" || keyCode == "F8" || keyCode == "F9" || keyCode == "F10") {
+				// ファンクションキーのテスト
+				for(let text of ctx.getFunctionKeyText(keyCode)) {
+					const keyCode = text.codePointAt(0);
+					if(keyCode == KeyCode_CR) {
+						// Enterキー、入力完了
+						this.#lineCommit(ctx);
+						return;
+					}
+					ctx.catTextScreen.putch32(keyCode);
+				}
+			} else if(keyCode == KeyCode_KanjiMode) {
+				// 漢字モード　トグル
+				ctx.toggleKanjiMode();
 			}
 		};
 		this.#state[this.#state_end] = (ctx)=>{};
