@@ -19,12 +19,44 @@ body {
 }
 
 
+/* リンク */
+a {
+    color: #EFEFFF;
+    text-decoration: none; /* デフォルトの下線を非表示にする */
+    background-image: linear-gradient(90deg, #F0F080, #F0F0A0); /* 線の色 */
+    background-repeat: no-repeat;
+    background-position: left bottom; /* 線の起点を左・下に設定 */
+    background-size: 0 1px; /* 線の横幅を0、縦幅を1pxに */
+    transition: 0.0s;
+}
+a:hover{
+    color: #F0F080;
+    background-color: #404040;
+    background-size: 100% 1px; /* 線の横幅を100%にする */
+    transition: 0.16s;
+}
 
 
+/* 漢字入力用のテキストエリア */
+.kanji_input {
+    display:inline-block;
+    position: relative ;
+    top: -1px;
+    resize: none;
+    margin: 0;
+    padding: 0;
+    width: 256px;
+    height: 13px;
 
+    color: #222;
+    background-color: #FFFFFF;
+}
 
-
-
+/* ファンクションキー */
+.function_key {
+    color: #020202;
+    background-color: #FFFFFF;
+}
 
 
 
@@ -268,17 +300,7 @@ body {
 }
 
 
-
-
 .cat-bar-system {
     display: flex; /* 横に並べる */
     margin: 0 0 0 auto; /* 右寄せ */
 }
-
-
-
-
-
-
-
-
