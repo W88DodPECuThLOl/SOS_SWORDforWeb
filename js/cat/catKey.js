@@ -47,6 +47,17 @@ export default class {
 				case 'ArrowDown':
 				case 'Home':	// Homeキー 行頭へ移動
 				case 'End':		// Endキー	行末へ移動
+				case 'KanjiMode': // 漢字モード
+				case 'F1': // F1
+				case 'F2': // F2
+				case 'F3': // F3
+				case 'F4': // F4
+				case 'F5': // F5
+				case 'F6': // F6
+				case 'F7': // F7
+				case 'F8': // F8
+				case 'F9': // F9
+				case 'F10': // F10
 					keyCode = e.key;
 					break;
 			}
@@ -116,6 +127,12 @@ export default class {
 		this.#shiftKey = !!e.shiftKey;
 		this.#ctrlKey = !!e.ctrlKey;
 		this.#altKey = !!e.altKey;
+
+		if(document.body !== document.activeElement) {
+			// フォーカスがなかったら処理しない
+			return false;
+		}		
+
 		// キー入力
 		const keyCode = self.#keyCodeConverter(e);
 		if(keyCode) {

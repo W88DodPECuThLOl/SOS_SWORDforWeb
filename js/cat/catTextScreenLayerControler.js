@@ -531,7 +531,7 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 
 	/**
 	 * 文字の属性を設定する
-	 * @param {number} attr 文字の属性
+	 * @param {number|object} attr 文字の属性
 	 */
 	setAttr(attr) { this.#target.setAttr(attr); }
 

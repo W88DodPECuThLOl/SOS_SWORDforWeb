@@ -237,7 +237,7 @@ export default class {
 
 	/**
 	 * 文字の属性を設定する
-	 * @param {number} attr 文字の属性
+	 * @param {number|object} attr 文字の属性
 	 * @param {number} layer レイヤ番号
 	 */
 	setAttr(attr, layer) {

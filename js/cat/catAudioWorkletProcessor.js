@@ -34,6 +34,12 @@ class SoundChip {
 	clock;
 
 	/**
+	 * ボリューム
+	 * @type {number}
+	 */
+	volume;
+
+	/**
 	 * 小さいほうを返す
 	 * 
 	 * @param {number} x 
@@ -65,6 +71,7 @@ class SoundChip {
 		this.buffer = new Array();
 		this.tick = 0;
 		this.clock = clock;
+		this.volume = 0.5;
 	}
 
 	/**
@@ -111,6 +118,15 @@ class SoundChip {
 			// 内部クロックを進める
 			this.tick += diff;
 		}
+	}
+
+	/**
+	 * ボリュームを設定する
+	 * @param {number} volume ボリューム
+	 */
+	setVolume(volume)
+	{
+		this.volume = volume;
 	}
 }
 
@@ -173,7 +189,7 @@ class OPM extends SoundChip {
 	 */
 	writeOutput(output)
 	{
-		const s = (1.0/32768.0) * (1 / 4.0);
+		const s = (1.0/32768.0) * (1 / 4.0) * this.volume;
 
 		// まずは、バッファにあるものから
 		let remain = output[0].length;
@@ -267,7 +283,7 @@ class PSG extends SoundChip {
 	 */
 	writeOutput(output)
 	{
-		const s = (1.0/32768.0) * (1 / 4.0);
+		const s = (1.0/32768.0) * (1 / 4.0) * this.volume;
 
 		// まずは、バッファにあるものから
 		let remain = output[0].length;
@@ -394,6 +410,17 @@ class GainProcessor extends AudioWorkletProcessor {
 							const targetTick = message.executedClock;
 							device.generate(targetTick); // 進んでいる分のサウンドを生成
 							device.writeRegister(message.reg, message.value);
+						}
+						break;
+					// 音量を設定する
+					case 'setVolume':
+						{
+							if(message.no < 0) {
+								this.#devices.forEach((device) => device.setVolume(message.value));
+							} else {
+								const device = this.#devices[message.no];
+								device.setVolume(message.value);
+							}
 						}
 						break;
 				}

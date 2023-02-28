@@ -84,4 +84,20 @@ class CatAudio {
 			});
 		}
 	}
+
+	/**
+	 * ボリュームを設定する
+	 * @param {number} no サウンドデバイスの番号(0～) -1だと全部に設定する
+	 * @param {number} value 書き込む値
+	 */
+	setVolume(no, value)
+	{
+		if(this.#audioCtx && this.gainWorkletNode) {
+			this.gainWorkletNode.port.postMessage({
+				message: 'setVolume',
+				no: no,
+				value: value
+			});
+		}
+	}
 }

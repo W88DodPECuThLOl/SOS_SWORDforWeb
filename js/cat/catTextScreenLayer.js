@@ -165,12 +165,17 @@ export default class {
 	 * デフォルトの実装
 	 * @param {number} codePoint 文字(UTF-32)
 	 * @param {number} color 色（0～0xFFFFFFFF）
-	 * @param {number} attr 属性（0:通常 1:90回転 2:180度回転 3:270度回転）
+	 * @param {number|object} attr_ 属性（0:通常 1:90回転 2:180度回転 3:270度回転）
 	 * @param {boolean} cursor カーソルを描画するかどうか
 	 * @returns {string} １文字文描画するテキスト
 	 */
-	#defaultDrawLetter(x, y, width, codePoint, color, attr, cursor)
+	#defaultDrawLetter(x, y, width, codePoint, color, attr_, cursor)
 	{
+		let attr = 0;
+		if(typeof attr_ == "number") {
+			attr = attr_;
+		}
+
 		if(codePoint != 10) {
 			if(codePoint == 32 || codePoint == 0) {
 				// 0x00と空白
@@ -436,13 +441,13 @@ export default class {
 
 	/**
 	 * 文字の属性を設定する
-	 * @param {number} attr 文字の属性
+	 * @param {number|object} attr 文字の属性
 	 */
 	setAttr(attr) { this.#attr = attr; }
 
 	/**
 	 * 文字の属性を取得する
-	 * @returns {number} 文字の属性
+	 * @returns {number|object} 文字の属性
 	 */
 	getAttr() { return this.#attr; }
 	
