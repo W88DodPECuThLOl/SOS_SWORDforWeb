@@ -1,5 +1,31 @@
 # Change log
 
+## [0.00.03] - 2023-03
+
+- S-OS"SWORD" for Web
+  - 音量がPSGやFM音源に反映されていなかったのを修正
+  - mzt形式のファイルを読み込めるように
+- S-OS標準モニタ
+  - ファンクションキー対応
+  - Cコマンド
+    - ファンクションキーの内容の表示、非表示の切り替え
+  - Dコマンド
+    - ファイル名部分をSHIFTキーを押下しながらクリックで、ファイルを保存するように
+      - SHIFTキーのみのときは、S-OS形式の18バイトヘッダ付きで保存
+      - SHIFTキーとCTRLキー両方押下のときは、ヘッダを付けずにそのままでファイルで保存
+- Z80 Emu
+  - R800の乗算命令（mulub、muluw）を追加
+    - (ED C1) mulub a, b   ; hl = a * b
+    - (ED C9) mulub a, c   ; hl = a * c
+    - (ED D1) mulub a, d   ; hl = a * d
+    - (ED D9) mulub a, e   ; hl = a * e
+      - フラグの変化 S:0 PV:0 Z:結果が0の時セット C:結果が8ビットに納まらないときセット
+      - 14 T states + wait time
+    - (ED C3) muluw hl, bc ; de:hl = hl * bc
+    - (ED C3) muluw hl, sp ; de:hl = hl * sp
+      - フラグの変化 S:0 PV:0 Z:結果が0の時セット C:結果が16ビットに納まらないときセット
+      - 36 T states + wait time
+
 ## [0.00.02] - 2023-02
 - S-OS"SWORD" for Web
   - 下部に各種メニューを追加しUIを整理

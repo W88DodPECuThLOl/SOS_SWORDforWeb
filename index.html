@@ -51,7 +51,7 @@
 									<li><div class="media-menu-item-header">Drive A</div></li>
 									<li>
 										<div id="mnt0">Insert disk image</div>
-										<input type="file" id="disk0" accept=".d88,.2D,.obj" style="display:none;"/>
+										<input type="file" id="disk0" accept=".d88,.2D,.mzt,.obj" style="display:none;"/>
 									</li>
 									<li><div id="blankdisk0">Insert blank image</div></li>
 									<li><div id="save0" class="media-menu-item-disable">Save disk image</div></li>
@@ -65,7 +65,7 @@
 									<li><div class="media-menu-item-header">Drive B</div></li>
 									<li>
 										<div id="mnt1">Insert disk image</div>
-										<input type="file" id="disk1" accept=".d88,.2D,.obj" style="display:none;"/>
+										<input type="file" id="disk1" accept=".d88,.2D,.mzt,.obj" style="display:none;"/>
 									</li>
 									<li><div id="blankdisk1">Insert blank image</div></li>
 									<li><div id="save1" class="media-menu-item-disable">Save disk image</div></li>
@@ -79,7 +79,7 @@
 									<li><div class="media-menu-item-header">Drive C</div></li>
 									<li>
 										<div id="mnt2">Insert disk image</div>
-										<input type="file" id="disk2" accept=".d88,.2D,.obj" style="display:none;"/>
+										<input type="file" id="disk2" accept=".d88,.2D,.mzt,.obj" style="display:none;"/>
 									</li>
 									<li><div id="blankdisk2">Insert blank image</div></li>
 									<li><div id="save2" class="media-menu-item-disable">Save disk image</div></li>
@@ -93,7 +93,7 @@
 									<li><div class="media-menu-item-header">Drive D</div></li>
 									<li>
 										<div id="mnt3">Insert disk image</div>
-										<input type="file" id="disk3" accept=".d88,.2D,.obj" style="display:none;"/>
+										<input type="file" id="disk3" accept=".d88,.2D,.mzt,.obj" style="display:none;"/>
 									</li>
 									<li><div id="blankdisk3">Insert blank image</div></li>
 									<li><div id="save3" class="media-menu-item-disable">Save disk image</div></li>
@@ -151,7 +151,6 @@
 			import CatGamePad from './js/cat/catGamePad.js';
 			import CatFullScreen from './js/cat/catFullScreen.js';
 
-
 			// URL Param
 			// ?fnt=PC8001でPC8001風のフォントマップに
 			// ?exec=実行したいファイルのURL
@@ -197,18 +196,21 @@
 					soundMute = !soundMute;
 					if(soundMute) {
 						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームOFFアイコン.png)';
+						audio.setVolume(-1, 0);
 					} else {
 						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームアイコン3.png)';
+						audio.setVolume(-1, soundMasterVolume);
 					}
 				});
 				volumeBar.addEventListener("change", ()=>{
 					soundMute = false;
+					soundMasterVolume = volumeBar.value / 100;
 					if(soundMute) {
 						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームOFFアイコン.png)';
 					} else {
 						volumeCtrl.style.backgroundImage = 'url(./img/icon/ボリュームアイコン3.png)';
 					}
-					soundMasterVolume = volumeBar.value / 100;
+					audio.setVolume(-1, soundMasterVolume);
 					//console.log(soundMasterVolume);
 				});
 			}
@@ -539,6 +541,21 @@
 						// "AUTOEXEC.BAT"を実行する
 						ctx.setAutoExecBat();
 					}
+				} else if(isMZTImage(filename, readData)) {
+					// MZTイメージ
+					const attribute   = readData[0x00];
+					const fileSize    = readData[0x12] | (readData[0x13] << 8);
+					const loadAddress = readData[0x14] | (readData[0x15] << 8);
+					const execAddress = readData[0x16] | (readData[0x17] << 8);
+					if(attribute == 0x01) {
+						// バイナリファイル
+						ctx.memoryWrite(readData.subarray(128), loadAddress); // 読み込んで
+						ctx.execCommand(execAddress); // 実行
+					} else {
+						// 未対応
+						alert("未対応の属性(FileMode)です。")
+						return false;
+					}
 				} else {
 					alert("不明なフォーマットタイプです。")
 					return false;
@@ -564,6 +581,27 @@
 				// 多分S-OSのヘッダ付きのファイル
 				return true;
 			}
+
+			/**
+			 * MZTファイルかどうか
+			 */
+			function isMZTImage(filename, data)
+			{
+				// イメージファイル名がMZFではないので違う
+				if(!filename.toUpperCase().endsWith(".MZT")) { return false; }
+				// ファイルサイズで、判定
+				if(data.length <= 128) { return false; }
+				// ヘッダ部分で判定
+				if(data[0x00] != 0x01) {
+					return false;
+				}
+				const fileSize = data[0x12] | (data[0x13] << 8);
+				if(data.length != (fileSize + 128)) {
+					return false;
+				}
+				return true;
+			}
+
 
 			/**
 			 * 2Dの生イメージかどうか
@@ -925,6 +963,64 @@
 						update(0);
 					}
 				);
+			}
+
+			window.SOSContext = ctx;
+		</script>
+
+		<script>
+			function onFileObjectClick(filename, event)
+			{
+				const key_event = event || window.event;
+				const isShift = (key_event.shiftKey);
+				const isCtrl = (key_event.ctrlKey);
+				const isAlt = (key_event.altKey);
+				console.log("onFileObjectClick:[" + filename + "]" + isShift + ":" + isCtrl);
+				if(!isShift) {
+					return;
+				}
+				const driveNo = filename.codePointAt(0) - 0x41;
+				const name = [];
+				const extension = [];
+				for(let i = 2; i < 15; ++i) { name.push(filename.codePointAt(i)); } name.push(0);
+				for(let i = 16; i < 19; ++i) { extension.push(filename.codePointAt(i)); } extension.push(0);
+				const disk = window.SOSContext.diskManager[driveNo];
+				const res = disk.ReadFile(-1, name, extension);
+				if(res.result == 0) {
+					// 保存
+					//console.log("attribute:0x"   + ToStringHex2(res.attribute));
+					//console.log("execAddress:0x" + ToStringHex4(res.execAddress));
+					//console.log("loadAddress:0x" + ToStringHex4(res.loadAddress));
+					// S-OSの18バイトヘッダを付ける
+					if(!isCtrl) {
+						const newData = new Uint8Array(res.value.length + 18);
+						const SOSHeader = "_SOS " + ToStringHex2(res.attribute) + " " + ToStringHex4(res.loadAddress) + " " + ToStringHex4(res.execAddress) + "\x0a";
+						for(let i = 0; i < 18; ++i) { newData[i] = SOSHeader.codePointAt(i); }
+						newData.set(res.value, 18);
+						res.value = newData;
+					}
+					const blob = new Blob([res.value], {type: 'application/octet-stream'}); // Blob オブジェクトの作成
+					const link = document.createElement('a');
+					link.download = filename.slice(2, 13).trimEnd() + "." + filename.slice(16).trimEnd(); // ダウンロードファイル名称
+					link.href = window.URL.createObjectURL(blob); // オブジェクト URL を生成
+					link.click(); // クリックイベントを発生させる
+					window.URL.revokeObjectURL(link.href); // オブジェクト URL を解放」
+				}
+			}
+
+			function onInputKanjiInput(elem)
+			{
+				//console.log("onInputKanjiInput:" + elem);
+			}
+			function onChangeKanjiInput(elem)
+			{
+				//console.log("onChangeKanjiInput:" + elem);
+				//console.log("onChangeKanjiInput:" + elem.value);
+				const textScreen = window.SOSContext.catTextScreen;
+				for(let ch of elem.value) {
+					textScreen.putch32(ch.codePointAt(0));
+				}
+				elem.value = "";
 			}
 		</script>
 	</body>
