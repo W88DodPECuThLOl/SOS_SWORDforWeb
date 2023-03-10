@@ -167,6 +167,7 @@
 				beepvol: urlParams.get('beepvol') ? parseFloat(urlParams.get('beepvol')) : 0.2, // BEEP音の音量
 				beepfile: urlParams.get('beepfile') ? urlParams.get('beepfile') : './wav/X1BEEP.WAV', // BEEP音で使用する音声ファイル名
 				gamePadConfig: parseGamePadConfig(queryString), // ゲームパッドの設定
+				platformID: urlParams.get('platform') ? urlParams.get('platform') | 0 : 0x28 // 省略時 Web版
 			};
 
 			// フルスクリーン制御
@@ -550,7 +551,8 @@
 					if(attribute == 0x01) {
 						// バイナリファイル
 						ctx.memoryWrite(readData.subarray(128), loadAddress); // 読み込んで
-						ctx.execCommand(execAddress); // 実行
+						//ctx.execCommand(execAddress); // 実行
+						ctx.z80Emu.setPC(execAddress);
 					} else {
 						// 未対応
 						alert("未対応の属性(FileMode)です。")
@@ -942,19 +944,10 @@
 				});
 
 				// Z80エミュのセットアップ
-				z80Emu.setup().then(
+				z80Emu.setup(cfg.platformID).then(
 					(emu)=> {
 						// SOS
-						ctx.reset();
-						//
-						{
-							const cnv = new CatFont2Img();
-							const canvas = document.getElementById('canvasFont');
-							for(let ch = 0x00; ch <= 0xFF; ++ch) {
-								let pcgData = cnv.cnv(canvas, "CatTextScreenFont0", ch + 0xF000);
-								ctx.z80Emu.setPCG(ch, pcgData);
-							}
-						}
+						ctx.reset(cfg.platformID);
 						// auto start
 						if(cfg.execFile != null) {
 							autoStart(cfg.execFile) ;

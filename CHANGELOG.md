@@ -25,6 +25,28 @@
     - (ED C3) muluw hl, sp ; de:hl = hl * sp
       - フラグの変化 S:0 PV:0 Z:結果が0の時セット C:結果が16ビットに納まらないときセット
       - 36 T states + wait time
+- Base Platform
+  - X1
+    - IO $1Ax3 8255 Control Bit set/reset
+      - ビットセットとリセットの部分が間違っていたのを修正
+  - MZ700
+    - 実装
+      - IO $E0～$E6 Bank Switch
+      - IO $F0 Text/PCG Priority
+      - IO $F1 Palette
+      - MEM VRAM/IO BANK
+        - $D000～$D3FF Text VRAM
+        - $D400～$D7FF PCG VRAM1
+        - $D800～$DBFF Attribute VRAM
+        - $DC00～$DFFF PCG VRAM2
+        - $E000 8255 Port A KEYSTROBE
+        - $E001 8255 Port B
+        - $E002 8255 Port C VBLK
+        - $E003 8255 Control Bit set/reset
+        - $E004～$E007 8253
+        - $E008 HBLK
+      - MEM CG-ROM BANK
+      - MEM PCG-RAM BANK
 
 ## [0.00.02] - 2023-02
 - S-OS"SWORD" for Web
