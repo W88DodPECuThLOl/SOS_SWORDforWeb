@@ -1,0 +1,161 @@
+﻿                                ;*** AILZ80ASM *** Z-80 Assembler, version 1.0.1.0, LST:Full:4
+                                ;
+                                ; S-OS MZ700 TEST
+                                ;
+                                
+                                ;
+                                ; 1. BIOS読み込み
+                                ;  NEWMON7.ROM
+                                ; 2. フォント読み込み
+                                ;  mz700fon.dat
+                                ;    mz700winのmkfntで作成する。
+                                ; 3. ROM書き込み
+                                ;  ・BIOSを$0000～$0FFFへ
+                                ;  ・フォントを$D000～$DFFFへ
+                                ; 3. 起動
+                                ;  JP $0000
+                                ;
+                                
+000000 3000                         org $3000
+                                
+       1FE2                     MPRINT  EQU $1FE2
+       2033                     ERROR   EQU $2033
+       1FE5                     MSX     EQU $1FE5
+       1FEB                     NL      EQU $1FEB
+       1FA3                     FILE    EQU $1FA3
+       2009                     ROPEN   EQU $2009
+       1FA6                     RDD     EQU $1FA6
+       1F9D                     FPRNT   EQU $1F9D
+                                
+       1F70                     DTADR   EQU $1F70
+       1F72                     SIZE    EQU $1F72
+                                
+       3100                     FDATA   EQU $3100 ; ファイルの読み込み先
+       4100                     FDATA2  EQU $4100 ; ファイルの読み込み先
+                                
+000000 3000 CDE21F          17      CALL MPRINT
+000003 3003 532D4F53204D5A37        DB "S-OS MZ700 TEST"
+            30302054455354      
+000012 3012 0D                      DB 13
+000013 3013 4C4F4144494E4720        DB "LOADING NEWMON7.ROM"
+            4E45574D4F4E372E    
+            524F4D              
+000026 3026 0D00                    DB 13, 0
+                                
+                                    ;
+                                    ; ファイルの読み込み
+                                    ; 1. #FILE
+                                    ; 2. #ROPEN
+                                    ; 3. #RDD
+                                    ;
+                                
+                                    ; 1. #FILE
+000028 3028 3AC630          13      LD A,(FILE_ATTR)  ; ファイル属性
+00002B 302B 11C730          10      LD DE,FILE_NAME   ; ファイル名のアドレス
+00002E 302E CDA31F          17      CALL FILE         ; IB(InfomationBlock)に設定
+000031 3031 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                    ; 2. #ROPEN
+       3034                     LOOP:
+000034 3034 CD0920          17      CALL ROPEN        ; 読み込みでファイルをオープンする
+000037 3037 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+00003A 303A 2808            12      JR Z,ZAP1         ; ファイルがオープンできたので、次の処理へ
+00003C 303C CD9D1F          17      CALL FPRNT        ; テープの場合
+                                                      ;   読み込んだファイル名を表示
+                                                      ;   FILEで指定したファイルじゃないので
+                                                      ;   次のファイルへ
+00003F 303F CDEB1F          17      CALL NL           ; 行の先頭以外なら改行
+000042 3042 18F0            12      JR LOOP
+       3044                     ZAP1:
+000044 3044 CD9D1F          17      CALL FPRNT        ; 読み込んだファイル名を表示してみる
+000047 3047 CDEB1F          17      CALL NL           ; 行の先頭以外なら改行
+                                
+                                    ; 3. #RDD
+00004A 304A 210031          10      LD HL,FDATA       ; 読み込むデータのアドレスを設定
+00004D 304D 22701F          16      LD (DTADR),HL
+000050 3050 CDA61F          17      CALL RDD          ; 読み込む
+000053 3053 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+000056 3056 CDE21F          17      CALL MPRINT
+000059 3059 4C4F4144494E4720        DB "LOADING mz700fon.dat"
+            6D7A373030666F6E    
+            2E646174            
+00006D 306D 0D00                    DB 13, 0
+                                
+                                    ; 1. #FILE
+00006F 306F 3AC630          13      LD A,(FILE_ATTR)  ; ファイル属性
+000072 3072 11D530          10      LD DE,FILE_NAME2  ; ファイル名のアドレス
+000075 3075 CDA31F          17      CALL FILE         ; IB(InfomationBlock)に設定
+000078 3078 DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                    ; 2. #ROPEN
+       307B                     LOOP2:
+00007B 307B CD0920          17      CALL ROPEN        ; 読み込みでファイルをオープンする
+00007E 307E DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+000081 3081 2808            12      JR Z,ZAP2         ; ファイルがオープンできたので、次の処理へ
+000083 3083 CD9D1F          17      CALL FPRNT        ; テープの場合
+                                                      ;   読み込んだファイル名を表示
+                                                      ;   FILEで指定したファイルじゃないので
+                                                      ;   次のファイルへ
+000086 3086 CDEB1F          17      CALL NL           ; 行の先頭以外なら改行
+000089 3089 18F0            12      JR LOOP2
+       308B                     ZAP2:
+00008B 308B CD9D1F          17      CALL FPRNT        ; 読み込んだファイル名を表示してみる
+00008E 308E CDEB1F          17      CALL NL           ; 行の先頭以外なら改行
+                                
+                                    ; 3. #RDD
+000091 3091 210041          10      LD HL,FDATA2      ; 読み込むデータのアドレスを設定
+000094 3094 22701F          16      LD (DTADR),HL
+000097 3097 CDA61F          17      CALL RDD          ; 読み込む
+00009A 309A DA3320          10      JP C,ERROR        ; エラーが発生していたら表示して終了
+                                
+                                
+00009D 309D CDE21F          17      CALL MPRINT
+0000A0 30A0 0C00                    DB $0C, 0
+                                
+                                    ; 一応念のため割り込み禁止に
+0000A2 30A2 F3               4      DI
+                                
+                                    ; バンク切り替え
+                                    ; 0x0000～0x0FFFをROMに
+                                    ; 0xD000～0xFFFFをVRAMやI/Oに
+0000A3 30A3 D3E4            11      OUT ($E4),A
+                                
+                                    ; 読み込んだデータを
+                                    ; ROMに書き込む！（ぉぃ
+0000A5 30A5 210031          10      LD HL, FDATA
+0000A8 30A8 110000          10      LD DE, $0000
+0000AB 30AB 010010          10      LD BC, $1000
+0000AE 30AE EDB0                    LDIR 
+                                
+                                    ; フォント設定
+0000B0 30B0 3E00             7      LD A,0
+0000B2 30B2 D3E5            11      OUT ($E5),A ; PCGバンク切り替え CG ROM
+0000B4 30B4 210041          10      LD HL, FDATA2
+0000B7 30B7 1100D0          10      LD DE, $D000
+0000BA 30BA 010010          10      LD BC, $1000
+0000BD 30BD EDB0                    LDIR 
+                                
+0000BF 30BF D3E6            11      OUT ($E6),A ; PCGバンク切り替え 閉じる
+                                
+                                    ; 割り込みをモード 1 にセット
+0000C1 30C1 ED56             8      IM 1
+                                    ; Hello, MZ700!
+0000C3 30C3 C30000          10      JP $0000
+                                
+                                    ; メモ
+                                    ; ・SPはモニタ内で0x10F0に設定している
+                                
+                                ; ファイルの属性(ファイルモード)
+                                ; $1 : バイナリファイル
+                                ; $4 : アスキーファイル
+       30C6                     FILE_ATTR:
+0000C6 30C6 01                      DB $1
+                                ; ファイル名は、13文字+"."+3文字
+       30C7                     FILE_NAME:
+0000C7 30C7 413A4E45574D4F4E        DB "A:NEWMON7.ROM", 0
+            372E524F4D00        
+       30D5                     FILE_NAME2:
+0000D5 30D5 413A6D7A37303066        DB "A:mz700fon.dat", 0
+            6F6E2E64617400      
+[EOF:testMZ700.z80:UTF_8]

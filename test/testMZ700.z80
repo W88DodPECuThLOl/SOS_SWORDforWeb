@@ -1,0 +1,152 @@
+;
+; S-OS MZ700 TEST
+;
+
+;
+; 1. BIOS読み込み
+;  NEWMON7.ROM
+; 2. フォント読み込み
+;  mz700fon.dat
+;    mz700winのmkfntで作成する。
+; 3. ROM書き込み
+;  ・BIOSを$0000～$0FFFへ
+;  ・フォントを$D000～$DFFFへ
+; 3. 起動
+;  JP $0000
+;
+
+	org $3000
+
+MPRINT	EQU	$1FE2
+ERROR   EQU $2033
+MSX     EQU $1FE5
+NL      EQU $1FEB
+FILE    EQU $1FA3
+ROPEN   EQU	$2009
+RDD     EQU	$1FA6
+FPRNT   EQU	$1F9D
+
+DTADR   EQU $1F70
+SIZE    EQU $1F72
+
+FDATA	EQU	$3100 ; ファイルの読み込み先
+FDATA2	EQU	$4100 ; ファイルの読み込み先
+
+	CALL MPRINT
+	DB "S-OS MZ700 TEST"
+	DB 13
+	DB "LOADING NEWMON7.ROM"
+	DB 13, 0
+
+	;
+	; ファイルの読み込み
+	; 1. #FILE
+	; 2. #ROPEN
+	; 3. #RDD
+	;
+
+	; 1. #FILE
+	LD A,(FILE_ATTR)  ; ファイル属性
+	LD DE,FILE_NAME   ; ファイル名のアドレス
+	CALL FILE         ; IB(InfomationBlock)に設定
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	; 2. #ROPEN
+LOOP:
+	CALL ROPEN        ; 読み込みでファイルをオープンする
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+	JR Z,ZAP1         ; ファイルがオープンできたので、次の処理へ
+	CALL FPRNT        ; テープの場合
+	                  ;   読み込んだファイル名を表示
+					  ;   FILEで指定したファイルじゃないので
+					  ;   次のファイルへ
+	CALL NL           ; 行の先頭以外なら改行
+	JR LOOP
+ZAP1:
+	CALL FPRNT        ; 読み込んだファイル名を表示してみる
+	CALL NL           ; 行の先頭以外なら改行
+
+	; 3. #RDD
+	LD HL,FDATA       ; 読み込むデータのアドレスを設定
+	LD (DTADR),HL
+	CALL RDD          ; 読み込む
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	CALL MPRINT
+	DB "LOADING mz700fon.dat"
+	DB 13, 0
+
+	; 1. #FILE
+	LD A,(FILE_ATTR)  ; ファイル属性
+	LD DE,FILE_NAME2  ; ファイル名のアドレス
+	CALL FILE         ; IB(InfomationBlock)に設定
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+	; 2. #ROPEN
+LOOP2:
+	CALL ROPEN        ; 読み込みでファイルをオープンする
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+	JR Z,ZAP2         ; ファイルがオープンできたので、次の処理へ
+	CALL FPRNT        ; テープの場合
+	                  ;   読み込んだファイル名を表示
+					  ;   FILEで指定したファイルじゃないので
+					  ;   次のファイルへ
+	CALL NL           ; 行の先頭以外なら改行
+	JR LOOP2
+ZAP2:
+	CALL FPRNT        ; 読み込んだファイル名を表示してみる
+	CALL NL           ; 行の先頭以外なら改行
+
+	; 3. #RDD
+	LD HL,FDATA2      ; 読み込むデータのアドレスを設定
+	LD (DTADR),HL
+	CALL RDD          ; 読み込む
+	JP C,ERROR        ; エラーが発生していたら表示して終了
+
+
+    CALL MPRINT
+    DB $0C, 0
+
+    ; 一応念のため割り込み禁止に
+    DI
+
+    ; バンク切り替え
+    ; 0x0000～0x0FFFをROMに
+    ; 0xD000～0xFFFFをVRAMやI/Oに
+    OUT ($E4),A
+
+    ; 読み込んだデータを
+    ; ROMに書き込む！（ぉぃ
+    LD HL, FDATA
+    LD DE, $0000
+    LD BC, $1000
+    LDIR 
+
+	; フォント設定
+	LD A,0
+    OUT ($E5),A ; PCGバンク切り替え CG ROM
+    LD HL, FDATA2
+    LD DE, $D000
+    LD BC, $1000
+    LDIR 
+
+    OUT ($E6),A ; PCGバンク切り替え 閉じる
+
+    ; 割り込みをモード 1 にセット
+    IM 1
+    ; Hello, MZ700!
+    JP $0000
+
+    ; メモ
+    ; ・SPはモニタ内で0x10F0に設定している
+
+; ファイルの属性(ファイルモード)
+; $1 : バイナリファイル
+; $4 : アスキーファイル
+FILE_ATTR:
+	DB $1
+; ファイル名は、13文字+"."+3文字
+FILE_NAME:
+	DB "A:NEWMON7.ROM", 0
+FILE_NAME2:
+	DB "A:mz700fon.dat", 0
