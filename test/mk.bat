@@ -32,6 +32,9 @@ AILZ80ASM.exe --input testFLGet.z80 --output testFLGet.lst -lst -f
 AILZ80ASM.exe --input testGRAM.z80 --output testGRAM.bin -f
 AILZ80ASM.exe --input testGRAM.z80 --output testGRAM.lst -lst -f
 
+AILZ80ASM.exe --input testMZ700.z80 --output testGRAM.bin -f
+AILZ80ASM.exe --input testMZ700.z80 --output testGRAM.lst -lst -f
+
 REM hudisk https://github.com/BouKiCHi/HuDisk
 
 hudisk.exe -a SOS_TEST.d88 testPause.bin  --read 3000 --go 3000
@@ -45,5 +48,10 @@ hudisk.exe -a SOS_TEST.d88 testBatErr.bin --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testGetL.bin   --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testFLGet.bin  --read 3000 --go 3000
 hudisk.exe -a SOS_TEST.d88 testGRAM.bin   --read 3000 --go 3000
+hudisk.exe -a SOS_TEST.d88 testMZ700.bin  --read 3000 --go 3000
+
+REM for MZ-700 test
+REM hudisk.exe -a SOS_TEST.d88 NEWMON7.ROM --read 0000 --go 0000
+REM hudisk.exe -a SOS_TEST.d88 mz700fon.dat --read 0000 --go 0000
 
 pause
