@@ -128,6 +128,8 @@ export default class {
 		this.#ctrlKey = !!e.ctrlKey;
 		this.#altKey = !!e.altKey;
 
+		this.#keyDown.set(e.key, true);
+
 		if(document.body !== document.activeElement) {
 			// フォーカスがなかったら処理しない
 			return false;
@@ -150,6 +152,8 @@ export default class {
 	 * @param {KeyEvent} e キーイベント
 	 */
 	#keyUpHandler(self, e) {
+		this.#keyDown.set(e.key, false);
+
 		const keyCode = self.#keyCodeConverter(e);
 		if(keyCode) {
 			self.keyUp(keyCode);
@@ -162,7 +166,7 @@ export default class {
 	 */
 	keyUp(keyCode)
 	{
-		this.#keyDown.set(keyCode, false);
+		//this.#keyDown.set(keyCode, false);
 	}
 
 	/**
@@ -190,7 +194,7 @@ export default class {
 	 * @returns {boolean} キューに入れれたら true
 	 */
 	enqueueKeyBuffer(keyCode) {
-		this.#keyDown.set(keyCode, true);
+//		this.#keyDown.set(keyCode, true);
 		// 最後に入力されたキーコードを覚えておく
 		this.#lastKeyCode = keyCode;
 		// キューに積む
@@ -234,7 +238,7 @@ export default class {
 	 */
 	isKeyDown(keyCode)
 	{
-		if(keyCode && this.#keyDown.has(keyCode)) {
+		if(this.#keyDown.has(keyCode)) {
 			return !!this.#keyDown.get(keyCode);
 		}
 		return false;

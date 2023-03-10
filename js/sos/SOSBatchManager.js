@@ -142,6 +142,9 @@ class SOSBatchManager {
 		}
 	}
 
+	/**
+	 * コンストラクタ
+	 */
 	constructor()
 	{
 		this.#runningBatch = false;
@@ -153,6 +156,9 @@ class SOSBatchManager {
 		this.#btpnt2 = 0;
 	}
 
+	/**
+	 * バッチ処理をクリアする
+	 */
 	clear()
 	{
 		this.#batchBuffer.length = 0;
@@ -263,9 +269,7 @@ class SOSBatchManager {
 	 */
 	setAutoExecBat()
 	{
-		let command = [];
-		for(let ch of " A:AUTOEXEC.BAT") { command.push(ch.codePointAt(0)); }
-		command.push(13, 0);
+		const command = StringToArray(" A:AUTOEXEC.BAT\x0D");
 		this.start(command, []);
 	}
-};
+}

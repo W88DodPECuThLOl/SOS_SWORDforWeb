@@ -9,7 +9,6 @@ class Z80Emu {
 	/**
 	 * 使用するヒープサイズ(64KiBの倍数であること)
 	 */
-	//#heapSize = 256*1024*1024; // 256MiB
 	#heapSize = 16*1024*1024; // 16MiB
 
 	/**
@@ -46,19 +45,30 @@ class Z80Emu {
 	 */
 	#sos;
 
+	/**
+	 * 音
+	 */
 	#audio;
+
 	/**
 	 * ゲームパッド
 	 */
 	#gamePad;
 
 	/**
+	 * プラットフォームID
+	 * @type {number}
+	 */
+	#platformID;
+
+	/**
 	 * WASMのセットアップ
 	 * 
 	 * 読み込みと初期化
+	 * @param {number} platformID プラットフォームID
 	 * @returns 
 	 */
-	setup()
+	setup(platformID)
 	{
 		const importObject = {
 			// メモリ
@@ -160,7 +170,8 @@ class Z80Emu {
 					} else {
 						return 0xFF;
 					}
-				}
+				},
+				scanKey: ()=>{ return this.scanKey(); }
 			},
 			log: {
 				logHex02: (value)=> {
@@ -171,12 +182,14 @@ class Z80Emu {
 				}
 			}
 		};
+
+		this.#platformID = platformID;
 		return WebAssembly.instantiateStreaming(fetch("sos.wasm"), importObject).then(
 			(obj) => {
 				// WASM側から提供されている関数や変数など
 				this.wasm = obj.instance.exports;
 				// 初期化
-				this.wasm.initialize(this.wasm.__heap_base, this.#heapSize - this.wasm.__heap_base);
+				this.wasm.initialize(this.wasm.__heap_base, this.#heapSize - this.wasm.__heap_base, this.#platformID);
 				return this;
 			}
 		);
@@ -203,10 +216,11 @@ class Z80Emu {
 
 	/**
 	 * リセットする
+	 * @param {number} platformID 機種ID
 	 */
-	reset() {
+	reset(ctx, platformID) {
 		// リセット
-		this.wasm.z80Reset();
+		this.wasm.z80Reset(platformID);
 		// 各種アドレスをキャッシュしておく
 		const memPtrRegs = this.wasm.getZ80Regs();
 		const memPtrRAM  = this.wasm.getRAM();
@@ -214,6 +228,17 @@ class Z80Emu {
 		this.#Z80Regs    = new Uint8Array(this.#memory.buffer, memPtrRegs, this.wasm.getZ80RegsSize());
 		this.#RAM8       = new Uint8Array(this.#memory.buffer, memPtrRAM, 0x10000);
 		this.#IO8        = new Uint8Array(this.#memory.buffer, memPtrIO, 0x10000);
+
+		// CGROM
+		{
+			const cnv = new CatFont2Img();
+			const canvas = document.getElementById('canvasFont');
+			for(let ch = 0x00; ch <= 0xFF; ++ch) {
+				let pcgData = cnv.cnv(canvas, "CatTextScreenFont0", ch + 0xF000);
+				ctx.z80Emu.setPCG(ch, pcgData);
+				ctx.z80Emu.setPCG(ch + 0x100, pcgData);
+			}
+		}
 	}
 
 	/**
@@ -242,9 +267,8 @@ class Z80Emu {
 			const src = new Uint8Array(this.#memory.buffer, imagePtr, 640*200*4);
 			// キャンバスのイメージデータを作成し
 			const dstImageData = canvasCtx.createImageData(640, 200);
-			const dst = dstImageData.data;
 			// コピー
-			for(let i = 0; i < 640*200*4; ++i) { dst[i] = src[i]; }
+			dstImageData.data.set(src);
 			// 描画
 			canvasCtx.putImageData(dstImageData, 0, 0);
 		}
@@ -316,6 +340,7 @@ class Z80Emu {
 		}
 		return 0;
 	}
+
 	setPCG(codePoint, data)
 	{
 		const scratchMemory   = this.wasm.getScratchMemory();
@@ -323,7 +348,130 @@ class Z80Emu {
 		for(let i = 0; i < 24; ++i) {
 			pcgMemory[i] = data[i];
 		}
-		this.wasm.writePlatformPCG(codePoint + 0x100, scratchMemory);
+		this.wasm.writePlatformPCG(codePoint, scratchMemory);
+	}
+
+	createScanMap(platformID)
+	{
+		const scanMap = new Map();
+		scanMap.set('Enter', {strobe:0, value: 0x1});
+		scanMap.set(':', {strobe:0, value: 0x02});
+		scanMap.set(';', {strobe:0, value: 0x04});
+		scanMap.set('=', {strobe:0, value: 0x20});
+
+		scanMap.set(')', {strobe:1, value: 0x08});
+		scanMap.set('(', {strobe:1, value: 0x10});
+		scanMap.set('@', {strobe:1, value: 0x20});
+		scanMap.set('Z', {strobe:1, value: 0x40});
+		scanMap.set('z', {strobe:1, value: 0x40});
+		scanMap.set('Y', {strobe:1, value: 0x80});
+		scanMap.set('y', {strobe:1, value: 0x80});
+
+		scanMap.set('X', {strobe:2, value: 0x01});
+		scanMap.set('x', {strobe:2, value: 0x01});
+		scanMap.set('W', {strobe:2, value: 0x02});
+		scanMap.set('w', {strobe:2, value: 0x02});
+		scanMap.set('V', {strobe:2, value: 0x04});
+		scanMap.set('v', {strobe:2, value: 0x04});
+		scanMap.set('U', {strobe:2, value: 0x08});
+		scanMap.set('u', {strobe:2, value: 0x08});
+		scanMap.set('T', {strobe:2, value: 0x10});
+		scanMap.set('t', {strobe:2, value: 0x10});
+		scanMap.set('S', {strobe:2, value: 0x20});
+		scanMap.set('s', {strobe:2, value: 0x20});
+		scanMap.set('R', {strobe:2, value: 0x40});
+		scanMap.set('r', {strobe:2, value: 0x40});
+		scanMap.set('Q', {strobe:2, value: 0x80});
+		scanMap.set('q', {strobe:2, value: 0x80});
+
+		scanMap.set('P', {strobe:3, value: 0x01});
+		scanMap.set('p', {strobe:3, value: 0x01});
+		scanMap.set('O', {strobe:3, value: 0x02});
+		scanMap.set('o', {strobe:3, value: 0x02});
+		scanMap.set('N', {strobe:3, value: 0x04});
+		scanMap.set('n', {strobe:3, value: 0x04});
+		scanMap.set('M', {strobe:3, value: 0x08});
+		scanMap.set('m', {strobe:3, value: 0x08});
+		scanMap.set('L', {strobe:3, value: 0x10});
+		scanMap.set('l', {strobe:3, value: 0x10});
+		scanMap.set('K', {strobe:3, value: 0x20});
+		scanMap.set('k', {strobe:3, value: 0x20});
+		scanMap.set('J', {strobe:3, value: 0x40});
+		scanMap.set('j', {strobe:3, value: 0x40});
+		scanMap.set('I', {strobe:3, value: 0x80});
+		scanMap.set('i', {strobe:3, value: 0x80});
+
+		scanMap.set('H', {strobe:4, value: 0x01});
+		scanMap.set('h', {strobe:4, value: 0x01});
+		scanMap.set('G', {strobe:4, value: 0x02});
+		scanMap.set('g', {strobe:4, value: 0x02});
+		scanMap.set('F', {strobe:4, value: 0x04});
+		scanMap.set('f', {strobe:4, value: 0x04});
+		scanMap.set('E', {strobe:4, value: 0x08});
+		scanMap.set('e', {strobe:4, value: 0x08});
+		scanMap.set('D', {strobe:4, value: 0x10});
+		scanMap.set('d', {strobe:4, value: 0x10});
+		scanMap.set('C', {strobe:4, value: 0x20});
+		scanMap.set('c', {strobe:4, value: 0x20});
+		scanMap.set('B', {strobe:4, value: 0x40});
+		scanMap.set('b', {strobe:4, value: 0x40});
+		scanMap.set('A', {strobe:4, value: 0x80});
+		scanMap.set('a', {strobe:4, value: 0x80});
+
+		scanMap.set('1', {strobe:5, value: 0x80});
+		scanMap.set('2', {strobe:5, value: 0x40});
+		scanMap.set('3', {strobe:5, value: 0x20});
+		scanMap.set('4', {strobe:5, value: 0x10});
+		scanMap.set('5', {strobe:5, value: 0x08});
+		scanMap.set('6', {strobe:5, value: 0x04});
+		scanMap.set('7', {strobe:5, value: 0x02});
+		scanMap.set('8', {strobe:5, value: 0x01});
+
+		scanMap.set('*', {strobe:6, value: 0x80});
+		scanMap.set('+', {strobe:6, value: 0x40});
+		scanMap.set('-', {strobe:6, value: 0x20});
+		scanMap.set(' ', {strobe:6, value: 0x10});
+		scanMap.set('0', {strobe:6, value: 0x08});
+		scanMap.set('9', {strobe:6, value: 0x04});
+		scanMap.set(',', {strobe:6, value: 0x02});
+		scanMap.set('.', {strobe:6, value: 0x01});
+
+		scanMap.set('Insert', {strobe:7, value: 0x80});
+		scanMap.set('Delete', {strobe:7, value: 0x40});
+		scanMap.set('ArrowUp', {strobe:7, value: 0x20});
+		scanMap.set('ArrowDown', {strobe:7, value: 0x10});
+		scanMap.set('ArrowRight', {strobe:7, value: 0x08});
+		scanMap.set('ArrowLeft', {strobe:7, value: 0x04});
+		scanMap.set('?', {strobe:7, value: 0x02});
+		scanMap.set('/', {strobe:7, value: 0x01});
+
+		scanMap.set('Pause', {strobe:8, value: 0x80});
+		scanMap.set('Control', {strobe:8, value: 0x40});
+		scanMap.set('Shift', {strobe:8, value: 0x01});
+
+		scanMap.set('F1', {strobe:9, value: 0x80});
+		scanMap.set('F2', {strobe:9, value: 0x40});
+		scanMap.set('F3', {strobe:9, value: 0x20});
+		scanMap.set('F4', {strobe:9, value: 0x10});
+		scanMap.set('F5', {strobe:9, value: 0x08});
+
+		return scanMap;
+	}
+
+	scanKey()
+	{
+		const scanMap = this.createScanMap(1);
+
+		const scratchMemory   = this.wasm.getScratchMemory();
+		const keyMemory = new Uint8Array(this.#memory.buffer, scratchMemory, 256);
+		keyMemory.fill(0xFF);
+		for(let s of scanMap.keys()) {
+			const pair = scanMap.get(s);
+			if(this.#ctx.keyMan.isKeyDown(s)) {
+				keyMemory[pair.strobe] &= ~pair.value;
+			}
+		}
+		return scratchMemory;
 	}
 	
 	// -------------------------------------------------------------------------------------------------

@@ -500,6 +500,8 @@ class TaskMonitor {
 			this.#copyToZ80Memory(ctx, result.loadAddress, result.value);
 			// 飛び先設定
 			ctx.monitorCommandJump(result.execAddress);
+			// スタック設定
+			// ctx.z80Emu.setSP(ctx.z80Emu.memReadU16(SOSWorkAddr.STKAD));
 			//
 			this.#isRunCommand = true;
 			return 0x1;

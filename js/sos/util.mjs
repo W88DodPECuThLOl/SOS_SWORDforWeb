@@ -122,6 +122,20 @@ function ToUpperCase(ch)
     }
 }
 
+/**
+ * 文字列を数値の配列に変換する。
+ * 末尾に0付ける
+ * @param {string} str 
+ * @returns number[] 変換された数値の配列
+ */
+function StringToArray(str)
+{
+    let res = [];
+    for(let ch of str) { res.push(ch.codePointAt(0)); }
+    res.push(0);
+    return res;
+}
+
 /*
 export {
     ToStringHex4
