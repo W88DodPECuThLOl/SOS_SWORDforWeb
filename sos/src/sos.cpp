@@ -113,7 +113,10 @@ void hoge( const c8* fmt, ...) {
 }
 
 class SOS_Context {
-	static unsigned char readByte(void* arg, unsigned short addr) { return ((SOS_Context*)arg)->RAM[addr]; }
+	static unsigned char readByte(void* arg, unsigned short addr) {
+		return platformReadMemory(((SOS_Context*)arg)->RAM, addr);
+		//return ((SOS_Context*)arg)->RAM[addr];
+	}
 	static void writeByte(void* arg, unsigned short addr, unsigned char value) {
 		// S-OSのフック部分が書き換えられたら、フックを全部削除する
 		// 以降、S-OSは使えなくなり、完全なZ80ワールドになる。
@@ -122,7 +125,8 @@ class SOS_Context {
 				((SOS_Context*)arg)->z80.removeAllBreakPoints();
 			}
 		}
-		((SOS_Context*)arg)->RAM[addr] = value;
+		platformWriteMemory(((SOS_Context*)arg)->RAM, addr, value);
+		//((SOS_Context*)arg)->RAM[addr] = value;
 	}
 	static unsigned char inPort(void* arg, unsigned short port) {
 		return platformInPort(((SOS_Context*)arg)->IO, port);
@@ -157,6 +161,8 @@ class SOS_Context {
 	 * @brief 状態
 	 */
 	s32 status;
+
+	s32 platformID;
 
 	/**
 	 * @brief VRAMが変更されたかどうかのフラグ
@@ -480,7 +486,14 @@ private:
 		WRITE_U16( WorkAddress::DIRPS,  0x0010 );
 		WRITE_U16( WorkAddress::FATPOS, 0x000E );
 		WRITE_U8(  WorkAddress::DSK,    0x41 );
-		WRITE_U8(  WorkAddress::WIDTH,  80 );
+		if(platformID == 0x00 || platformID == 0x01 || platformID == 0x02) {
+			// 0x00 MZ-80K
+			// 0x01 MZ-700
+			// 0x02 MZ-1500
+			WRITE_U8(  WorkAddress::WIDTH,  40 );
+		} else {
+			WRITE_U8(  WorkAddress::WIDTH,  80 );
+		}
 		WRITE_U8(  WorkAddress::MAXLIN, 25 );
 		// 変身セット
 		WRITE_U8(  WorkAddress::ETRK,   80 ); // RAMディスクのクラスタ数
@@ -489,10 +502,11 @@ public:
 	/**
 	 * @brief コンストラクタ
 	 */
-	SOS_Context()
+	SOS_Context(s32 platformID)
 		: globalTick(0)
 		, z80(SOS_Context::readByte, SOS_Context::writeByte, SOS_Context::inPort, SOS_Context::outPort, (void*)this, true)
 		, status(0)
+		, platformID(platformID)
 	{
 		init();
 		initWork();
@@ -577,6 +591,7 @@ public:
 	 * @brief IRQ割り込み要求
 	 */
 	void generateIRQ(const u8 vector) noexcept { z80.generateIRQ(vector); }
+	void requestBreak() noexcept { z80.requestBreak(); }
 };
 
 /**
@@ -585,14 +600,14 @@ public:
 SOS_Context* ctx = nullptr;
 
 void
-initialize(void* heapBase, size_t heapSize)
+initialize(void* heapBase, size_t heapSize, s32 platformID)
 {
 #ifdef BUILD_WASM
 	setupHeap(heapBase, heapSize);
 #endif
 	delete ctx;
-	ctx = new SOS_Context();
-	initPlatform();
+	ctx = new SOS_Context(platformID);
+	initPlatform(platformID);
 
 	// 可変長引数のテスト
 	//hoge( u8"%d,%d,%d,%d", 1, 2, 4, 8 );
@@ -602,11 +617,11 @@ initialize(void* heapBase, size_t heapSize)
  * @brief リセットする
  */
 void
-z80Reset()
+z80Reset(s32 platformID)
 {
 	delete ctx;
-	ctx = new SOS_Context();
-	initPlatform();
+	ctx = new SOS_Context(platformID);
+	initPlatform(platformID);
 	return ctx->reset();
 }
 
@@ -626,10 +641,18 @@ exeute(int clock)
 		s32 remain = clock - tick;
 		// 実行するクロックを調整する
 		// メモ）タイマ割り込み等で進むクロックを制限したい時など
-		adjustPlatformClock(remain);
-		// CPUを実行
-		s32 executed = ctx->execute(remain);
-		tick += executed;
+		if(!adjustPlatformClock(remain)) {
+			// CPUを実行
+			s32 executed = ctx->execute(remain);
+			if(executed > 0) {
+				tick += executed;
+			} else {
+				// CPUストールしている場合、進まなくなるので
+				tick += remain;
+			}
+		} else {
+			tick += remain;
+		}
 		// CPUが実行した所まで周辺機器のチックを進める
 		progressPlatformTick(tick);
 	}
@@ -717,6 +740,12 @@ generateIRQ(const u8 vector)
 {
 	ctx->generateIRQ(vector);
 }
+void
+requestBreak()
+{
+	ctx->requestBreak();
+}
+
 
 u8 scratchMemory[256];
 

@@ -26,13 +26,13 @@
  * @param[in]	heapSize	ヒープメモリのサイズ
  */
 WASM_EXPORT
-extern "C" void initialize(void* heapBase, size_t heapSize);
+extern "C" void initialize(void* heapBase, size_t heapSize, s32 platformID);
 
 /**
  * @brief リセット
  */
 WASM_EXPORT
-extern "C" void z80Reset();
+extern "C" void z80Reset(s32 platformID);
 
 /**
  * @brief 実行する
@@ -161,6 +161,9 @@ extern "C" void writeSoundRegister(s32 clock, s32 no, u8 reg, u8 value);
 WASM_IMPORT("io", "readGamePad")
 extern "C" u8 readGamePad(u8 index);
 
+WASM_IMPORT("io", "scanKey")
+extern "C" void* scanKey();
+
 /**
  * @brief 実行されたクロック数を取得する
  * 
@@ -173,6 +176,7 @@ s32 getExecutedClock();
 u64 getGlobalTick();
 
 void generateIRQ(const u8 vector);
+void requestBreak();
 
 /**
  * @brief S-OSワークアドレス

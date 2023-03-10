@@ -37,6 +37,13 @@ readGamePad(u8 index)
 	return 0xFF;
 }
 
+void*
+scanKey()
+{
+	return nullptr;
+}
+
+
 SOS_FUNC(cold)
 {
 //	WRITE_U16( WorkAddress::USR,    0x1FFA );
@@ -360,7 +367,7 @@ SOS_FUNC(dwrite)
 
 int main()
 {
-	initialize(0, 0);
+	initialize(0, 0, 0x20);
 
 
 	while(1) {

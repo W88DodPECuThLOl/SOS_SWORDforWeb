@@ -4,8 +4,9 @@
 
 /**
  * @brief 機種ごとの初期化
+ * @param[in] platformID	機種の識別子
  */
-void initPlatform();
+void initPlatform(s32 platformID);
 
 /**
  * @brief VRAM表示用のデータを取得する
@@ -28,6 +29,9 @@ void platformOutPort(u8* io, u16 port, u8 value);
  */
 u8 platformInPort(u8* io, u16 port);
 
+void platformWriteMemory(u8* mem, u16 address, u8 value);
+u8 platformReadMemory(u8* mem, u16 address);
+
 /**
  * @brief プラットフォーム側のチックをリセットする
  */
@@ -41,9 +45,9 @@ void progressPlatformTick(s32 targetTick);
  * @brief CPU側の実行するクロックを調整する
  * @param[in,out]	clock	クロック
  */
-void adjustPlatformClock(s32& clock);
+bool adjustPlatformClock(s32& clock);
 
 WASM_EXPORT
-extern "C" void writePlatformPCG(u16 ch, u8* data);
+extern "C" void writePlatformPCG(u32 ch, u8* data);
 WASM_EXPORT
-extern "C" void readPlatformPCG(u16 ch, u8* data);
+extern "C" void readPlatformPCG(u32 ch, u8* data);

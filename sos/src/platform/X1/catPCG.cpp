@@ -1,5 +1,8 @@
 ﻿#include "catPCG.h"
 
+WASM_IMPORT("log", "logHex04")
+extern "C" void jslogHex04(int operandNumber);
+
 CatPCG::CatPCG()
 	: indexB(0)
 	, indexG(0)
@@ -22,8 +25,8 @@ CatPCG::initialize()
 	indexR = 0;
 	indexROM = 0;
 	ch = 0;
-	for(int i = 0; i < 24*256 * 2; ++i) {
-		pcg[i] = (i & 1) ? 0xAA : 0x55;
+	for(int i = 0; i < sizeof(pcg); ++i) {
+		pcg[i] = 0;
 	}
 
 	return 0;
@@ -88,7 +91,7 @@ CatPCG::setChar(u16 value)
 }
 
 u8*
-CatPCG::getData(u16 ch)
+CatPCG::getData(u32 ch)
 {
 	return &pcg[ch * 24];
 }
@@ -96,52 +99,68 @@ CatPCG::getData(u16 ch)
 void
 CatPCG::writeB(const u8 pattern)
 {
-	pcg[ch * 24 + 16 + (indexB & 0x7)] = pattern;
+	pcg[(ch + 0x200) * 24 + 16 + (indexB & 0x7)] = pattern;
 	indexB++;
 }
 
 void
 CatPCG::writeG(const u8 pattern)
 {
-	pcg[ch * 24 + 8 + (indexG & 0x7)] = pattern;
+	pcg[(ch + 0x200) * 24 + 8 + (indexG & 0x7)] = pattern;
 	indexG++;
 }
 
 void
 CatPCG::writeR(const u8 pattern)
 {
-	pcg[ch * 24 + (indexR & 0x7)] = pattern;
+	pcg[(ch + 0x200) * 24 + (indexR & 0x7)] = pattern;
 	indexR++;
 }
 
 u8
 CatPCG::readROM()
 {
-	return pcg[(ch + 0x100) * 24 + (indexROM++ & 0x7)];
+	return pcg[ch * 24 + (indexROM++ & 0x7)];
 }
 
 u8
 CatPCG::readB()
 {
-	return pcg[(ch) * 24 + 16 + (indexB++ & 0x7)];
+	return pcg[(ch + 0x200) * 24 + 16 + (indexB++ & 0x7)];
 }
 
 u8
 CatPCG::readG()
 {
-	return pcg[(ch) * 24 + 8 + (indexG++ & 0x7)];
+	return pcg[(ch + 0x200) * 24 + 8 + (indexG++ & 0x7)];
 }
 
 u8
 CatPCG::readR()
 {
-	return pcg[(ch) * 24 + (indexR++ & 0x7)];
+	return pcg[(ch + 0x200) * 24 + (indexR++ & 0x7)];
 }
 
+
 void
-CatPCG::setPCG(u16 ch, u8* data)
+CatPCG::setPCG(u32 ch, u8* data)
 {
 	for(int i = 0; i < 24; ++i) {
 		pcg[ch * 24 + i] = data[i];
+	}
+}
+
+void
+CatPCG::setPCG(u32 ch, u8 p0, u8 p1, u8 p2, u8 p3, u8 p4, u8 p5, u8 p6, u8 p7)
+{
+	for(int i = 0; i < 3; ++i) {
+		pcg[ch * 24 + i*8 + 0] = p0;
+		pcg[ch * 24 + i*8 + 1] = p1;
+		pcg[ch * 24 + i*8 + 2] = p2;
+		pcg[ch * 24 + i*8 + 3] = p3;
+		pcg[ch * 24 + i*8 + 4] = p4;
+		pcg[ch * 24 + i*8 + 5] = p5;
+		pcg[ch * 24 + i*8 + 6] = p6;
+		pcg[ch * 24 + i*8 + 7] = p7;
 	}
 }

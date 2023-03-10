@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "../cat/low/catLowBasicTypes.h"
+#include "catPratformTarget.h"
 
 /**
  * @brief 機種のベースクラス
@@ -23,11 +24,14 @@ public:
 	virtual void terminate() = 0;
 
 	virtual void resetTick() = 0;
-	virtual void adjustTick(s32& tick) = 0;
+	virtual bool adjustTick(s32& tick) = 0;
 	/**
 	 * @brief 機種ごとの実行処理
 	 */
 	virtual void tick(s32 tick) = 0;
+
+	virtual void platformWriteMemory(u8* mem, u16 address, u8 value) = 0;
+	virtual u8 platformReadMemory(u8* mem, u16 address) = 0;
 
 	/**
 	 * @brief 機種毎のOUT処理
@@ -56,13 +60,13 @@ public:
 	 * @param[in]	ch		定義するPCGのキャラクタID
 	 * @param[in]	data	PCGデータ
 	 */
-	virtual void writePCG(u16 ch, u8* data) = 0;
+	virtual void writePCG(u32 ch, u8* data) = 0;
 	/**
 	 * @brief 機種毎のPCGデータの読み込み
 	 * @param[in]	ch		読み込むPCGのキャラクタID
 	 * @param[out]	data	PCGデータ
 	 */
-	virtual void readPCG(u16 ch, u8* data) = 0;
+	virtual void readPCG(u32 ch, u8* data) = 0;
 };
 
 class CatPlatformNull : public CatPlatformBase {
@@ -83,8 +87,11 @@ public:
 	 */
 	virtual void tick(s32 tick) override {}
 	virtual void resetTick() override {}
-	virtual void adjustTick(s32& tick) override {}
+	virtual bool adjustTick(s32& tick) override { return false; }
 
+	virtual void platformWriteMemory(u8* mem, u16 address, u8 value) override { mem[address] = value; }
+	virtual u8 platformReadMemory(u8* mem, u16 address) override { return mem[address]; }
+	
 	/**
 	 * @brief 機種毎のOUT処理
 	 * @param[in]	io		ioのメモリアドレス
@@ -112,11 +119,11 @@ public:
 	 * @param[in]	ch		定義するPCGのキャラクタID
 	 * @param[in]	data	PCGデータ
 	 */
-	virtual void writePCG(u16 ch, u8* data) override {}
+	virtual void writePCG(u32 ch, u8* data) override {}
 	/**
 	 * @brief 機種毎のPCGデータの読み込み
 	 * @param[in]	ch		読み込むPCGのキャラクタID
 	 * @param[out]	data	PCGデータ
 	 */
-	virtual void readPCG(u16 ch, u8* data) override {}
+	virtual void readPCG(u32 ch, u8* data) override {}
 };

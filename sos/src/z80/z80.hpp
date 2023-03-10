@@ -631,11 +631,6 @@ class Z80
             char buf[80];
             snprintf(buf, sizeof(buf), "detect an unknown operand (ED,%02X)", operandNumber);
             throw std::runtime_error(buf);
-#else
-            jslogHex04(ctx->getPCL() | ((u16)ctx->getPCH() << 8));
-            jslogHex02(operandNumber);
-
-            // ED 00 IN0 B,(n) ; *Z380*eZ80*HD64180
 #endif 
         }
         ctx->checkBreakOperandED(operandNumber);

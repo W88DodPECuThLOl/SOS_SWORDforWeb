@@ -1,5 +1,6 @@
 ﻿#include "../../sos.h"
 #include "catPlatformX1.h"
+#if ENABLE_TARGET_X1
 #include "../device/catCtc.h"
 #include "../X1/catPCG.h"
 #include "../X1/catCRTC.h"
@@ -160,7 +161,7 @@ CatPlatformX1::renderText()
 	for(u32 i = 0; i < size; i++) {
 		u16 ch   = textBase[(CTRCStart + i) & 0x07FF];
 		u8 attr = attrBase[(CTRCStart + i) & 0x07FF];
-		const u8* pattern = pcg->getData((attr & 0x20) ? ch : (ch + 0x100));
+		const u8* pattern = pcg->getData((attr & 0x20) ? (ch + 0x200) : ch);
 
 		for(s32 yy = y; yy < y + 8; ++yy) {
 			s8* dst = (s8*)&imageMemory[yy * 640*4 + ((CTRCWidth <= 40) ? (x * 16 * 4) : (x * 8 * 4))];
@@ -317,7 +318,7 @@ CatPlatformX1::resetTick()
 	currentTick = 0;
 }
 
-void
+bool
 CatPlatformX1::adjustTick(s32& tick)
 {
 	// CTC
@@ -328,6 +329,7 @@ CatPlatformX1::adjustTick(s32& tick)
 	if(tick > lineTick) {
 		tick = lineTick;
 	}
+	return false;
 }
 
 void
@@ -465,8 +467,8 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 		}
 		io[0x1A02] = value;
 	} else if((port & 0xFF0F) == 0x1A03) {
-		// 
-		if(value & 0x80) {
+		// 8255 コントロール
+		if((value & 0x80) == 0) {
 			// bit
 			const u8 bitNo = (value >> 1) & 0x7;
 			if(value & 1) {
@@ -551,7 +553,6 @@ CatPlatformX1::platformInPort(u8* io, u16 port)
 	if(isGRAMSyncAccessMode) {
 		// 同時アクセスモードの解除
 		isGRAMSyncAccessMode = false;
-		// return 0;
 	}
 
 	if(0x2000 <= port && port <= 0x3FFF) {
@@ -674,14 +675,16 @@ CatPlatformX1::render()
 }
 
 void
-CatPlatformX1::writePCG(u16 ch, u8* data)
+CatPlatformX1::writePCG(u32 ch, u8* data)
 {
 	// PCG
 	pcg->setPCG(ch, data);
 }
 
 void
-CatPlatformX1::readPCG(u16 ch, u8* data)
+CatPlatformX1::readPCG(u32 ch, u8* data)
 {
 	// @todo
 }
+
+#endif // ENABLE_TARGET_X1

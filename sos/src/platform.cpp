@@ -10,14 +10,14 @@
 CatPlatformBase* platform = nullptr;
 
 void
-initPlatform()
+initPlatform(s32 platformID)
 {
-	CatPlatformFactory::PlatformID platformID = CatPlatformFactory::PlatformID::None;
-#if IS_TARGET_X1_SERIES(TARGET)
-	platformID = CatPlatformFactory::PlatformID::X1;
-#endif // IS_TARGET_X1_SERIES(TARGET)
+	//CatPlatformFactory::PlatformID platformID = CatPlatformFactory::PlatformID::None;
+//#if IS_TARGET_X1_SERIES(TARGET)
+//	platformID = CatPlatformFactory::PlatformID::X1;
+//#endif // IS_TARGET_X1_SERIES(TARGET)
 	delete platform;
-	platform = CatPlatformFactory::createPlatform(platformID);
+	platform = CatPlatformFactory::createPlatform((CatPlatformFactory::PlatformID)platformID);
 	platform->initialize(nullptr);
 }
 
@@ -36,8 +36,21 @@ platformInPort(u8* io, u16 port)
 void
 platformOutPort(u8* io, u16 port, u8 value)
 {
-	return platform->platformOutPort(io, port, value);
+	platform->platformOutPort(io, port, value);
 }
+
+u8
+platformReadMemory(u8* mem, u16 address)
+{
+	return platform->platformReadMemory(mem, address);
+}
+
+void
+platformWriteMemory(u8* mem, u16 address, u8 value)
+{
+	platform->platformWriteMemory(mem, address, value);
+}
+
 
 void
 resetPlatformTick()
@@ -51,21 +64,21 @@ progressPlatformTick(s32 targetTick)
 	platform->tick(targetTick);
 }
 
-void
+bool
 adjustPlatformClock(s32& tick)
 {
 	// 実行するクロックを調整する
-	platform->adjustTick(tick);
+	return platform->adjustTick(tick);
 }
 
 void
-writePlatformPCG(u16 ch, u8* data)
+writePlatformPCG(u32 ch, u8* data)
 {
 	platform->writePCG(ch, data);
 }
 
 void
-readPlatformPCG(u16 ch, u8* data)
+readPlatformPCG(u32 ch, u8* data)
 {
 	platform->readPCG(ch, data);
 }
