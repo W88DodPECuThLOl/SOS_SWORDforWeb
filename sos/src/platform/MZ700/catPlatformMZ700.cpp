@@ -3,6 +3,7 @@
 #if ENABLE_TARGET_MZ700
 #include "../X1/catPCG.h"
 #include "cat8253.h"
+#include "../device/catTape.h"
 
 WASM_IMPORT("log", "logHex04")
 extern "C" void jslogHex04(int operandNumber);
@@ -394,12 +395,15 @@ CatPlatformMZ700::CatPlatformMZ700()
 	, pcg(new CatPCG())
 	, vhBlank(new VHBlank())
 	, cursorTimer(new CursorTimer())
-	, timer8253(new Intel8253::Cat8253(this))
-	, tape(new CatTape())
+	, timer8253(new Intel8253::CatMZ8253(this))
+	, tape(new tape::CatTape())
 	, tempo(0)
 	, currentTick(0)
 	, counter(0)
 {
+	tape->setConfig({
+		.halfShortPeriod = 200.0
+	});
 }
 
 CatPlatformMZ700::~CatPlatformMZ700()
@@ -616,9 +620,9 @@ CatPlatformMZ700::platformWriteMemoryVRAM_IO_ROM(u8* mem, u16 address, u8 value)
 				return;
 			case 0xE002: // 8255 ポートC
 				{
-jslogHex04(0xE002);
-jslogHex02(tvram[address]);
-jslogHex02(value);
+//jslogHex04(0xE002);
+//jslogHex02(tvram[address]);
+//jslogHex02(value);
 					u8 M_ON     = tvram[address] & 0x08;
 					u8 INTMSK   = tvram[address] & 0x04;
 					u8 WDATA    = tvram[address] & 0x02;
@@ -627,11 +631,11 @@ jslogHex02(value);
 					if((M_ON == 0) && ((value & 0x08) != 0)) {
 						// @todo モーターONとOFF
 						//       よくわからないので、MOTORの状態を反転するようにしてみる
-						tape->motor(!tape->getMotorState());
+						tape->motor(getGlobal2Tick(), !tape->getMotorState());
 					}
 					// INTMSK
 					// WDATA
-					tape->writeData(WDATA != 0);
+					tape->writeData(getGlobal2Tick(), WDATA != 0);
 					// SOUNDMSK
 					tvram[address] = (value & 0x0F);
 				}
@@ -797,7 +801,7 @@ CatPlatformMZ700::platformReadMemoryVRAM_IO_ROM(u8* mem, u16 address)
 				{
 					const u8 VBLK    = vhBlank->isVBlank()     ? 0x00 : 0x80; // VBlank
 					const u8 _556OUT = cursorTimer->isActive() ? 0x40 : 0x00; // カーソル点滅用のタイマ
-					const u8 RDATA   = tape->readData()        ? 0x20 : 0x00; // テープからの読み込みデータ
+					const u8 RDATA   = tape->readData(getGlobal2Tick()) ? 0x20 : 0x00; // テープからの読み込みデータ
 					const u8 MOTOR   = tape->getMotorState()   ? 0x10 : 0x00; // テープのモータの状態
 					return VBLK | _556OUT | RDATA | MOTOR | 0x0F;
 				}
@@ -870,162 +874,6 @@ CatPlatformMZ700::requestIRQ8253()
 	if(tvram[0xE002] & 0x04) {
 		generateIRQ(0);
 	}
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-CatTape::CatTape()
-	: motorState(0)
-	, counter(0)
-	, counterHigh(0)
-	, counterLow(0)
-	, position(0)
-{
-}
-
-void
-CatTape::motor(bool on)
-{
-//	jslogHex02(on ? 0x88 : 0x44);
-	motorState = on ? 1 : 0;
-	counterHigh = 0;
-	counterLow = 0;
-	position = 0;
-	ib[0] = 0x01;
-
-	ib[1] = 0x41;
-	ib[2] = 0x42;
-	ib[3] = 0x43;
-	ib[4] = 0x10;
-	ib[5] = 0x20;
-	ib[6] = 0x30;
-	ib[7] = 0x40;
-	ib[8] = 0x50;
-	ib[9] = 0x60;
-	ib[10] = 0x70;
-	ib[11] = 0x80;
-	ib[12] = 0x90;
-	ib[13] = 0x05;
-	ib[14] = 0x05;
-	ib[15] = 0x05;
-	ib[16] = 0x05;
-	ib[17] = 0x0D;
-
-	ib[18] = 0x00;
-	ib[19] = 0x12;
-
-	ib[20] = 0x00;
-	ib[21] = 0x12;
-
-	ib[22] = 0x00;
-	ib[23] = 0x12;
-}
-
-bool
-CatTape::getMotorState()
-{
-	return motorState ? true : false;
-}
-
-void
-CatTape::writeData(bool bit)
-{
-	if(motorState != 0) {
-//		jslogHex02(bit ? 0xFF : 0x00);
-	}
-}
-
-bool
-CatTape::readData()
-{
-	if(motorState != 0) {
-		// 立ち上がりの検出の後に1ビット読み込んでるみたいなので、これで行ける？
-		if(counterHigh == 0) {
-			counterHigh++;
-			return false;
-		}
-		if(counterHigh == 1) {
-			counterHigh++;
-			return true;
-		}
-		counterHigh = 0;
-		return getNextBit();
-	}
-	return false;
-}
-
-void
-CatTape::seek()
-{
-}
-
-bool
-CatTape::getNextBit()
-{
-	// GAP
-	position++;
-	if(position <= 22000) {
-		return false;
-	}
-	if(position <= 22000 + 40) {
-		return true;
-	}
-	if(position <= 22000 + 40 + 40) {
-		return false;
-	}
-	if(position <= 22000 + 40 + 40 + 1) {
-		return true;
-	}
-
-	// IB 128byte
-	if(position <= 22000 + 40 + 40 + 1 + 128*8) {
-		//
-		auto p = position - (22000 + 40 + 40 + 1);
-		u8 bit = p & 0x07;
-		return (ib[p >> 8] & (1<<bit)) != 0;
-	}
-	// CheckSum 2バイト
-	if(position <= 22000 + 40 + 40 + 1 + 128*8 + 2*8) {
-		//
-		return false;
-	}
-	if(position <= 22000 + 40 + 40 + 1 + 128*8 + 2*8 + 1) {
-		//
-		return true;
-	}
-	if(position <= 22000 + 40 + 40 + 1 + 128*8 + 2*8 + 1 + 256) {
-		//
-		return false;
-	}
-	if(position <= 22000 + 40 + 40 + 1 + 128*8 + 2*8 + 1 + 256+ 128*8) {
-		//
-		return false;
-	}
-	if(position <= 22000 + 40 + 40 + 1 + 128*8 + 2*8 + 1 + 256+ 128*8 + 2*8) {
-		//
-		return false;
-	}
-	if(position <= 22000 + 40 + 40 + 1 + 128*8 + 2*8 + 1 + 256+ 128*8 + 2*8+1) {
-		//
-		return true;
-	}
-
-
-
-	return false;
 }
 
 #endif // ENABLE_TARGET_MZ700

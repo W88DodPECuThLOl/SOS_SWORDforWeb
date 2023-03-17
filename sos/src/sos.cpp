@@ -143,6 +143,7 @@ class SOS_Context {
 	 * @brief グローバルTick
 	 */
 	u64 globalTick;
+	u64 globalTick2;
 
 	/**
 	 * @brief Z80エミュレータ
@@ -504,6 +505,7 @@ public:
 	 */
 	SOS_Context(s32 platformID)
 		: globalTick(0)
+		, globalTick2(0)
 		, z80(SOS_Context::readByte, SOS_Context::writeByte, SOS_Context::inPort, SOS_Context::outPort, (void*)this, true)
 		, status(0)
 		, platformID(platformID)
@@ -532,6 +534,7 @@ public:
 	void consumeClock(int clocks)
 	{
 		globalTick += clocks;
+		globalTick2 += clocks;
 	}
 
 	/**
@@ -540,9 +543,11 @@ public:
 	void reset()
 	{
 		z80.initialize();
+		globalTick = 0;
+		globalTick2 = 0;
+		z80.setConsumeClockCallback(callbackConsumeClock);
 		initInterrupt();
 		setVRAMDirty();
-		globalTick = 0;
 	}
 
 	/**
@@ -586,6 +591,7 @@ public:
 	s32 getExecutedClock() const noexcept {return z80.getExecutedClock(); }
 	u64 getGlobalTick() const noexcept {return globalTick; }
 	void resetGlobalTick() { globalTick = 0; }
+	u64 getGlobal2Tick() const noexcept {return globalTick2; }
 
 	/**
 	 * @brief IRQ割り込み要求
@@ -732,6 +738,11 @@ u64
 getGlobalTick()
 {
 	return ctx->getGlobalTick();
+}
+u64
+getGlobal2Tick()
+{
+	return ctx->getGlobal2Tick();
 }
 
 

@@ -5,31 +5,75 @@
 #if ENABLE_TARGET_MZ700
 
 namespace Intel8253 {
-class Cat8253;
+class CatMZ8253;
 } // namespace Intel8253
+namespace tape {
+class CatTape;
+} // namespace tape
 
+#if false
 /**
  * @brief テープデバイス
  */
 class CatTape {
+	u64 baseTimeStamp;
+	u64 prevTimeStamp;
+	/**
+	 * @brief モーターの状態
+	 */
 	u8 motorState;
+
+
+
+
 	u64 counter;
 	u8 counterHigh;
 	u8 counterLow;
 	u64 position;
 	u8 ib[128];
 
-	bool getNextBit();
+
+
+	u64 index = 0;
+	u32 tapeImageSize = 0;
+	u8 tapeImage[(0x55F0*2+0x28*2+0x28*4 + 4) / 8 + 128*4/8 + 1024*64];
+	void writeImage(bool bit);
+	void writeSpace(int size);
+	void writeShort();
+	void writeLong();
+	void writeByte(u8 value);
+public:
+	void createTestImage();
+private:
+	bool tapeRead(u32 offset, u8 bitNo);
+
+
+
+
+
+
+
+
+
+
+
+
+	/**
+	 * @brief 読み込み
+	 * @param[in]	elapsed	経過時間(μ秒)
+	 */
+	bool readBit(double elapsed);
 public:
 	CatTape();
 
-	void motor(bool on);
+	void motor(const u64 timeStamp, bool on);
 	bool getMotorState();
-	void writeData(bool bit);
-	bool readData();
+	void writeData(const u64 timeStamp, bool bit);
+	bool readData(const u64 timeStamp);
 
 	void seek();
 };
+#endif
 
 /**
  * @brief MZ700
@@ -123,11 +167,11 @@ class CatPlatformMZ700 : public CatPlatformBase {
 	class CursorTimer* cursorTimer;
 
 	/**
-	 * @brief 8253のタイマーIC
+	 * @brief Intel8253のタイマーIC
 	 */
-	Intel8253::Cat8253* timer8253;
+	Intel8253::CatMZ8253* timer8253;
 
-	CatTape* tape;
+	tape::CatTape* tape;
 
 	u8 tempo; // テンポタイマー入力 @todo ?
 

@@ -11,6 +11,18 @@ class CatPlatformX1 : public CatPlatformBase {
 	s32 currentTick;
 
 	/**
+	 * @brief バンクメモリ0～15
+	 */
+	u8 bankMemory[16*0x8000];
+	/**
+	 * @brief メモリ／バンクメモリ切り替え
+	 * 
+	 * 0x00～0x0F : バンクメモリ
+	 * 0x10 : メモリ
+	 */
+	u8 bankMemoryIndex;
+
+	/**
 	 * @brief グラフィックVRAMのイメージ
 	 */
 	u8* imageMemory;
@@ -117,8 +129,24 @@ public:
 	 */
 	virtual void tick(s32 tick) override;
 
-	virtual void platformWriteMemory(u8* mem, u16 address, u8 value) override { mem[address] = value; }
-	virtual u8 platformReadMemory(u8* mem, u16 address) override { return mem[address]; }
+	virtual void platformWriteMemory(u8* mem, u16 address, u8 value) override {
+		if(address < 0x8000) {
+			if(bankMemoryIndex < 0x10) {
+				// バンクメモリ 0 ～ 15
+				bankMemory[0x8000 * bankMemoryIndex + address] = value;
+			}
+		}
+		mem[address] = value;
+	}
+	virtual u8 platformReadMemory(u8* mem, u16 address) override {
+		if(address < 0x8000) {
+			if(bankMemoryIndex < 0x10) {
+				// バンクメモリ 0 ～ 15
+				return bankMemory[0x8000 * bankMemoryIndex + address];
+			}
+		}
+		return mem[address];
+	}
 
 	/**
 	 * @brief 機種毎のOUT処理

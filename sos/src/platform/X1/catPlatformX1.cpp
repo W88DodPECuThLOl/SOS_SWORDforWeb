@@ -212,6 +212,7 @@ CatPlatformX1::renderText()
 
 CatPlatformX1::CatPlatformX1()
 	: currentTick()
+	, bankMemoryIndex(0x10) // メモリ／バンクメモリ切り替え
 	, imageMemory(new u8[CatPlatformX1::GVRAM_SIZE])
 	, ctc(new CatCTC())
 	, ctc_0704(new CatCTC())
@@ -258,6 +259,8 @@ CatPlatformX1::initialize(void* config)
 	terminate();
 
 	currentTick = 0;
+	// メモリ／バンクメモリ切り替え
+	bankMemoryIndex = 0x10; // メモリに設定
 
 	// スクリーンのイメージ初期化
 	initializeScreenImage();
@@ -544,6 +547,9 @@ CatPlatformX1::platformOutPort(u8* io, u16 port, u8 value)
 			setVRAMDirty();
 		}
 		io[0x1FD0] = value;
+	} else if(port == 0x0B00) {
+		// メモリ／バンクメモリ切り替え
+		bankMemoryIndex = value & 0x1F;
 	}
 }
 

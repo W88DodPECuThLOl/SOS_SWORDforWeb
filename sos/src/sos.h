@@ -173,7 +173,9 @@ extern "C" void* scanKey();
  * @return 実行されたクロック数
  */
 s32 getExecutedClock();
-u64 getGlobalTick();
+u64 getGlobalTick();	// @todo サウンド用
+u64 getGlobal2Tick(); // @todo 本物　んにゃ～～～整理すること
+
 
 void generateIRQ(const u8 vector);
 void requestBreak();
