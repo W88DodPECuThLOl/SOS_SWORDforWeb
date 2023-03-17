@@ -28,6 +28,9 @@
 		<style>
 			@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap');
 		</style>
+		<!-- 実験中 Window表示
+		<script src="https://riversun.github.io/jsframe/jsframe.js"></script>
+		-->
 	</head>
 	<body>
 		<div>
@@ -108,15 +111,16 @@
 									<li><div id="save4" class="media-menu-item-disable">Save disk image</div></li>
 								</ul>
 							</li>
-							<!--
 							<li><div class="cat-media-icon-tape"></div>
 								<ul>
-									<li><div class="media-menu-item-header">Drive T(Tape)</div></li>
+									<li><div class="media-menu-item-header">Tape</div></li>
 									<li><div>Insert tape image</div></li>
-									<li><div class="media-menu-item-disable">Remove tape image</div></li>
+									<li><div>Insert blank image</div></li>
+									<li><div class="media-menu-item-disable">Eject tape image</div></li>
+									<li><div class="media-menu-item-disable">Forward</div></li>
+									<li><div class="media-menu-item-disable">Go back</div></li>
 								</ul>
 							</li>
-							-->
 						</ul>
 					</div>
 					<div class="sos-logo">
@@ -139,9 +143,34 @@
 				</div>
 			</div>
 		</div>
-
 		<script type="module">
 			"use strict";
+
+/*
+const dis = new CatDisZ80();
+for(let i = 0x00; i < 0x7F; ++i) {
+	const disAssembleInfo = dis.getText(0x0000, [i, 0x01, 0x02, 0x03]);
+	console.log(
+		i.toString(16).padStart(2, "0").toUpperCase() + " " + disAssembleInfo.cmd + " " + disAssembleInfo.op
+	);
+}
+
+const jsFrame = new JSFrame();
+const frame = jsFrame.create({
+    title: 'ウィンドウ',
+    left: 20, top: 20, width: 320, height: 220,
+    movable: true,//マウスで移動可能
+    resizable: true,//マウスでリサイズ可能
+    html: `<div id="my_element" style="padding:10px;font-size:12px;color:darkgray;">Contents of window</div>
+	<br>
+	<div>`+
+		`0000 00 LD <span class="css-tooltip" data-tooltip="$20">A</span>,<span class="css-tooltip" data-tooltip="$12">B</span>`
+	+ `</div>`
+});
+//ウィンドウを表示する
+frame.show();
+*/
+
 			// D88
 			import Context from './js/HuBasic/HuBasic/Context.mjs';
 			import HuBasicDisk from './js/HuBasic/HuBasic/HuBasicDisk.mjs';
@@ -150,6 +179,11 @@
 			import CatTextScreen from './js/cat/catTextScreen.js';
 			import CatGamePad from './js/cat/catGamePad.js';
 			import CatFullScreen from './js/cat/catFullScreen.js';
+			// Z80 Debug
+			import {CatDisZ80} from './js/cat/catDisZ80.js';
+			
+
+			
 
 			// URL Param
 			// ?fnt=PC8001でPC8001風のフォントマップに
