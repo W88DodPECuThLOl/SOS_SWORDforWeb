@@ -509,10 +509,12 @@ class TaskContext {
 			"Syntax Error ",
 			"Bad Data"
 		];
-		if(errorCode < 0 || errorCode > 14) {
-			errorCode = SOSErrorCode.BadData;
+		if(errorCode < 0 || errorCode >= 14) {
+			// 範囲外だった場合
+			this.printNativeMsg("Error $" + ToStringHex2(errorCode));
+		} else {
+			this.printNativeMsg(errorMsg[errorCode]);
 		}
-		this.printNativeMsg(errorMsg[errorCode]);
 	}
 
 	/**

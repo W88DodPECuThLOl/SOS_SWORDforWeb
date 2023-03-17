@@ -6,6 +6,64 @@ export default class {
 	// CatKey
 
 	/**
+	 * キー変換関数
+	 * 
+	 * KeyEventからキーコードを生成する
+	 * @type {function}
+	 */
+	#keyCodeConverter;
+
+	/**
+	 * キーに入力バッファ
+	 * 
+	 * 入力されたキーが一旦蓄えられる
+	 * dequeueKeyBuffer()で取得する。
+	 * @type {number|string[]}
+	 */
+	#keyBuffer;
+
+	/**
+	 * キーバッファの最大サイズ
+	 * @type {number}
+	 */
+	#keyBufferSize;
+
+	/**
+	 * キーの押下状態
+	 * 
+	 * 押されていればtrue。
+	 * @type {Map}
+	 */
+	#keyDown;
+	/**
+	 * @type {number}
+	 */
+	#index = 1;
+
+	#ctrlKey;
+	#shiftKey;
+	#capsLock;
+	#altKey;
+
+	/**
+	 * コンストラクタ
+	 * @param {*} document ドキュメント
+	 * @param {function} keyCodeConverter (keyイベント)=>{return UTF-32 or 文字列}
+	 */
+	constructor(document, keyCodeConverter)
+	{
+		this.#keyDown = new Map();
+		this.#keyCodeConverter = keyCodeConverter ? keyCodeConverter : this.#defaultKeyConverter;
+		this.#keyBuffer = [];
+		this.#keyBufferSize = 16;
+		this.#shiftKey = false;
+		this.#ctrlKey = false;
+		this.#capsLock = false;
+		document.addEventListener('keydown', (e)=>this.#keyDownHandler(this, e), false);
+		document.addEventListener('keyup', (e)=>this.#keyUpHandler(this, e), false);
+	}
+
+	/**
 	 * デフォルトのキー変換関数
 	 * 
 	 * 数値の場合はUTF-32。文字列の場合は、制御コード。
@@ -65,47 +123,6 @@ export default class {
 		return keyCode;
 	}
 
-	/**
-	 * キー変換関数
-	 * 
-	 * KeyEventからキーコードを生成する
-	 * @type {function}
-	 */
-	#keyCodeConverter;
-
-	/**
-	 * キーに入力バッファ
-	 * 
-	 * 入力されたキーが一旦蓄えられる
-	 * dequeueKeyBuffer()で取得する。
-	 * @type {number|string[]}
-	 */
-	#keyBuffer;
-
-	/**
-	 * キーバッファの最大サイズ
-	 * @type {number}
-	 */
-	#keyBufferSize;
-
-	/**
-	 * キーの押下状態
-	 * 
-	 * 押されていればtrue。
-	 * @type {Map}
-	 */
-	#keyDown;
-
-	#ctrlKey;
-	#shiftKey;
-	#capsLock;
-	#altKey;
-
-	/**
-	 * 最後に押下されたキーコード
-	 * @type {number|string}
-	 */
-	#lastKeyCode;
 
 	#updateCapsLockState(e)
     {
@@ -124,15 +141,20 @@ export default class {
 	 * @param {KeyEvent} e キーイベント
 	 */
 	#keyDownHandler(self, e) {
-		this.#shiftKey = !!e.shiftKey;
-		this.#ctrlKey = !!e.ctrlKey;
-		this.#altKey = !!e.altKey;
+		self.#shiftKey = !!e.shiftKey;
+		self.#ctrlKey = !!e.ctrlKey;
+		self.#altKey = !!e.altKey;
 
-		this.#keyDown.set(e.key, true);
+		// キー押下状態の更新
+		{
+			self.#keyDown.set(e.keyCode, { prio: self.#index, e: e });
+			self.#index++;
+			self.#keyDown = new Map([...this.#keyDown].sort((a,b)=> b[1].prio - a[1].prio).slice(0, 6));
+			//console.log("#keyDownHandler keyCode:" + e.keyCode + " key:" + e.key + " cnt:" + self.#keyDown.size);
+		}
 
 		if(document.body !== document.activeElement) {
-			// フォーカスがなかったら処理しない
-			return false;
+			return false; // フォーカスがなかったら処理しない
 		}		
 
 		// キー入力
@@ -152,40 +174,20 @@ export default class {
 	 * @param {KeyEvent} e キーイベント
 	 */
 	#keyUpHandler(self, e) {
-		this.#keyDown.set(e.key, false);
-
-		const keyCode = self.#keyCodeConverter(e);
-		if(keyCode) {
-			self.keyUp(keyCode);
+		// キー押下状態の更新
+		{
+			if(self.#keyDown.has(e.keyCode)) { self.#keyDown.delete(e.keyCode); }
+			self.#keyDown = new Map([...this.#keyDown].sort((a,b)=> b[1].prio - a[1].prio).slice(0, 6));
+			//console.log("#keyUpHandler keyCode:" + e.keyCode + " key:" + e.key + " cnt:" + self.#keyDown.size);
 		}
-	}
 
-	/**
-	 * 
-	 * @param {number|string} keyCode キーコード
-	 */
-	keyUp(keyCode)
-	{
-		//this.#keyDown.set(keyCode, false);
-	}
+		if(document.body !== document.activeElement) {
+			return false; // フォーカスがなかったら処理しない
+		}		
 
-	/**
-	 * コンストラクタ
-	 * @param {*} document ドキュメント
-	 * @param {function} keyCodeConverter (keyイベント)=>{return UTF-32 or 文字列}
-	 */
-	constructor(document, keyCodeConverter)
-	{
-		this.#keyDown = new Map();
-		this.#keyCodeConverter = keyCodeConverter ? keyCodeConverter : this.#defaultKeyConverter;
-		this.#keyBuffer = [];
-		this.#keyBufferSize = 16;
-		this.#lastKeyCode = '';
-		this.#shiftKey = false;
-		this.#ctrlKey = false;
-		this.#capsLock = false;
-		document.addEventListener('keydown', (e)=>this.#keyDownHandler(this, e), false);
-		document.addEventListener('keyup', (e)=>this.#keyUpHandler(this, e), false);
+		// イベントを処理したので、イベントの処理を他にやらせないようにする
+		e.preventDefault();
+		e.stopPropagation();
 	}
 
 	/**
@@ -194,9 +196,6 @@ export default class {
 	 * @returns {boolean} キューに入れれたら true
 	 */
 	enqueueKeyBuffer(keyCode) {
-//		this.#keyDown.set(keyCode, true);
-		// 最後に入力されたキーコードを覚えておく
-		this.#lastKeyCode = keyCode;
 		// キューに積む
 		if(this.#keyBuffer.length < this.#keyBufferSize) {
 			this.#keyBuffer.unshift(keyCode);
@@ -223,8 +222,8 @@ export default class {
 	 */
 	keyBufferClear() {
 		this.#keyBuffer.length = 0;
-		this.#keyDown = new Map();
-		this.#lastKeyCode = 0;
+		this.#keyDown.clear();
+		this.#index = 1;
 
 		this.#shiftKey = false;
 		this.#ctrlKey = false;
@@ -238,8 +237,19 @@ export default class {
 	 */
 	isKeyDown(keyCode)
 	{
-		if(this.#keyDown.has(keyCode)) {
-			return !!this.#keyDown.get(keyCode);
+		for(let e of this.#keyDown) {
+			if(this.#keyCodeConverter(e[1].e) == keyCode) {
+				return true;
+			}
+		}
+		return false;
+	}
+	isKeyDownRaw(keyCode)
+	{
+		for(let e of this.#keyDown) {
+			if(e[1].e.key == keyCode) {
+				return true;
+			}
 		}
 		return false;
 	}
@@ -249,10 +259,14 @@ export default class {
 	 * @returns {number|string} キーコード。押下されていなかったら0を返す。
 	 */
 	inKey() {
-		if(this.#lastKeyCode
-			&& this.#keyDown.has(this.#lastKeyCode)
-			&& this.#keyDown.get(this.#lastKeyCode)) {
-			return this.#lastKeyCode;
+		// 最後付近に押下されたものをINKEYで返すように
+		//
+		// そうすると、方向キー押下中に、スペース押下みたいなので、
+		// スペースを離したときに、方向キーの入力を返すことができるようになる。
+		// (移動中に弾を撃ったりなどが、スムーズになるかも？)
+		if(this.#keyDown.size > 0) {
+			let temp = [...this.#keyDown].sort((a,b)=> b[1].prio - a[1].prio);
+			return this.#keyCodeConverter(temp[0][1].e);
 		}
 		return 0;
 	}

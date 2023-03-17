@@ -735,12 +735,10 @@ class SOS {
 	 */
 	sos_getky(ctx){
 		this.#Log(ctx, "sos_getky");
-		let key = Number(ctx.keyMan.inKey());
-		if(isNaN(key)) {
-			key = 0; // キー文字列の場合は、0にしておく
-		}
-		this.#setA(key);
+		const ascii = this.#convertKeyToSOSAscii(ctx.keyMan.inKey());
+		this.#setA(ascii);
 	}
+
 	/**
 	 * #BRKEY(1FCDH)
 	 * 
@@ -750,7 +748,7 @@ class SOS {
 	 */
 	sos_brkey(ctx){
 		this.#Log(ctx, "sos_brkey");
-		if(ctx.keyMan.isKeyDown(0x1B)) {
+		if(ctx.keyMan.isKeyDown(SOSKeyCode.BRK)) {
 			this.#setZ();
 		} else {
 			this.#clearZ();
@@ -770,25 +768,22 @@ class SOS {
 			this.#isCpuOccupation = true;
 			return;
 		} else {
-			let key = Number(ctx.keyMan.inKey());
-			if(isNaN(key)) {
-				key = 0;
-			}
-			if(key) {
+			const ascii = this.#convertKeyToSOSAscii(ctx.keyMan.inKey());
+			if(ascii) {
 				this.#Log(ctx, "sos_inkey - z80 wakeup!");
 				this.#isCpuOccupation = false;
-				this.#setA(key);
+				this.#setA(ascii);
 
 				this.setPC(this.#getPC() + 3);
 				return;
 			} else {
-				this.#Log(ctx, "sos_inkey - working");
+				//this.#Log(ctx, "sos_inkey - working");
 				return;
 			}
 		}
 	}
 	/**
-	 * #PAUSE(1F07H)      ※メモ）1FC7Hが正しいはず
+	 * #PAUSE(1FC7H)
 	 * 
 	 * ｽﾍﾟｰｽが押されていれば、再び何かｷｰを押すまでﾘﾀｰﾝしない。  
 	 * このときSHIFT+BREAKを押すと、このﾙｰﾁﾝをｺｰﾙした次のｱﾄﾞﾚｽの２ﾊﾞｲﾄの内容を参照し、そこヘｼﾞｬﾝﾌﾟする。  
@@ -804,7 +799,7 @@ class SOS {
 		// 戻るアドレスを取得
 		let retAddress = this.#memReadU16(this.#getSP());
 		if(this.#pauseState == PauseState.Idle) {
-			if(ctx.keyMan.isKeyDown(0x20)) {
+			if(ctx.keyMan.isKeyDown(SOSKeyCode.SPACE)) {
 				// スペースキー押された
 				// キーバッファをクリアしておく
 				ctx.keyMan.keyBufferClear();
@@ -822,7 +817,7 @@ class SOS {
 			}
 		} else if(this.#pauseState == PauseState.Pause) {
 			// ポーズ中
-			if(ctx.keyMan.isKeyDown(0x1B)) {
+			if(ctx.keyMan.isKeyDown(SOSKeyCode.BRK)) {
 				// ポーズ中にbreakキー押された
 				// 戻るアドレスを書き換える
 				this.#memWriteU16(this.#getSP(), this.#memReadU16(retAddress));
@@ -836,8 +831,7 @@ class SOS {
 				this.setPC(this.#getPC() + 3);
 				return;
 			} else {
-				let key = Number(ctx.keyMan.inKey());
-				if(isNaN(key)) { key = 0; }
+				const key = this.#convertKeyToSOSAscii(ctx.keyMan.inKey());
 				if(key) {
 					// ポーズ中に何か押された
 					// 戻るアドレスを書き換える
@@ -860,6 +854,7 @@ class SOS {
 	}
 	/**
 	 * #BELL(1FC4H)
+	 * 破壊: AF  
 	 * 
 	 * ベル（ビープ音）を鳴らす。
 	 * @todo 実装すること
@@ -1151,7 +1146,7 @@ class SOS {
 			this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.SIZE,  this.#memReadU16(ib_base + SOSInfomationBlock.ib_size));			// ファイルサイズ
 			this.#memWriteU16(this.#SOSWorkBaseAddress + SOSWorkAddr.EXADR, this.#memReadU16(ib_base + SOSInfomationBlock.ib_executeAddress)); // 実行アドレス
 			// キー処理
-			if(ctx.keyMan.isKeyDown(0x1B)) {
+			if(ctx.keyMan.isKeyDown(SOSKeyCode.BRK)) {
 				// ブレイクキー押下されてる
 				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DIRNO, 0);
 				this.#setA(SOSErrorCode.FileNotFound);
@@ -1408,7 +1403,7 @@ class SOS {
 		return;
 	}
 	/**
-	 * #FRRNT●(1F9DH)
+	 * #FPRNT●(1F9DH)
 	 * 
 	 * ﾃｰﾌﾟから読み込んだﾌｧｲﾙﾈｰﾑを表示する。  
 	 * ｽﾍﾟｰｽｷｰを押すと表示後一時停止する。
@@ -1725,7 +1720,7 @@ class SOS {
 	 * 
 	 * #FILEで設定されたﾌｧｲﾙ名を、DEﾚｼﾞｽﾀが示すﾒﾓﾘ上のﾃﾞｰﾀに変える。ﾘﾈｰﾑ。  
 	 * ﾒﾓﾘ上のﾃﾞｰﾀ中にﾃﾞﾊﾞｲｽﾃﾞｨｽｸﾘﾌﾟﾀが入っていても無視する。  
-	 * またDE＋16以内にｴﾝｺｰﾄﾞ（00H,'：'）がないときにはｴﾗｰが発生する。
+	 * またDE＋16以内にｴﾝｺｰﾄﾞ（00H,':'）がないときにはｴﾗｰが発生する。
 	 * @param {TaskContext} ctx 
 	 */
 	sos_name(ctx){
@@ -1889,13 +1884,12 @@ class SOS {
 			return;
 		} else {
 			// ユーザからの入力
-			let key = Number(ctx.keyMan.inKey());
-			if(isNaN(key)) { key = 0; }
-			if(key) {
+			const ascii = this.#convertKeyToSOSAscii(ctx.keyMan.inKey());
+			if(ascii) {
 				// 入力された
 				this.#Log(ctx, "sos_flget - z80 wakeup!");
 				this.#isCpuOccupation = false;
-				this.#setA(key);
+				this.#setA(ascii);
 				// カーソル非表示
 				ctx.setDisplayCursor(true);
 				// 正常終了
@@ -1918,7 +1912,8 @@ class SOS {
 	 */
 	sos_rdvsw(ctx){
 		this.#Log(ctx, "sos_rdvsw");
-		this.#setA(this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK));
+		const dsk = this.#memReadU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK);
+		this.#setA(dsk);
 	}
 	/**
 	 * #SDVSW※(2027H)
@@ -1931,6 +1926,18 @@ class SOS {
 	sos_sdvsw(ctx){
 		this.#Log(ctx, "sos_sdvsw");
 		this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DSK, this.#getA());
+		// #DVSWに設定
+		switch(this.#getA()) {
+			case 0x54: // T
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DVSW, 0);
+				break;
+			case 0x53: // S
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DVSW, 1);
+				break;
+			case 0x51: // Q
+				this.#memWriteU8(this.#SOSWorkBaseAddress + SOSWorkAddr.DVSW, 3);
+				break;
+		}
 	}
 	/**
 	 * #INP※(202AH)
@@ -1941,7 +1948,9 @@ class SOS {
 	 */
 	sos_inp(ctx){
 		this.#Log(ctx, "sos_inp");
+		this.#setA(this.ioRead(this.#getC()));
 	}
+
 	/**
 	 * #OUT※(202DH) 
 	 * 
@@ -1950,7 +1959,9 @@ class SOS {
 	 */
 	sos_out(ctx){
 		this.#Log(ctx, "sos_out");
+		this.ioWrite(this.#getC(), this.#getA())
 	}
+
 	/**
 	 * #WIDCH※(2030H)
 	 * 画面のﾓｰﾄﾞ（40ｷｬﾗ、80ｷｬﾗ）を切り替える。  
@@ -3976,5 +3987,27 @@ class SOS {
 		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_size,  size);
 		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_startAddress, dtadr);
 		this.#memWriteU16(ib_base + SOSInfomationBlock.ib_executeAddress, exadr);
+	}
+
+	/**
+	 * キー入力の値を、S-OSのアスキーコードに変換する
+	 * @param {number|string} key キー入力の値
+	 * @returns {number} S-OSのアスキーコード
+	 */
+	#convertKeyToSOSAscii(key)
+	{
+		let asciiCode = Number(key);
+		if(isNaN(asciiCode)) {
+			switch(key) {
+				case 'ArrowRight': asciiCode = SOSKeyCode.ArrowRight; break;
+				case 'ArrowLeft': asciiCode = SOSKeyCode.ArrowLeft; break;
+				case 'ArrowUp': asciiCode = SOSKeyCode.ArrowUp; break;
+				case 'ArrowDown': asciiCode = SOSKeyCode.ArrowDown; break;
+				default:
+					asciiCode = SOSKeyCode.NUL;
+					break;
+			}
+		}
+		return asciiCode;
 	}
 }

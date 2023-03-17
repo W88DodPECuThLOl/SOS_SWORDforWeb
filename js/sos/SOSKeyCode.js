@@ -35,6 +35,34 @@ class SOSKeyCode {
 
 	/**
 	 * S-OSのキーコード
+	 * 右カーソルキー
+	 * @type {number}
+	 */
+	static ArrowRight = 0x1C;
+
+	/**
+	 * S-OSのキーコード
+	 * 左カーソルキー
+	 * @type {number}
+	 */
+	static ArrowLeft = 0x1D;
+
+	/**
+	 * S-OSのキーコード
+	 * 上カーソルキー
+	 * @type {number}
+	 */
+	static ArrowUp = 0x1E;
+
+	/**
+	 * S-OSのキーコード
+	 * 下カーソルキー
+	 * @type {number}
+	 */
+	static ArrowDown = 0x1F;
+
+	/**
+	 * S-OSのキーコード
 	 * スペース
 	 * @type {number}
 	 */

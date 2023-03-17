@@ -467,7 +467,7 @@ class Z80Emu {
 		keyMemory.fill(0xFF);
 		for(let s of scanMap.keys()) {
 			const pair = scanMap.get(s);
-			if(this.#ctx.keyMan.isKeyDown(s)) {
+			if(this.#ctx.keyMan.isKeyDownRaw(s)) {
 				keyMemory[pair.strobe] &= ~pair.value;
 			}
 		}
