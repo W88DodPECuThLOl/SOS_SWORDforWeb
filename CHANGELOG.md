@@ -2,7 +2,7 @@
 
 ## 既知のバグ
 
-- 変なカーソルが表示されてしまう...
+- 変なカーソルが表示されてしまう... :crying_cat_face:
 
 ## [0.00.03] - 2023-03
 
@@ -18,13 +18,13 @@
       - SHIFTキーのみのときは、S-OS形式の18バイトヘッダ付きで保存
       - SHIFTキーとCTRLキー両方押下のときは、ヘッダを付けずにそのままでファイルで保存
 - S-OS サブルーチン
-  - S-OS #INP
+  - [S-OS #INP](https://github.com/W88DodPECuThLOl/SOS_SWORDforWeb/wiki/S%E2%80%90OS-Subroutines#inp0x202a)
     - 実装
-  - S-OS #OUT
+  - [S-OS #OUT](https://github.com/W88DodPECuThLOl/SOS_SWORDforWeb/wiki/S%E2%80%90OS-Subroutines#out0x202d)
     - 実装
-  - S-OS #SDVSW
+  - [S-OS #SDVSW](https://github.com/W88DodPECuThLOl/SOS_SWORDforWeb/wiki/S%E2%80%90OS-Subroutines#sdvsw0x2027)
     - デバイス名に応じて、#DVSWを設定するように修正
-  - S-OS #ERROR
+  - [S-OS #ERROR](https://github.com/W88DodPECuThLOl/SOS_SWORDforWeb/wiki/S%E2%80%90OS-Subroutines#error0x2033)
     - エラーコードが範囲外であった場合、  
       "Error $xx"のように、エラーコードを16進数2桁で表示するように修正
 - Z80 Emu
