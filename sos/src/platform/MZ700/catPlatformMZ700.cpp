@@ -179,7 +179,7 @@ class CursorTimer {
 	/**
 	 * @brief 点滅の間隔（単位はクロック）
 	 */
-	static constexpr s32 CURSOR_BLINK_COUNT = 4000000 * 2;
+	static constexpr s32 CURSOR_BLINK_COUNT = 4000000 * 0.8;
 
 	/**
 	 * @brief 内部カウンタ（単位はクロック）
@@ -223,7 +223,7 @@ public:
 	 * @brief カーソル表示状態を取得する
 	 * @return カーソル表示状態
 	 */
-	bool isActive() const noexcept { return counter < (CURSOR_BLINK_COUNT / 2); }
+	bool isActive() const noexcept { return counter > (CURSOR_BLINK_COUNT / 2); }
 };
 
 
