@@ -630,7 +630,7 @@ export default class {
 		} else {
 			if(this.#is2BytesFAT()) {
 				// 128バイト目からの上位ビットも考慮する
-				// メモ）2Dで、上位ビットが0で無いものがあるので、判定している取得している
+				// メモ）2Dで、上位ビットが0で無いものがあるので、判定して取得している
 				result |= (this.#AllocationController[offset].GetByte(pos + 0x80) << 7);
 			}
 			return result;
@@ -645,8 +645,7 @@ export default class {
 	#IsEndCluster(pos) {
 		// FATのセクタ 0～3
 		//  0  : 2D
-		//  0-1: 2DD
-		//  0-2: 2HD ?
+		//  0-1: 2DD, 2HD
 		//  0-3: ハードディスク?
 		const offset = pos / 0x80 | 0;
 		// FATのセクタ内での位置 0～127

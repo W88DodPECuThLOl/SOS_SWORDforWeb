@@ -123,7 +123,6 @@ export default class {
 		return keyCode;
 	}
 
-
 	#updateCapsLockState(e)
     {
         if(e.getModifierState("CapsLock") === false) {
@@ -144,6 +143,7 @@ export default class {
 		self.#shiftKey = !!e.shiftKey;
 		self.#ctrlKey = !!e.ctrlKey;
 		self.#altKey = !!e.altKey;
+		self.#updateCapsLockState(e);
 
 		// キー押下状態の更新
 		{
@@ -174,6 +174,8 @@ export default class {
 	 * @param {KeyEvent} e キーイベント
 	 */
 	#keyUpHandler(self, e) {
+		self.#updateCapsLockState(e);
+
 		// キー押下状態の更新
 		{
 			if(self.#keyDown.has(e.keyCode)) { self.#keyDown.delete(e.keyCode); }

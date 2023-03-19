@@ -562,6 +562,25 @@ export default class {
 	}
 
 	/**
+	 * (begin,end]の範囲を消去する
+	 * @param {{x:number, y:number}} begin 範囲の開始位置
+	 * @param {{x:number, y:number}} end 範囲の終了位置
+	 * @param {number} codePoint 設定する文字(UTF-32)
+	 */
+	eraseRange(begin, end, codePoint = 0)
+	{
+		this.#isModified = true; // 変更フラグセット
+		let   dstIndex = this.#calcTextAddressNoClip(begin.x, begin.y);
+		const endIndex = this.#calcTextAddressNoClip(end.x, end.y);
+		while(dstIndex < endIndex) {
+			this.#tram[dstIndex + this.#codePointIndex] = codePoint;
+			this.#tram[dstIndex + this.#colorIndex] = this.getColor();
+			this.#tram[dstIndex + this.#attrIndex] = this.getAttr();
+			dstIndex += this.#letterSize;
+		}
+	}
+
+	/**
 	 * スペース(U+0020)を全角扱いにするかどうかを設定する
 	 * @param {boolean} spaceFull 全角扱いするならtrue
 	 */

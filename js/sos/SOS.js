@@ -535,8 +535,7 @@ class SOS {
 	 */
 	sos_ver(ctx){
 		this.#Log(ctx, "sos_ver");
-		//this.#setHL(0x7820); // @todo
-		this.#setHL(0x2820); // @todo
+		this.#setHL(0x2820);
 	}
 
 	/**

@@ -1,7 +1,7 @@
 "use strict";
 
 // @todo キーコード、まとめること
-const KeyCode_BackSpace = 0x0008; // BS
+const KeyCode_BackSpace = 'BackSpace'; // BS
 const KeyCode_CR = 0x000D; // Enterキー
 const KeyCode_BRK = 0x001B; // Breakキー
 const KeyCode_DEL = 'Delete'; // DELキー
@@ -121,7 +121,8 @@ class TaskLineInput {
 
 			// ユーザからの入力
 			const keyCode = ctx.keyMan.dequeueKeyBuffer();
-			if(keyCode > 0) {
+			if(keyCode == 0) {
+			} else if(keyCode > 0) {
 				if(keyCode == KeyCode_BRK) {
 					// Breakキーが押された
 					this.inputBuffer = [KeyCode_BRK, 0];
@@ -129,27 +130,12 @@ class TaskLineInput {
 					// カーソル非表示
 					ctx.setDisplayCursor(false);
 					return;
-				} else if(keyCode == KeyCode_BackSpace) {
-					// 1文字削除
-					ctx.catTextScreen.putch32(0x0008); // BS
-					return;
 				} else if(keyCode == KeyCode_CR) {
 					// Enterキー、入力完了
 					this.#lineCommit(ctx);
 					return;
 				}
 				ctx.catTextScreen.putch32(keyCode);
-			} else if(keyCode == KeyCode_DEL
-					|| keyCode == KeyCode_Home
-					|| keyCode == KeyCode_End
-					|| keyCode == KeyCode_ArrowLeft
-					|| keyCode == KeyCode_ArrowRight
-					|| keyCode == KeyCode_ArrowUp
-					|| keyCode == KeyCode_ArrowDown) {
-				// 制御キー
-				// 行頭へ、行末へ、カーソル移動、DELキー
-				ctx.catTextScreen.putch32(keyCode);
-				return;
 			} else if(keyCode == "F1" || keyCode == "F2" || keyCode == "F3" || keyCode == "F4" || keyCode == "F5" || keyCode == "F6" || keyCode == "F7" || keyCode == "F8" || keyCode == "F9" || keyCode == "F10") {
 				// ファンクションキーのテスト
 				for(let text of ctx.getFunctionKeyText(keyCode)) {
@@ -164,6 +150,9 @@ class TaskLineInput {
 			} else if(keyCode == KeyCode_KanjiMode) {
 				// 漢字モード　トグル
 				ctx.toggleKanjiMode();
+			} else {
+				// 制御キー
+				ctx.catTextScreen.putch32(keyCode);
 			}
 		};
 		this.#state[this.#state_end] = (ctx)=>{};

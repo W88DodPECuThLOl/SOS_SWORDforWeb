@@ -49,3 +49,52 @@
          transform: translate(0,0px); 
   }
   */
+
+
+.content-table {
+  border-collapse: collapse;
+  width:100%;
+  font-size: 1.5em;
+  overflow: hidden;
+}
+
+.content-table thead tr {
+  background: #005498;
+  color: #ffffff;
+  text-align: center;
+  font-weight: bold;
+}
+
+.content-table tbody tr {
+  border-bottom: 1px solid #dddddd;
+  transition: 0.8s all ease;
+}
+/* 偶数行をグレーに */
+.content-table tbody tr:nth-of-type(even) {
+  background: #f3f3f3;
+}
+/* テーブルの下の枠を装飾 */
+.content-table tbody tr:last-of-type {
+  border-bottom: 0.8em solid #005498;
+}
+/* マウスをのせた時のエフェクト */
+.content-table tbody tr:hover {
+  background: #f3f380;
+  color: #005498;
+}
+
+.content-table thead th {
+  resize: horizontal;
+  overflow: hidden;
+}
+
+.box {
+  overflow-y:scroll;
+  width:auto;
+  height: 270px;
+  margin: 10px;
+  overflow-y: scroll;          /* 縦方向にスクロール可能にする */
+  border-radius: 5px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.25);
+  font-size: 6px;
+}

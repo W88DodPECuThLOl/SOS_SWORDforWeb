@@ -45,18 +45,27 @@ export default class {
 	 */
 	#controlCharacter = new Map([
 		// 文字コード、処理する関数
-//		[0x0008, (ctx) => ctx.#backSpaceForLineEdit()], // BS
+		//		[0x0008, (ctx) => ctx.#backSpaceForLineEdit()], // BS
 		[0x0008, (ctx) => ctx.#backSpaceForEdit()], // BS
 		[0x000C, (ctx) => ctx.clearScreen()],			// CLS
 		[0x000D, (ctx) => ctx.#enter()],				// CR
-		//
+		// カーソル位置の文字を１文字削除し、１文字詰める
 		['Delete', (ctx) => ctx.#deleteForLineEdit()],    // DEL
+		//カーソル位置の前の文字を削除
+		['BackSpace', (ctx) => ctx.#backSpaceForEdit()],  // BackSpace
+		// カーソル位置を１文字分右へ移動する
 		['ArrowRight', (ctx) => ctx.#cursorMoveRight()],
+		// カーソル位置を１文字分左へ移動する
 		['ArrowLeft', (ctx) => ctx.#cursorMoveLeft()],
 		['ArrowUp', (ctx) => ctx.#cursorMoveUp()],
 		['ArrowDown', (ctx) => ctx.#cursorMoveDown()],
+		// 行頭へカーソルを移動
 		['Home', (ctx) => ctx.#ctrlHome()],
 		['End', (ctx) => ctx.#ctrlEnd()],
+		// カーソル位置から行末まで削除する
+		['EraseToLineEnd', (ctx) => ctx.#eraseToLineEnd()],
+		// カーソル位置から画面最後まで削除する
+		['EraseToScreenEnd', (ctx) => ctx.#eraseToScreenEnd()],
 	]);
 
 	// -----------------------------------------------------------------------------------------------------------
@@ -342,7 +351,8 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 
 
 	/**
-	 * １行編集時のデリート
+	 * １行編集時のデリート  
+	 * カーソル位置の文字を１文字削除し、１文字詰める
 	 */
 	#deleteForLineEdit()
 	{
@@ -373,6 +383,30 @@ while(end.x != this.#cursor.x || end.y != this.#cursor.y) {
 		const textEnd = this.#lineTextEnd(this.#cursor.y);
 		this.#cursor.x = textEnd.x;
 		this.#cursor.y = textEnd.y;
+		// カーソル表示位置を設定
+		this.#target.setCursor(this.#cursor.x, this.#cursor.y);
+	}
+
+	/**
+	 * カーソル位置以降、行末まで削除する
+	 */
+	#eraseToLineEnd()
+	{
+		const begin = this.#cursor;			// カーソル位置
+		const end = this.#lineEnd(begin.y); // 行の末尾
+		this.#target.eraseRange(begin, end); // (begin,end]  (カーソル位置,行の末尾]
+		// カーソル表示位置を設定
+		this.#target.setCursor(this.#cursor.x, this.#cursor.y);
+	}
+	#eraseToScreenEnd()
+	{
+		const begin = this.#cursor;			// カーソル位置
+		const end = {x: this.#range.right, y: this.#range.bottom - 1};
+		this.#target.eraseRange(begin, end); // (begin,end]  (カーソル位置,末尾]
+		// カーソル位置の行から最後まで、行の繋がりをクリアする
+		for(let y = this.#cursor.y; y < this.#range.bottom - 1; ++y) {
+			this.#lineContinue[y] = false;
+		}
 		// カーソル表示位置を設定
 		this.#target.setCursor(this.#cursor.x, this.#cursor.y);
 	}

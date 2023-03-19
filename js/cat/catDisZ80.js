@@ -36,7 +36,6 @@ export class CatDisZ80 {
         { size:1, mask: 0xFF, pat: 0x12, cmd: "LD", op: "(<mem16_DE>), <A>" },
         // 00110010 LD (nnmm), A
         { size:3, mask: 0xFF, pat: 0x32, cmd: "LD", op: "(<mem16>), <A>" },
-
     ];
     #tableDD = [
         // 1101 1101
